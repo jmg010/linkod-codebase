@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/login_screen.dart';
+import 'screens/landing_screen.dart';
 import 'ui_constants.dart';
 
 void main() {
@@ -36,7 +36,7 @@ class LinkodApp extends StatelessWidget {
           shadowColor: Colors.black12,
         ),
       ),
-      home: const LoginScreen(),
+      home: const LandingScreen(),
     );
   }
 }
