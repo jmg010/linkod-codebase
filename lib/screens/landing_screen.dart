@@ -3,6 +3,8 @@
 // Uses logo image from assets/images/linkod_logo.png
 
 import 'package:flutter/material.dart';
+import 'package:linkod_platform/screens/login_page.dart';
+
 
 class LandingScreen extends StatelessWidget {
   const LandingScreen({Key? key}) : super(key: key);
@@ -106,7 +108,10 @@ class LandingScreen extends StatelessWidget {
                   button: true,
                   child: ElevatedButton(
                     onPressed: () {
-                      debugPrint('Get Started pressed');
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const LoginPage())
+                      );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: kWhite,
