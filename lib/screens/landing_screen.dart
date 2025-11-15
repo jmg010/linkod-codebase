@@ -55,7 +55,7 @@ class LandingScreen extends StatelessWidget {
               Semantics(
                 label: 'Welcome label',
                 child: Text(
-                  'Welcome to',
+                  'Welcome to my blog',
                   style: TextStyle(
                     color: kWhite,
                     fontSize: welcomeFontSize,
