@@ -49,7 +49,6 @@ class LandingScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-
               SizedBox(height: MediaQuery.of(context).size.height * 0.15),
 
               // "Welcome to" text
@@ -171,4 +170,3 @@ class LandingScreen extends StatelessWidget {
     );
   }
 }
-
