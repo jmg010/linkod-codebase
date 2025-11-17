@@ -3,7 +3,9 @@
 // Uses logo image from assets/images/linkod_logo.png
 
 import 'package:flutter/material.dart';
-import 'package:linkod_platform/screens/login_page.dart';
+
+import 'create_account_screen.dart';
+import 'login_screen.dart';
 
 
 class LandingScreen extends StatelessWidget {
@@ -110,7 +112,7 @@ class LandingScreen extends StatelessWidget {
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const LoginPage())
+                        MaterialPageRoute(builder: (context) => const CreateAccountScreen())
                       );
                     },
                     style: ElevatedButton.styleFrom(
@@ -140,7 +142,12 @@ class LandingScreen extends StatelessWidget {
                 label: 'Sign in link',
                 child: GestureDetector(
                   onTap: () {
-                    debugPrint('Sign in tapped');
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const LoginScreen(),
+                      ),
+                    );
                   },
                   child: RichText(
                     textAlign: TextAlign.center,

@@ -1,43 +1,28 @@
 import 'package:flutter/material.dart';
 
-import '../models/user_role.dart';
-import 'create_account_screen.dart';
-import 'home_screen.dart';
-
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class CreateAccountScreen extends StatefulWidget {
+  const CreateAccountScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<CreateAccountScreen> createState() => _CreateAccountScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _CreateAccountScreenState extends State<CreateAccountScreen> {
+  final TextEditingController nameController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
-  bool obscurePassword = true;
+  bool obscure = true;
   bool isLoading = false;
 
-  @override
-  void dispose() {
-    phoneController.dispose();
-    passwordController.dispose();
-    super.dispose();
-  }
+  // Demographic categories
+  final List<String> categories = [
+    "Senior", "Student", "PWD", "Youth", "Farmer",
+    "Fisherman", "Tricycle Driver", "Small Business Owner",
+    "4Ps", "Tattoo", "Barangay Official", "Parent"
+  ];
 
-  void _handleLogin() {
-    if (isLoading) return;
-    setState(() => isLoading = true);
-
-    Future.delayed(const Duration(seconds: 1), () {
-      setState(() => isLoading = false);
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => const HomeScreen(userRole: UserRole.resident),
-        ),
-      );
-    });
-  }
+  final List<String> selectedCategories = [];
 
   @override
   Widget build(BuildContext context) {
@@ -75,13 +60,29 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       const Center(
                         child: Text(
-                          "Sign in your account",
+                          "Create an account",
                           textAlign: TextAlign.center,
                           style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                         ),
                       ),
                       const SizedBox(height: 24),
-                      const _RequiredLabel(text: "Phone Number"),
+
+                      // FULL NAME
+                      const Text("Full Name *"),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: nameController,
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 18),
+
+                      // PHONE NUMBER
+                      const Text("Phone Number *"),
                       const SizedBox(height: 6),
                       TextField(
                         controller: phoneController,
@@ -92,33 +93,69 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ),
+
                       const SizedBox(height: 18),
-                      const _RequiredLabel(text: "Password"),
+
+                      // PASSWORD
+                      const Text("Password *"),
                       const SizedBox(height: 6),
                       TextField(
                         controller: passwordController,
-                        obscureText: obscurePassword,
+                        obscureText: obscure,
                         decoration: InputDecoration(
+                          suffixIcon: IconButton(
+                            icon: Icon(obscure ? Icons.visibility_off : Icons.visibility),
+                            onPressed: () => setState(() => obscure = !obscure),
+                          ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          suffixIcon: IconButton(
-                            icon: Icon(obscurePassword ? Icons.visibility_off : Icons.visibility),
-                            onPressed: () {
-                              setState(() {
-                                obscurePassword = !obscurePassword;
-                              });
-                            },
-                          ),
                         ),
                       ),
+
+                      const SizedBox(height: 18),
+
+                      const Text(
+                        "Select your demographic categories:",
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 10),
+
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: categories.map((cat) {
+                          final bool isSelected = selectedCategories.contains(cat);
+                          return ChoiceChip(
+                            label: Text(cat),
+                            selected: isSelected,
+                            selectedColor: const Color(0xFF00A651),
+                            labelStyle: TextStyle(
+                              color: isSelected ? Colors.white : Colors.black,
+                            ),
+                            backgroundColor: Colors.grey[200],
+                            onSelected: (value) {
+                              setState(() {
+                                if (value) {
+                                  selectedCategories.add(cat);
+                                } else {
+                                  selectedCategories.remove(cat);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+
                       const SizedBox(height: 30),
+
+                      // SIGN UP BUTTON
                       Center(
                         child: SizedBox(
                           width: buttonWidth,
                           height: 50,
                           child: ElevatedButton(
-                            onPressed: _handleLogin,
+                            onPressed: isLoading ? null : _signup,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF00A651),
                               shape: RoundedRectangleBorder(
@@ -128,26 +165,13 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: isLoading
                                 ? const CircularProgressIndicator(color: Colors.white)
                                 : const Text(
-                                    'Sign in',
+                                    'Sign up',
                                     style: TextStyle(fontSize: 18, color: Colors.white),
                                   ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      Center(
-                        child: TextButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const CreateAccountScreen(),
-                              ),
-                            );
-                          },
-                          child: const Text("Don't have an account? Create one"),
-                        ),
-                      ),
+                      const SizedBox(height: 10),
                     ],
                   ),
                 ),
@@ -158,32 +182,11 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
-}
 
-class _RequiredLabel extends StatelessWidget {
-  final String text;
-  const _RequiredLabel({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return RichText(
-      text: TextSpan(
-        text: text,
-        style: const TextStyle(
-          color: Colors.black87,
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-        ),
-        children: const [
-          TextSpan(
-            text: ' *',
-            style: TextStyle(
-              color: Colors.red,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
+  void _signup() async {
+    setState(() => isLoading = true);
+    await Future.delayed(const Duration(seconds: 2));
+    setState(() => isLoading = false);
+    
   }
 }
