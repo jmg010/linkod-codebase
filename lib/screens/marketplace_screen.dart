@@ -139,98 +139,89 @@ class MarketplaceScreenState extends State<MarketplaceScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
-      body: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Marketplace',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black,
-                        ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      _PillButton(
-                        label: 'Sell',
-                        icon: Icons.sell_outlined,
-                        color: kFacebookBlue,
-                        foreground: Colors.white,
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Sell your items soon!')),
-                          );
-                        },
-                      ),
-                      const SizedBox(width: 12),
-                      _PillButton(
-                        label: 'Categories',
-                        icon: Icons.grid_view_rounded,
-                        color: Colors.grey.shade200,
-                        foreground: Colors.black87,
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Categories coming soon!')),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    "Today's picks",
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black87,
-                        ),
-                  ),
-                ],
-              ),
-            ),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        elevation: 0,
+        backgroundColor: Colors.white,
+        title: const Text(
+          'Marketplace',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
           ),
-          if (_products.isEmpty)
-            SliverFillRemaining(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.shopping_basket_outlined,
-                        size: 64, color: Colors.grey.shade400),
-                    const SizedBox(height: 12),
-                    Text(
-                      'No products available',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey.shade600,
-                          ),
+        ),
+      ),
+      body: Scrollbar(
+              thumbVisibility: false,
+              child: CustomScrollView(
+                slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                    child: Row(
+                      children: [
+                        _PillButton(
+                          label: 'Sell',
+                          icon: Icons.edit,
+                          color: const Color(0xFF20BF6B),
+                          foreground: Colors.white,
+                          onPressed: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Sell your items soon!')),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 12),
+                        _PillButton(
+                          label: 'My product',
+                          icon: Icons.inventory_2,
+                          color: Colors.grey.shade200,
+                          foreground: Colors.black87,
+                          onPressed: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('My products coming soon!')),
+                            );
+                          },
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              sliver: SliverGrid.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 0.7,
-                ),
-                itemCount: _products.length,
-                itemBuilder: (context, index) {
-                  return ProductCard(product: _products[index]);
-                },
+                if (_products.isEmpty)
+                  SliverFillRemaining(
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.shopping_basket_outlined,
+                              size: 64, color: Colors.grey.shade400),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No products available',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: Colors.grey.shade600,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          return ProductCard(product: _products[index]);
+                        },
+                        childCount: _products.length,
+                      ),
+                    ),
+                  ),
+              ],
               ),
             ),
-        ],
-      ),
     );
   }
 }

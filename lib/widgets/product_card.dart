@@ -13,7 +13,7 @@ class ProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: EdgeInsets.zero,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       clipBehavior: Clip.antiAlias,
       child: Padding(
         padding: const EdgeInsets.all(kPaddingSmall),

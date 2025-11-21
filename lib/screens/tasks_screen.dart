@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/task_model.dart';
-import '../widgets/task_card.dart';
+import '../widgets/errand_job_card.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -114,48 +114,134 @@ class TasksScreenState extends State<TasksScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_tasks.isEmpty) {
-      return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.task_alt, size: 64, color: Colors.grey[400]),
-              const SizedBox(height: 16),
-              Text(
-                'No tasks available',
-                style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-              ),
-            ],
+    return Scaffold(
+      backgroundColor: Colors.grey.shade100,
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        elevation: 0,
+        backgroundColor: Colors.white,
+        title: const Text(
+          'Errand/Job Post',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
           ),
         ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: _handlePostTask,
-          backgroundColor: Theme.of(context).colorScheme.primary,
-          foregroundColor: Colors.white,
-          icon: const Icon(Icons.add_task),
-          label: const Text('Post Task'),
-        ),
-      );
-    }
-
-    return Scaffold(
-      body: ListView.builder(
-        itemCount: _tasks.length,
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        itemBuilder: (context, index) {
-          return TaskCard(
-            task: _tasks[index],
-            onVolunteer: () => _handleVolunteer(_tasks[index]),
-          );
-        },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _handlePostTask,
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add_task),
-        label: const Text('Post Task'),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            child: Row(
+              children: [
+                _PillButton(
+                  label: 'Create post',
+                  icon: Icons.edit,
+                  color: const Color(0xFF20BF6B),
+                  foreground: Colors.white,
+                  onPressed: _handlePostTask,
+                ),
+                const SizedBox(width: 12),
+                _PillButton(
+                  label: 'My post',
+                  icon: Icons.inventory_2,
+                  color: Colors.grey.shade200,
+                  foreground: Colors.black87,
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('My posts coming soon!')),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: _tasks.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.task_alt, size: 64, color: Colors.grey[400]),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No tasks available',
+                          style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
+                  )
+                : Scrollbar(
+                    thumbVisibility: false,
+                    child: ListView.builder(
+                      itemCount: _tasks.length,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      itemBuilder: (context, index) {
+                        final task = _tasks[index];
+                        ErrandJobStatus? status;
+                        if (task.status == TaskStatus.open) {
+                          status = ErrandJobStatus.open;
+                        } else if (task.status == TaskStatus.ongoing) {
+                          status = ErrandJobStatus.ongoing;
+                        } else if (task.status == TaskStatus.completed) {
+                          status = ErrandJobStatus.completed;
+                        }
+                        
+                        return ErrandJobCard(
+                          title: task.title,
+                          description: task.description,
+                          postedBy: task.requesterName,
+                          date: task.createdAt,
+                          status: status,
+                          statusLabel: task.status.displayName,
+                          volunteerName: task.assignedTo,
+                          onViewPressed: () {
+                            debugPrint('View task: ${task.title}');
+                          },
+                          onVolunteerPressed: task.status == TaskStatus.open && task.assignedTo == null
+                              ? () => _handleVolunteer(task)
+                              : null,
+                        );
+                      },
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PillButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final Color foreground;
+  final VoidCallback onPressed;
+
+  const _PillButton({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.foreground,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+      style: FilledButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: foreground,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        elevation: 0,
       ),
     );
   }

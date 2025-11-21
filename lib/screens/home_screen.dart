@@ -4,6 +4,8 @@ import '../models/user_role.dart';
 import '../models/post_model.dart';
 import '../models/product_model.dart';
 import '../models/task_model.dart';
+import '../widgets/linkod_navbar.dart';
+import 'home_feed_screen.dart';
 import 'announcements_screen.dart';
 import 'marketplace_screen.dart';
 import 'tasks_screen.dart';
@@ -25,17 +27,20 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
+  NavDestination _currentNavDestination = NavDestination.home;
   final GlobalKey<AnnouncementsScreenState> _announcementsKey =
       GlobalKey<AnnouncementsScreenState>();
   final GlobalKey<MarketplaceScreenState> _marketplaceKey =
       GlobalKey<MarketplaceScreenState>();
   final GlobalKey<TasksScreenState> _tasksKey = GlobalKey<TasksScreenState>();
   late final bool _isResident = widget.userRole == UserRole.resident;
-  late final int _feedIndex = 0;
-  late final int _marketIndex = 1;
-  late final int _tasksIndex = 2;
+  late final int _feedIndex = 0; // HomeFeedScreen (mixed feed)
+  late final int _announcementsIndex = 1; // AnnouncementsScreen
+  late final int _marketIndex = 2; // MarketplaceScreen
+  late final int _tasksIndex = 3; // TasksScreen
 
   late final List<Widget> _screens = [
+    const HomeFeedScreen(), // Mixed feed: announcements, errands, products
     AnnouncementsScreen(key: _announcementsKey),
     MarketplaceScreen(key: _marketplaceKey),
     TasksScreen(key: _tasksKey),
@@ -46,6 +51,41 @@ class _HomeScreenState extends State<HomeScreen> {
   void _onTabTapped(int index) {
     setState(() {
       _currentIndex = index;
+      // Update nav destination based on index
+      if (index == _feedIndex) {
+        _currentNavDestination = NavDestination.home;
+      } else if (index == _announcementsIndex) {
+        _currentNavDestination = NavDestination.announcements;
+      } else if (index == _marketIndex) {
+        _currentNavDestination = NavDestination.marketplace;
+      } else if (index == _tasksIndex) {
+        _currentNavDestination = NavDestination.errandJobPost;
+      } else if (index == (_isResident ? 5 : 4)) {
+        _currentNavDestination = NavDestination.menu;
+      }
+    });
+  }
+
+  void _handleNavDestinationChange(NavDestination destination) {
+    setState(() {
+      _currentNavDestination = destination;
+      switch (destination) {
+        case NavDestination.home:
+          _currentIndex = _feedIndex;
+          break;
+        case NavDestination.announcements:
+          _currentIndex = _announcementsIndex;
+          break;
+        case NavDestination.marketplace:
+          _currentIndex = _marketIndex;
+          break;
+        case NavDestination.errandJobPost:
+          _currentIndex = _tasksIndex;
+          break;
+        case NavDestination.menu:
+          _currentIndex = _isResident ? 5 : 4;
+          break;
+      }
     });
   }
 
@@ -115,70 +155,21 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        titleSpacing: 16,
-        elevation: 2,
-        shadowColor: Colors.black12,
-        title: Text(
-          'LINKod',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: kFacebookBlue,
-                fontSize: 26,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.4,
-              ),
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.add_box_outlined, color: Colors.grey.shade800),
-            tooltip: 'Create',
-            onPressed: _openCreatePost,
+      body: Column(
+        children: [
+          // New green navbar at the top
+          LinkodNavbar(
+            currentDestination: _currentNavDestination,
+            onDestinationChanged: _handleNavDestinationChange,
           ),
-          IconButton(
-            icon: Icon(Icons.search_outlined, color: Colors.grey.shade800),
-            tooltip: 'Search',
-            onPressed: () => _showSnack('Search is coming soon.'),
-          ),
-          IconButton(
-            icon: Icon(Icons.message_outlined, color: Colors.grey.shade800),
-            tooltip: 'Messenger',
-            onPressed: () => _showSnack('Messenger is coming soon.'),
+          // Content area
+          Expanded(
+            child: IndexedStack(
+              index: _currentIndex,
+              children: _screens,
+            ),
           ),
         ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(56),
-          child: _TopNavBar(
-            currentIndex: _currentIndex,
-            isResident: _isResident,
-            onSelect: (TopNavDestination destination) {
-              switch (destination) {
-                case TopNavDestination.announcements:
-                  _onTabTapped(_feedIndex);
-                  break;
-                case TopNavDestination.marketplace:
-                  _onTabTapped(_marketIndex);
-                  break;
-                case TopNavDestination.tasks:
-                  _onTabTapped(_tasksIndex);
-                  break;
-                case TopNavDestination.officials:
-                  if (widget.userRole == UserRole.official) {
-                    _openCreatePost();
-                  } else {
-                    _showSnack('Officials module is only available for barangay staff.');
-                  }
-                  break;
-                case TopNavDestination.profile:
-                  _onTabTapped(_isResident ? 4 : 3);
-                  break;
-              }
-            },
-          ),
-        ),
-      ),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
       ),
       floatingActionButton: widget.userRole == UserRole.resident
           ? FloatingActionButton(
@@ -208,117 +199,4 @@ class _HomeScreenState extends State<HomeScreen> {
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
-}
-
-enum TopNavDestination { announcements, marketplace, tasks, officials, profile }
-
-class _TopNavBar extends StatelessWidget {
-  final int currentIndex;
-  final bool isResident;
-  final ValueChanged<TopNavDestination> onSelect;
-
-  const _TopNavBar({
-    required this.currentIndex,
-    required this.isResident,
-    required this.onSelect,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final items = <_TopNavItem>[
-      const _TopNavItem(
-        destination: TopNavDestination.announcements,
-        icon: Icons.home_filled,
-        label: 'Home',
-      ),
-      const _TopNavItem(
-        destination: TopNavDestination.marketplace,
-        icon: Icons.storefront_outlined,
-        label: 'Market',
-      ),
-      const _TopNavItem(
-        destination: TopNavDestination.tasks,
-        icon: Icons.handshake_outlined,
-        label: 'Community',
-      ),
-      const _TopNavItem(
-        destination: TopNavDestination.officials,
-        icon: Icons.account_balance_outlined,
-        label: 'Officials',
-      ),
-      const _TopNavItem(
-        destination: TopNavDestination.profile,
-        icon: Icons.person_outline,
-        label: 'Profile',
-      ),
-    ];
-
-    return Container(
-      height: 56,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Color(0xFFE0E0E0), width: 0.8)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          for (final item in items)
-            Expanded(
-              child: InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () => onSelect(item.destination),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      item.icon,
-                      size: 22,
-                      color: _isDestinationActive(item.destination)
-                          ? kFacebookBlue
-                          : Colors.grey.shade700,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      item.label,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: _isDestinationActive(item.destination)
-                                ? kFacebookBlue
-                                : Colors.grey.shade700,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  bool _isDestinationActive(TopNavDestination destination) {
-    switch (destination) {
-      case TopNavDestination.announcements:
-        return currentIndex == 0;
-      case TopNavDestination.marketplace:
-        return currentIndex == 1;
-      case TopNavDestination.tasks:
-        return currentIndex == 2;
-      case TopNavDestination.officials:
-        return false;
-      case TopNavDestination.profile:
-        return currentIndex == (isResident ? 4 : 3);
-    }
-  }
-}
-
-class _TopNavItem {
-  final TopNavDestination destination;
-  final IconData icon;
-  final String label;
-
-  const _TopNavItem({
-    required this.destination,
-    required this.icon,
-    required this.label,
-  });
 }
