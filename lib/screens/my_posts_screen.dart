@@ -1,12 +1,135 @@
 import 'package:flutter/material.dart';
+import '../models/task_model.dart';
+import '../widgets/errand_job_card.dart';
+import 'task_edit_screen.dart';
 
-enum ErrandJobStatus {
-  open,
-  ongoing,
-  completed,
+class MyPostsScreen extends StatefulWidget {
+  final List<TaskModel> allTasks;
+  final String currentUserName;
+
+  const MyPostsScreen({
+    super.key,
+    required this.allTasks,
+    this.currentUserName = 'Juan Dela Cruz',
+  });
+
+  @override
+  State<MyPostsScreen> createState() => _MyPostsScreenState();
 }
 
-class ErrandJobCard extends StatelessWidget {
+class _MyPostsScreenState extends State<MyPostsScreen> {
+  List<TaskModel> get _myPosts {
+    return widget.allTasks
+        .where((task) => task.requesterName == widget.currentUserName)
+        .toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4F4F4),
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header with back button, title, and search icon
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+                    onPressed: () => Navigator.of(context).pop(),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'My post',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.search, color: Color(0xFF6E6E6E)),
+                    splashRadius: 22,
+                    onPressed: () {},
+                  ),
+                ],
+              ),
+            ),
+            // Posts list
+            Expanded(
+              child: _myPosts.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.task_alt, size: 62, color: Colors.grey.shade400),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No posts yet',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                      physics: const ClampingScrollPhysics(),
+                      itemCount: _myPosts.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 16),
+                      itemBuilder: (context, index) {
+                        final task = _myPosts[index];
+                        final status = _mapStatus(task.status);
+                        return _MyPostCard(
+                          title: task.title,
+                          description: task.description,
+                          postedBy: task.requesterName,
+                          date: task.createdAt,
+                          status: status,
+                          statusLabel: task.status.displayName,
+                          volunteerName: task.assignedTo,
+                          onViewPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => TaskEditScreen(
+                                  task: task,
+                                  contactNumber: '09026095205',
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  ErrandJobStatus? _mapStatus(TaskStatus status) {
+    switch (status) {
+      case TaskStatus.open:
+        return ErrandJobStatus.open;
+      case TaskStatus.ongoing:
+        return ErrandJobStatus.ongoing;
+      case TaskStatus.completed:
+        return ErrandJobStatus.completed;
+    }
+  }
+}
+
+class _MyPostCard extends StatelessWidget {
   final String title;
   final String description;
   final String postedBy;
@@ -15,10 +138,8 @@ class ErrandJobCard extends StatelessWidget {
   final String? statusLabel;
   final String? volunteerName;
   final VoidCallback? onViewPressed;
-  final VoidCallback? onVolunteerPressed;
 
-  const ErrandJobCard({
-    super.key,
+  const _MyPostCard({
     required this.title,
     required this.description,
     required this.postedBy,
@@ -27,7 +148,6 @@ class ErrandJobCard extends StatelessWidget {
     this.statusLabel,
     this.volunteerName,
     this.onViewPressed,
-    this.onVolunteerPressed,
   });
 
   @override
@@ -50,7 +170,25 @@ class ErrandJobCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Title and status tag in same row
+            // Date and status in top right (for Ongoing/Completed) or just date (for Open)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text(
+                  _formatDate(date),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF6E6E6E),
+                  ),
+                ),
+                if (status != null && status != ErrandJobStatus.open) ...[
+                  const SizedBox(width: 8),
+                  _buildStatusPill(status!, statusLabel),
+                ],
+              ],
+            ),
+            const SizedBox(height: 10),
+            // Title and status tag in same row (for Open status)
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -65,38 +203,26 @@ class ErrandJobCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (status != null) ...[
+                if (status == ErrandJobStatus.open) ...[
                   const SizedBox(width: 8),
                   _buildStatusPill(status!, statusLabel),
                 ],
               ],
             ),
             const SizedBox(height: 8),
-            // Posted by and date in same row
+            // Posted by
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.person_outline,
-                      size: 14,
-                      color: Color(0xFF6E6E6E),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Posted by: $postedBy',
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        color: Color(0xFF6E6E6E),
-                      ),
-                    ),
-                  ],
+                const Icon(
+                  Icons.person_outline,
+                  size: 14,
+                  color: Color(0xFF6E6E6E),
                 ),
+                const SizedBox(width: 4),
                 Text(
-                  _formatDate(date),
+                  'Posted by: $postedBy',
                   style: const TextStyle(
-                    fontSize: 12,
+                    fontSize: 12.5,
                     color: Color(0xFF6E6E6E),
                   ),
                 ),
@@ -115,6 +241,7 @@ class ErrandJobCard extends StatelessWidget {
             const SizedBox(height: 14),
             // Action button or volunteer status
             if (volunteerName != null)
+              // Volunteer button (full width, centered)
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
@@ -146,6 +273,7 @@ class ErrandJobCard extends StatelessWidget {
                 ),
               )
             else if (onViewPressed != null)
+              // View button for open posts (white with gray border)
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(

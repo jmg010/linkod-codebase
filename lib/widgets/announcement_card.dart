@@ -25,131 +25,98 @@ class AnnouncementCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      elevation: 1,
-      shadowColor: Colors.black.withOpacity(0.08),
+      margin: EdgeInsets.zero,
+      elevation: 1.5,
+      shadowColor: Colors.black.withOpacity(0.06),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top row: "From:" on left, Date on right
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // "From: Barangay Official" on left
                 Text(
                   'From: $postedBy',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.grey.shade600,
+                    color: const Color(0xFF6E6E6E),
                   ),
                 ),
-                // Date on right
                 Text(
                   _formatDate(date),
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.grey.shade600,
+                    color: const Color(0xFF6E6E6E),
                   ),
                 ),
               ],
             ),
-            
-            // Category tag (below "From")
             if (category != null) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                 decoration: BoxDecoration(
                   color: _getCategoryColor(category!),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(18),
                 ),
                 child: Text(
                   category!,
                   style: const TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
                     color: Colors.white,
                   ),
                 ),
               ),
             ],
-            
-            const SizedBox(height: 12),
-            
-            // Title
+            const SizedBox(height: 10),
             Text(
               title,
               style: const TextStyle(
                 fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                fontWeight: FontWeight.w700,
+                color: Colors.black,
+                height: 1.25,
               ),
             ),
-            const SizedBox(height: 8),
-            
-            // Description
+            const SizedBox(height: 6),
             Text(
               description,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade800,
+              style: const TextStyle(
+                fontSize: 13.5,
+                color: Color(0xFF6A6A6A),
                 height: 1.4,
               ),
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 12),
-            
-            // Divider or spacing
-            const SizedBox(height: 4),
-            
-            // Bottom row: Eye icon + count (left) and Mark as Read button (right)
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Eye icon + unread count (left side)
-                Row(
-                  children: [
-                    Icon(Icons.visibility, size: 16, color: Colors.grey.shade600),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${unreadCount ?? 0}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
-                ),
-                // Mark as Read / Read button (white background, gray border, rounded pill)
-                OutlinedButton.icon(
-                  onPressed: onMarkAsReadPressed ?? () {},
-                  icon: Icon(
-                    isRead ? Icons.check : Icons.visibility,
-                    size: 16,
-                    color: isRead ? const Color(0xFF20BF6B) : Colors.grey.shade800,
-                  ),
-                  label: Text(isRead ? 'Read' : 'Mark as Read'),
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: isRead ? const Color(0xFF20BF6B) : Colors.grey.shade800,
-                    side: BorderSide(
-                      color: isRead ? const Color(0xFF20BF6B) : Colors.grey.shade300,
-                      width: 1,
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
+                Icon(Icons.visibility_outlined, size: 16, color: const Color(0xFF6E6E6E)),
+                const SizedBox(width: 6),
+                Text(
+                  '${unreadCount ?? 0} views',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF6E6E6E),
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: _ReadButton(
+                isRead: isRead,
+                onPressed: onMarkAsReadPressed,
+              ),
             ),
           ],
         ),
@@ -175,6 +142,47 @@ class AnnouncementCard extends StatelessWidget {
     final month = date.month.toString().padLeft(2, '0');
     final year = date.year.toString();
     return '$day/$month/$year';
+  }
+}
+
+class _ReadButton extends StatelessWidget {
+  const _ReadButton({
+    required this.isRead,
+    this.onPressed,
+  });
+
+  final bool isRead;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color borderColor =
+        isRead ? const Color(0xFF4CAF50) : const Color(0xFFDADADA);
+    final Color textColor =
+        isRead ? const Color(0xFF4CAF50) : const Color(0xFF5F5F5F);
+    final IconData icon = isRead ? Icons.check : Icons.visibility_outlined;
+
+    return OutlinedButton.icon(
+      onPressed: onPressed ?? () {},
+      icon: Icon(icon, size: 18, color: textColor),
+      label: Text(
+        isRead ? 'Read' : 'Mark as read',
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: textColor,
+        ),
+      ),
+      style: OutlinedButton.styleFrom(
+        backgroundColor: Colors.white,
+        side: BorderSide(color: borderColor, width: 1),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(32),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        alignment: Alignment.center,
+      ),
+    );
   }
 }
 

@@ -9,6 +9,8 @@ class ProductModel {
   final String category;
   final DateTime createdAt;
   final bool isAvailable;
+  final String location;
+  final String contactNumber;
 
   ProductModel({
     required this.id,
@@ -21,6 +23,8 @@ class ProductModel {
     this.category = 'General',
     required this.createdAt,
     this.isAvailable = true,
+    this.location = 'Location not specified',
+    this.contactNumber = '',
   });
 
   Map<String, dynamic> toJson() {
@@ -35,6 +39,8 @@ class ProductModel {
       'category': category,
       'createdAt': createdAt.toIso8601String(),
       'isAvailable': isAvailable,
+      'location': location,
+      'contactNumber': contactNumber,
     };
   }
 
@@ -53,6 +59,8 @@ class ProductModel {
       category: json['category'] as String? ?? 'General',
       createdAt: DateTime.parse(json['createdAt'] as String),
       isAvailable: json['isAvailable'] as bool? ?? true,
+      location: json['location'] as String? ?? 'Location not specified',
+      contactNumber: json['contactNumber'] as String? ?? '',
     );
   }
 }

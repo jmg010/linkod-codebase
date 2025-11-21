@@ -85,46 +85,53 @@ class AnnouncementsScreenState extends State<AnnouncementsScreen> with SingleTic
       backgroundColor: Colors.grey.shade100,
       body: SafeArea(
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Title and Search icon row
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
+                children: const [
+                  Text(
                     'Announcements',
                     style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 21,
+                      fontWeight: FontWeight.w700,
                       color: Colors.black87,
                     ),
                   ),
-                  IconButton(
-                    icon: Icon(Icons.search, color: Colors.grey.shade800),
-                    onPressed: () {
-                      debugPrint('Search pressed');
+                  Icon(Icons.search, color: Color(0xFF6E6E6E)),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 6),
+              child: Row(
+                children: [
+                  _SegmentedToggle(
+                    label: 'All',
+                    isSelected: _selectedTabIndex == 0,
+                    onTap: () {
+                      setState(() {
+                        _selectedTabIndex = 0;
+                        _tabController.animateTo(0);
+                      });
+                    },
+                  ),
+                  const SizedBox(width: 24),
+                  _SegmentedToggle(
+                    label: 'For me',
+                    isSelected: _selectedTabIndex == 1,
+                    onTap: () {
+                      setState(() {
+                        _selectedTabIndex = 1;
+                        _tabController.animateTo(1);
+                      });
                     },
                   ),
                 ],
               ),
             ),
-            
-            // Tabs: "All" and "For me"
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  _buildTab('All', 0),
-                  const SizedBox(width: 24),
-                  _buildTab('For me', 1),
-                ],
-              ),
-            ),
-            
-            const SizedBox(height: 8),
-            
-            // Announcements list
             Expanded(
               child: _filteredAnnouncements.isEmpty
                   ? Center(
@@ -140,32 +147,30 @@ class AnnouncementsScreenState extends State<AnnouncementsScreen> with SingleTic
                         ],
                       ),
                     )
-                  : Scrollbar(
-                      thumbVisibility: false,
-                      child: ListView.separated(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        physics: const ClampingScrollPhysics(),
-                        itemCount: _filteredAnnouncements.length,
-                        separatorBuilder: (context, index) => const SizedBox(height: 0),
-                        itemBuilder: (context, index) {
-                          final item = _filteredAnnouncements[index];
-                          return AnnouncementCard(
-                            title: item['title'] as String,
-                            description: item['description'] as String,
-                            postedBy: item['postedBy'] as String,
-                            date: item['date'] as DateTime,
-                            category: item['category'] as String?,
-                            unreadCount: item['unreadCount'] as int?,
-                            isRead: item['isRead'] as bool? ?? false,
-                            onMarkAsReadPressed: () {
-                              setState(() {
-                                item['isRead'] = true;
-                              });
-                              debugPrint('Mark as read pressed for: ${item['title']}');
-                            },
-                          );
-                        },
-                      ),
+                  : ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                      physics: const ClampingScrollPhysics(),
+                      itemCount: _filteredAnnouncements.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: 16),
+                      itemBuilder: (context, index) {
+                        final item = _filteredAnnouncements[index];
+                        return AnnouncementCard(
+                          title: item['title'] as String,
+                          description: item['description'] as String,
+                          postedBy: item['postedBy'] as String,
+                          date: item['date'] as DateTime,
+                          category: item['category'] as String?,
+                          unreadCount: item['unreadCount'] as int?,
+                          isRead: item['isRead'] as bool? ?? false,
+                          onMarkAsReadPressed: () {
+                            setState(() {
+                              item['isRead'] = true;
+                            });
+                            debugPrint('Mark as read pressed for: ${item['title']}');
+                          },
+                        );
+                      },
                     ),
             ),
           ],
@@ -173,38 +178,53 @@ class AnnouncementsScreenState extends State<AnnouncementsScreen> with SingleTic
       ),
     );
   }
+}
 
-  Widget _buildTab(String label, int index) {
-    final isSelected = _selectedTabIndex == index;
+class _SegmentedToggle extends StatelessWidget {
+  const _SegmentedToggle({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color activeColor = Colors.black87;
+    final Color inactiveColor = const Color(0xFF6E6E6E);
     return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedTabIndex = index;
-          _tabController.animateTo(index);
-        });
-      },
-      child: Column(
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-              color: isSelected ? Colors.black87 : Colors.grey.shade600,
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: IntrinsicWidth(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                color: isSelected ? activeColor : inactiveColor,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            height: 3,
-            width: label.length * 10.0,
-            decoration: BoxDecoration(
-              color: isSelected ? const Color(0xFF20BF6B) : Colors.transparent,
-              borderRadius: BorderRadius.circular(2),
+            const SizedBox(height: 3),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              height: 3.2,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color:
+                    isSelected ? const Color(0xFF20BF6B) : Colors.transparent,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
-
 }
