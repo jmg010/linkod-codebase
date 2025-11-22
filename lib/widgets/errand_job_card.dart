@@ -16,6 +16,7 @@ class ErrandJobCard extends StatelessWidget {
   final String? volunteerName;
   final VoidCallback? onViewPressed;
   final VoidCallback? onVolunteerPressed;
+  final bool showTag;
 
   const ErrandJobCard({
     super.key,
@@ -28,6 +29,7 @@ class ErrandJobCard extends StatelessWidget {
     this.volunteerName,
     this.onViewPressed,
     this.onVolunteerPressed,
+    this.showTag = false,
   });
 
   @override
@@ -50,6 +52,38 @@ class ErrandJobCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Request tag and date row (if showTag is true)
+            if (showTag) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.purple.shade400,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: const Text(
+                      'Request',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    _formatDate(date),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF6E6E6E),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+            ],
             // Title and status tag in same row
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -72,36 +106,55 @@ class ErrandJobCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            // Posted by and date in same row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.person_outline,
-                      size: 14,
-                      color: Color(0xFF6E6E6E),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Posted by: $postedBy',
-                      style: const TextStyle(
-                        fontSize: 12.5,
+            // Posted by and date in same row (only show date if showTag is false)
+            if (!showTag)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.person_outline,
+                        size: 14,
                         color: Color(0xFF6E6E6E),
                       ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Posted by: $postedBy',
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: Color(0xFF6E6E6E),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    _formatDate(date),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF6E6E6E),
                     ),
-                  ],
-                ),
-                Text(
-                  _formatDate(date),
-                  style: const TextStyle(
-                    fontSize: 12,
+                  ),
+                ],
+              )
+            else
+              Row(
+                children: [
+                  const Icon(
+                    Icons.person_outline,
+                    size: 14,
                     color: Color(0xFF6E6E6E),
                   ),
-                ),
-              ],
-            ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Posted by: $postedBy',
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: Color(0xFF6E6E6E),
+                    ),
+                  ),
+                ],
+              ),
             const SizedBox(height: 10),
             // Description
             Text(

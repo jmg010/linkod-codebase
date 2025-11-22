@@ -4,11 +4,13 @@ import '../models/product_model.dart';
 class ProductCard extends StatelessWidget {
   final ProductModel product;
   final VoidCallback? onInteract;
+  final bool showTag;
 
   const ProductCard({
     super.key,
     required this.product,
     this.onInteract,
+    this.showTag = false,
   });
 
   @override
@@ -26,15 +28,37 @@ class ProductCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                dateText,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF8A8A8A),
+            // Tag and date row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (showTag)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade400,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: const Text(
+                      'For Sale',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  )
+                else
+                  const SizedBox.shrink(),
+                Text(
+                  dateText,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF8A8A8A),
+                  ),
                 ),
-              ),
+              ],
             ),
             const SizedBox(height: 8),
             _buildImage(context),

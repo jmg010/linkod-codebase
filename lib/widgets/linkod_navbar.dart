@@ -20,8 +20,8 @@ class LinkodNavbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final statusBarHeight = MediaQuery.of(context).padding.top;
     return Container(
-      height: 56,
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -32,55 +32,57 @@ class LinkodNavbar extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // LEFT: LINKod logo text
+          // LINKod text at top-left - accounting for status bar
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              'LINKod',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
-                color: const Color(0xFF20BF6B),
-                letterSpacing: 0.5,
+            padding: EdgeInsets.fromLTRB(20, statusBarHeight + 8, 20, 6),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: const Text(
+                'LINKod',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF20BF6B),
+                  letterSpacing: 0.8,
+                ),
               ),
             ),
           ),
-          
-          // CENTER: Icon menu
-          Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _NavIcon(
-                  icon: Icons.home,
-                  isActive: currentDestination == NavDestination.home,
-                  onTap: () => onDestinationChanged?.call(NavDestination.home),
-                ),
-                _NavIcon(
-                  icon: Icons.storefront,
-                  isActive: currentDestination == NavDestination.marketplace,
-                  onTap: () => onDestinationChanged?.call(NavDestination.marketplace),
-                ),
-                _NavIcon(
-                  icon: Icons.handshake,
-                  isActive: currentDestination == NavDestination.errandJobPost,
-                  onTap: () => onDestinationChanged?.call(NavDestination.errandJobPost),
-                ),
-                _NavIcon(
-                  icon: Icons.campaign,
-                  isActive: currentDestination == NavDestination.announcements,
-                  onTap: () => onDestinationChanged?.call(NavDestination.announcements),
-                ),
-                _NavIcon(
-                  icon: Icons.menu,
-                  isActive: currentDestination == NavDestination.menu,
-                  onTap: () => onDestinationChanged?.call(NavDestination.menu),
-                ),
-              ],
-            ),
+          // Navigation icons row below LINKod
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _NavIcon(
+                icon: Icons.home,
+                isActive: currentDestination == NavDestination.home,
+                onTap: () => onDestinationChanged?.call(NavDestination.home),
+              ),
+              _NavIcon(
+                icon: Icons.storefront,
+                isActive: currentDestination == NavDestination.marketplace,
+                onTap: () => onDestinationChanged?.call(NavDestination.marketplace),
+              ),
+              _NavIcon(
+                icon: Icons.handshake,
+                isActive: currentDestination == NavDestination.errandJobPost,
+                onTap: () => onDestinationChanged?.call(NavDestination.errandJobPost),
+              ),
+              _NavIcon(
+                icon: Icons.campaign,
+                isActive: currentDestination == NavDestination.announcements,
+                onTap: () => onDestinationChanged?.call(NavDestination.announcements),
+              ),
+              _NavIcon(
+                icon: Icons.menu,
+                isActive: currentDestination == NavDestination.menu,
+                onTap: () => onDestinationChanged?.call(NavDestination.menu),
+              ),
+            ],
           ),
+          const SizedBox(height: 2),
         ],
       ),
     );
@@ -114,7 +116,7 @@ class _NavIcon extends StatelessWidget {
         ),
         child: Icon(
           icon,
-          size: 24,
+          size: 28,
           color: isActive ? const Color(0xFF20BF6B) : Colors.grey.shade600,
         ),
       ),

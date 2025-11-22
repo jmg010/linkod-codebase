@@ -3,6 +3,9 @@ import '../widgets/announcement_card.dart';
 import '../widgets/errand_job_card.dart';
 import '../widgets/product_card.dart';
 import '../models/product_model.dart';
+import '../models/task_model.dart';
+import 'product_detail_screen.dart';
+import 'task_detail_screen.dart';
 
 class HomeFeedScreen extends StatefulWidget {
   const HomeFeedScreen({super.key});
@@ -80,25 +83,25 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
-      body: SafeArea(
-        child: Column(
+      body: Column(
           children: [
-            // Title and Search icon row
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            // Title and Search icon row with white background
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
                     'Home',
                     style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
                       color: Colors.black87,
                     ),
                   ),
                   IconButton(
-                    icon: Icon(Icons.search, color: Colors.grey.shade800),
+                    icon: const Icon(Icons.search, color: Color(0xFF6E6E6E), size: 26),
                     onPressed: () {
                       debugPrint('Search pressed');
                     },
@@ -106,8 +109,6 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                 ],
               ),
             ),
-            
-            const SizedBox(height: 8),
             
             // Mixed feed list
             Expanded(
@@ -145,6 +146,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                               category: item['category'] as String?,
                               unreadCount: item['unreadCount'] as int?,
                               isRead: item['isRead'] as bool? ?? false,
+                              showTag: true,
                               onMarkAsReadPressed: () {
                                 setState(() {
                                   item['isRead'] = true;
@@ -153,16 +155,39 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                               },
                             );
                           } else if (type == 'request') {
+                            final errandStatus = item['status'] as ErrandJobStatus?;
+                            final taskStatus = _mapErrandStatusToTaskStatus(errandStatus);
+                            
                             return ErrandJobCard(
                               title: item['title'] as String,
                               description: item['description'] as String,
                               postedBy: item['postedBy'] as String,
                               date: item['date'] as DateTime,
-                              status: item['status'] as ErrandJobStatus?,
+                              status: errandStatus,
                               statusLabel: item['statusLabel'] as String?,
                               volunteerName: item['volunteerName'] as String?,
+                              showTag: true,
                               onViewPressed: () {
-                                debugPrint('View pressed for: ${item['title']}');
+                                // Create TaskModel from feed item
+                                final task = TaskModel(
+                                  id: 'feed_${item['title']}',
+                                  title: item['title'] as String,
+                                  description: item['description'] as String,
+                                  requesterName: item['postedBy'] as String,
+                                  createdAt: item['date'] as DateTime,
+                                  status: taskStatus,
+                                  assignedTo: item['volunteerName'] as String?,
+                                  priority: TaskPriority.medium,
+                                );
+                                
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => TaskDetailScreen(
+                                      task: task,
+                                      contactNumber: '09026095205',
+                                    ),
+                                  ),
+                                );
                               },
                               onVolunteerPressed: item['volunteerName'] == null
                                   ? () {
@@ -171,7 +196,19 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                                   : null,
                             );
                           } else if (type == 'product') {
-                            return ProductCard(product: item['product'] as ProductModel);
+                            return ProductCard(
+                              product: item['product'] as ProductModel,
+                              showTag: true,
+                              onInteract: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => ProductDetailScreen(
+                                      product: item['product'] as ProductModel,
+                                    ),
+                                  ),
+                                );
+                              },
+                            );
                           }
                           return const SizedBox.shrink();
                         },
@@ -180,8 +217,19 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
             ),
           ],
         ),
-      ),
-    );
+      );
+    }
+
+  TaskStatus _mapErrandStatusToTaskStatus(ErrandJobStatus? errandStatus) {
+    if (errandStatus == null) return TaskStatus.open;
+    switch (errandStatus) {
+      case ErrandJobStatus.open:
+        return TaskStatus.open;
+      case ErrandJobStatus.ongoing:
+        return TaskStatus.ongoing;
+      case ErrandJobStatus.completed:
+        return TaskStatus.completed;
+    }
   }
 }
 

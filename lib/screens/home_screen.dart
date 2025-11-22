@@ -9,9 +9,8 @@ import 'home_feed_screen.dart';
 import 'announcements_screen.dart';
 import 'marketplace_screen.dart';
 import 'tasks_screen.dart';
-import 'profile_screen.dart';
+import 'menu_screen.dart';
 import 'create_post_screen.dart';
-import 'chatbot_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final UserRole userRole;
@@ -28,6 +27,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   NavDestination _currentNavDestination = NavDestination.home;
+  late PageController _pageController;
   final GlobalKey<AnnouncementsScreenState> _announcementsKey =
       GlobalKey<AnnouncementsScreenState>();
   final GlobalKey<MarketplaceScreenState> _marketplaceKey =
@@ -35,58 +35,87 @@ class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<TasksScreenState> _tasksKey = GlobalKey<TasksScreenState>();
   late final bool _isResident = widget.userRole == UserRole.resident;
   late final int _feedIndex = 0; // HomeFeedScreen (mixed feed)
-  late final int _announcementsIndex = 1; // AnnouncementsScreen
-  late final int _marketIndex = 2; // MarketplaceScreen
-  late final int _tasksIndex = 3; // TasksScreen
+  late final int _marketIndex = 1; // MarketplaceScreen
+  late final int _tasksIndex = 2; // TasksScreen
+  late final int _announcementsIndex = 3; // AnnouncementsScreen
+  late final int _profileIndex = 4; // MenuScreen
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: _currentIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
   late final List<Widget> _screens = [
-    const HomeFeedScreen(), // Mixed feed: announcements, errands, products
-    AnnouncementsScreen(key: _announcementsKey),
-    MarketplaceScreen(key: _marketplaceKey),
-    TasksScreen(key: _tasksKey),
-    if (_isResident) const ChatbotScreen(),
-    ProfileScreen(userRole: widget.userRole),
+    const HomeFeedScreen(), // Index 0: Home (mixed feed: announcements, errands, products)
+    MarketplaceScreen(key: _marketplaceKey), // Index 1: Marketplace
+    TasksScreen(key: _tasksKey), // Index 2: Errand/Job Post
+    AnnouncementsScreen(key: _announcementsKey), // Index 3: Announcements
+    MenuScreen(userRole: widget.userRole), // Index 4: Menu/Profile
   ];
 
   void _onTabTapped(int index) {
-    setState(() {
-      _currentIndex = index;
-      // Update nav destination based on index
-      if (index == _feedIndex) {
-        _currentNavDestination = NavDestination.home;
-      } else if (index == _announcementsIndex) {
-        _currentNavDestination = NavDestination.announcements;
-      } else if (index == _marketIndex) {
-        _currentNavDestination = NavDestination.marketplace;
-      } else if (index == _tasksIndex) {
-        _currentNavDestination = NavDestination.errandJobPost;
-      } else if (index == (_isResident ? 5 : 4)) {
-        _currentNavDestination = NavDestination.menu;
-      }
-    });
+    if (_currentIndex != index) {
+      setState(() {
+        _currentIndex = index;
+        // Update nav destination based on index
+        if (index == _feedIndex) {
+          _currentNavDestination = NavDestination.home;
+        } else if (index == _marketIndex) {
+          _currentNavDestination = NavDestination.marketplace;
+        } else if (index == _tasksIndex) {
+          _currentNavDestination = NavDestination.errandJobPost;
+        } else if (index == _announcementsIndex) {
+          _currentNavDestination = NavDestination.announcements;
+        } else if (index == _profileIndex) {
+          _currentNavDestination = NavDestination.menu;
+        }
+      });
+      _pageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
   void _handleNavDestinationChange(NavDestination destination) {
-    setState(() {
-      _currentNavDestination = destination;
-      switch (destination) {
-        case NavDestination.home:
-          _currentIndex = _feedIndex;
-          break;
-        case NavDestination.announcements:
-          _currentIndex = _announcementsIndex;
-          break;
-        case NavDestination.marketplace:
-          _currentIndex = _marketIndex;
-          break;
-        case NavDestination.errandJobPost:
-          _currentIndex = _tasksIndex;
-          break;
+    int targetIndex;
+    switch (destination) {
+      case NavDestination.home:
+        targetIndex = _feedIndex;
+        break;
+      case NavDestination.announcements:
+        targetIndex = _announcementsIndex;
+        break;
+      case NavDestination.marketplace:
+        targetIndex = _marketIndex;
+        break;
+      case NavDestination.errandJobPost:
+        targetIndex = _tasksIndex;
+        break;
         case NavDestination.menu:
-          _currentIndex = _isResident ? 5 : 4;
+          targetIndex = _profileIndex;
           break;
-      }
-    });
+    }
+    
+    if (_currentIndex != targetIndex) {
+      setState(() {
+        _currentNavDestination = destination;
+        _currentIndex = targetIndex;
+      });
+      _pageController.animateToPage(
+        targetIndex,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
   Future<void> _openCreatePost() async {
@@ -126,7 +155,13 @@ class _HomeScreenState extends State<HomeScreen> {
         }
         setState(() {
           _currentIndex = _feedIndex;
+          _currentNavDestination = NavDestination.home;
         });
+        _pageController.animateToPage(
+          _feedIndex,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
       } else if (result is ProductModel) {
         // Add product to marketplace and switch to Market tab
         if (_marketplaceKey.currentState != null) {
@@ -134,7 +169,13 @@ class _HomeScreenState extends State<HomeScreen> {
         }
         setState(() {
           _currentIndex = _marketIndex;
+          _currentNavDestination = NavDestination.marketplace;
         });
+        _pageController.animateToPage(
+          _marketIndex,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
       } else if (result is TaskModel) {
         // Add task to tasks screen and switch to Tasks tab
         if (_tasksKey.currentState != null) {
@@ -142,7 +183,13 @@ class _HomeScreenState extends State<HomeScreen> {
         }
         setState(() {
           _currentIndex = _tasksIndex;
+          _currentNavDestination = NavDestination.errandJobPost;
         });
+        _pageController.animateToPage(
+          _tasksIndex,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
       }
     }
   }
@@ -162,40 +209,43 @@ class _HomeScreenState extends State<HomeScreen> {
             currentDestination: _currentNavDestination,
             onDestinationChanged: _handleNavDestinationChange,
           ),
-          // Content area
+          // Content area with swipe support
           Expanded(
-            child: IndexedStack(
-              index: _currentIndex,
+            child: PageView(
+              controller: _pageController,
+              onPageChanged: (index) {
+                setState(() {
+                  _currentIndex = index;
+                  // Update nav destination based on index
+                  if (index == _feedIndex) {
+                    _currentNavDestination = NavDestination.home;
+                  } else if (index == _marketIndex) {
+                    _currentNavDestination = NavDestination.marketplace;
+                  } else if (index == _tasksIndex) {
+                    _currentNavDestination = NavDestination.errandJobPost;
+                  } else if (index == _announcementsIndex) {
+                    _currentNavDestination = NavDestination.announcements;
+                  } else if (index == _profileIndex) {
+                    _currentNavDestination = NavDestination.menu;
+                  }
+                });
+              },
               children: _screens,
             ),
           ),
         ],
       ),
-      floatingActionButton: widget.userRole == UserRole.resident
+      floatingActionButton: widget.userRole == UserRole.official
           ? FloatingActionButton(
-              heroTag: 'chatbot',
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const ChatbotScreen()),
-                );
-              },
+              heroTag: 'create_fab',
+              onPressed: _openCreatePost,
               backgroundColor: kFacebookBlue,
               foregroundColor: Colors.white,
               elevation: 4,
-              tooltip: 'Chat with Barangay Assistant',
-              child: const Icon(Icons.chat_bubble_outline),
+              tooltip: 'Create Announcement',
+              child: const Icon(Icons.add),
             )
-          : widget.userRole == UserRole.official
-              ? FloatingActionButton(
-                  heroTag: 'create_fab',
-                  onPressed: _openCreatePost,
-                  backgroundColor: kFacebookBlue,
-                  foregroundColor: Colors.white,
-                  elevation: 4,
-                  tooltip: 'Create Announcement',
-                  child: const Icon(Icons.add),
-                )
-              : null,
+          : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }

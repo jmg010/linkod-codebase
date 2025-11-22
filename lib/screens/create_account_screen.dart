@@ -38,8 +38,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
               label: 'LINKod logo',
               child: Image.asset(
                 'assets/images/linkod_logo.png',
-                width: 120,
-                height: 120,
+                width: 182,
+                height: 143,
                 fit: BoxFit.contain,
               ),
             ),

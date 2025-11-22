@@ -52,8 +52,8 @@ class _LoginScreenState extends State<LoginScreen> {
               label: 'LINKod logo',
               child: Image.asset(
                 'assets/images/linkod_logo.png',
-                width: 120,
-                height: 120,
+                width: 182,
+                height: 143,
                 fit: BoxFit.contain,
               ),
             ),

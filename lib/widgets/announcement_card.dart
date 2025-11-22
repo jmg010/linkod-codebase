@@ -9,6 +9,7 @@ class AnnouncementCard extends StatelessWidget {
   final int? unreadCount;
   final bool isRead;
   final VoidCallback? onMarkAsReadPressed;
+  final bool showTag;
 
   const AnnouncementCard({
     super.key,
@@ -20,6 +21,7 @@ class AnnouncementCard extends StatelessWidget {
     this.unreadCount,
     this.isRead = false,
     this.onMarkAsReadPressed,
+    this.showTag = false,
   });
 
   @override
@@ -36,6 +38,29 @@ class AnnouncementCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Tag row (if showTag is true)
+            if (showTag) ...[
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade400,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: const Text(
+                      'Announcement',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+            ],
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,

@@ -115,54 +115,55 @@ class TasksScreenState extends State<TasksScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F4F4),
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Errand/Job Post',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.search,
-                            color: Color(0xFF6E6E6E)),
-                        splashRadius: 22,
-                        onPressed: () {},
-                      ),
-                    ],
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Title and Search icon row with white background
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Errand/Job Post',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black87,
                   ),
                 ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 6, 20, 14),
-              child: Row(
-                children: [
-                  _ActionPill(
-                    label: 'Create post',
-                    icon: Icons.edit_outlined,
-                    backgroundColor: const Color(0xFF20BF6B),
-                    foregroundColor: Colors.white,
-                    onPressed: _handlePostTask,
-                  ),
-                  const SizedBox(width: 12),
-                  _ActionPill(
-                    label: 'My post',
-                    icon: Icons.inventory_2_outlined,
-                    backgroundColor: const Color(0xFFE9E9E9),
-                    foregroundColor: const Color(0xFF4A4A4A),
-                    onPressed: _handleMyPosts,
-                  ),
-                ],
-              ),
+                IconButton(
+                  icon: const Icon(Icons.search,
+                      color: Color(0xFF6E6E6E), size: 26),
+                  splashRadius: 22,
+                  onPressed: () {},
+                ),
+              ],
             ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+            child: Row(
+              children: [
+                _ActionPill(
+                  label: 'Create post',
+                  icon: Icons.edit_outlined,
+                  backgroundColor: const Color(0xFF20BF6B),
+                  foregroundColor: Colors.white,
+                  onPressed: _handlePostTask,
+                ),
+                const SizedBox(width: 12),
+                _ActionPill(
+                  label: 'My post',
+                  icon: Icons.inventory_2_outlined,
+                  backgroundColor: const Color(0xFFE9E9E9),
+                  foregroundColor: const Color(0xFF4A4A4A),
+                  onPressed: _handleMyPosts,
+                ),
+              ],
+            ),
+          ),
             Expanded(
               child: _tasks.isEmpty
                   ? _EmptyState()
@@ -198,9 +199,8 @@ class TasksScreenState extends State<TasksScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
+      );
+    }
 
   ErrandJobStatus? _mapStatus(TaskStatus status) {
     switch (status) {

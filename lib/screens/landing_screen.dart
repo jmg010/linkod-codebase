@@ -33,8 +33,9 @@ class LandingScreen extends StatelessWidget {
     final buttonFontSize = _scale(context, 16);
     final signInFontSize = _scale(context, 12.5); // ~12-13px range
 
-    // Logo dimensions - scales responsively (~140-180px base)
-    final logoWidth = _scale(context, 160);
+    // Logo dimensions - new logo is 182x143, scales responsively
+    final logoWidth = _scale(context, 182);
+    final logoHeight = _scale(context, 143);
 
     // Button dimensions
     final buttonHeight = _scale(context, 48);
@@ -59,7 +60,7 @@ class LandingScreen extends StatelessWidget {
               Semantics(
                 label: 'Welcome label',
                 child: Text(
-                  'Welcome to my blog',
+                  'Welcome to',
                   style: TextStyle(
                     color: kWhite,
                     fontSize: welcomeFontSize,
@@ -78,12 +79,13 @@ class LandingScreen extends StatelessWidget {
                 child: Image.asset(
                   'assets/images/linkod_logo.png',
                   width: logoWidth,
+                  height: logoHeight,
                   fit: BoxFit.contain,
                   errorBuilder: (context, error, stackTrace) {
                     // Fallback if image not found - shows placeholder
                     return Container(
                       width: logoWidth,
-                      height: logoWidth,
+                      height: logoHeight,
                       decoration: BoxDecoration(
                         color: kWhite.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(8),
