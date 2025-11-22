@@ -146,52 +146,22 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
 
-    if (result != null) {
-      // Handle result and navigate to appropriate feed
-      if (result is PostModel) {
-        // Add post to announcements and switch to Feed tab
-        if (_announcementsKey.currentState != null) {
-          _announcementsKey.currentState!.addPost(result);
-        }
-        setState(() {
-          _currentIndex = _feedIndex;
-          _currentNavDestination = NavDestination.home;
-        });
-        _pageController.animateToPage(
-          _feedIndex,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
-      } else if (result is ProductModel) {
-        // Add product to marketplace and switch to Market tab
-        if (_marketplaceKey.currentState != null) {
-          _marketplaceKey.currentState!.addProduct(result);
-        }
-        setState(() {
-          _currentIndex = _marketIndex;
-          _currentNavDestination = NavDestination.marketplace;
-        });
-        _pageController.animateToPage(
-          _marketIndex,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
-      } else if (result is TaskModel) {
-        // Add task to tasks screen and switch to Tasks tab
-        if (_tasksKey.currentState != null) {
-          _tasksKey.currentState!.addTask(result);
-        }
-        setState(() {
-          _currentIndex = _tasksIndex;
-          _currentNavDestination = NavDestination.errandJobPost;
-        });
-        _pageController.animateToPage(
-          _tasksIndex,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
-      }
-    }
+    // Items are now added directly to the service in CreatePostScreen
+    // Just refresh the screens and navigate to the appropriate tab
+    setState(() {
+      // Refresh all screens by triggering rebuild
+    });
+    
+    // Navigate to the feed tab to show the new content
+    setState(() {
+      _currentIndex = _feedIndex;
+      _currentNavDestination = NavDestination.home;
+    });
+    _pageController.animateToPage(
+      _feedIndex,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
   }
 
   void _showSnack(String message) {

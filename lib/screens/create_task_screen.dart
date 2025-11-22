@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/task_model.dart';
+import '../services/dummy_data_service.dart';
 
 class CreateTaskScreen extends StatefulWidget {
   final Function(TaskModel)? onTaskCreated;
@@ -18,14 +19,12 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _contactController = TextEditingController();
+  final DummyDataService _dataService = DummyDataService();
   String? _selectedCategory;
 
   final List<String> _categories = [
-    'General',
-    'Labor',
-    'Tutoring',
-    'Transportation',
-    'Home Repair',
+    'Errand',
+    'Short Term Job',
     'Other',
   ];
 
@@ -40,15 +39,16 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
   void _handlePost() {
     if (_formKey.currentState!.validate()) {
       final task = TaskModel(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        id: 'task-${DateTime.now().millisecondsSinceEpoch}',
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
-        requesterName: 'Current User', // TODO: Get from auth
+        requesterName: 'Juan Dela Cruz',
         createdAt: DateTime.now(),
         status: TaskStatus.open,
         priority: TaskPriority.medium,
       );
 
+      // Only add via callback to avoid duplication
       widget.onTaskCreated?.call(task);
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(

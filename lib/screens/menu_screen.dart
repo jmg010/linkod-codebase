@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import '../models/user_role.dart';
+import '../services/dummy_data_service.dart';
 import 'login_screen.dart';
 import 'edit_profile_screen.dart';
 import 'notifications_screen.dart';
@@ -18,6 +20,9 @@ class MenuScreen extends StatefulWidget {
 
 class _MenuScreenState extends State<MenuScreen> {
   bool _darkModeEnabled = false;
+  final DummyDataService _dataService = DummyDataService();
+  
+  String? get _profileImagePath => _dataService.getCurrentUserProfileImage();
 
   @override
   Widget build(BuildContext context) {
@@ -65,14 +70,19 @@ class _MenuScreenState extends State<MenuScreen> {
                 CircleAvatar(
                   radius: 50,
                   backgroundColor: const Color(0xFF20BF6B),
-                  child: Text(
-                    widget.userRole.displayName[0],
-                    style: const TextStyle(
-                      fontSize: 40,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
+                  backgroundImage: _profileImagePath != null
+                      ? FileImage(File(_profileImagePath!))
+                      : null,
+                  child: _profileImagePath == null
+                      ? Text(
+                          widget.userRole.displayName[0],
+                          style: const TextStyle(
+                            fontSize: 40,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        )
+                      : null,
                 ),
                 const SizedBox(height: 16),
                 // User Name (based on role)
@@ -115,12 +125,14 @@ class _MenuScreenState extends State<MenuScreen> {
                 _MenuItem(
                   icon: Icons.person_outline,
                   title: 'Edit Profile',
-                  onTap: () {
-                    Navigator.of(context).push(
+                  onTap: () async {
+                    await Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (context) => EditProfileScreen(userRole: widget.userRole),
                       ),
                     );
+                    // Refresh to show updated profile image
+                    setState(() {});
                   },
                 ),
                 Divider(

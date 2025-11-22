@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../models/post_model.dart';
 import '../models/product_model.dart';
 import '../models/task_model.dart';
 import '../models/user_role.dart';
+import '../services/dummy_data_service.dart';
 import '../ui_constants.dart';
 
 enum CreateType {
@@ -36,7 +39,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   PostCategory _selectedCategory = PostCategory.health;
   String _selectedProductCategory = 'General';
   TaskPriority _selectedPriority = TaskPriority.medium;
-  final List<String> _selectedImages = []; // Placeholder for image URLs
+  final List<XFile> _selectedImages = [];
+  final List<String> _selectedImagePaths = [];
+  final ImagePicker _imagePicker = ImagePicker();
+  final DummyDataService _dataService = DummyDataService();
   String _generatedMessage = '';
   bool _isGenerating = false;
 
@@ -50,32 +56,52 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     super.dispose();
   }
 
-  void _handleImagePicker() {
-    // Placeholder for image picker
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Image picker feature coming soon!'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+  Future<void> _handleImagePicker() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
+      if (image != null) {
+        setState(() {
+          _selectedImages.add(image);
+          _selectedImagePaths.add(image.path);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error picking image: $e'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+  
+  void _removeImage(int index) {
+    setState(() {
+      _selectedImages.removeAt(index);
+      _selectedImagePaths.removeAt(index);
+    });
   }
 
   void _handleSubmit() {
     if (_formKey.currentState!.validate()) {
-      dynamic result;
-
       switch (_selectedType) {
         case CreateType.announcement:
-          result = PostModel(
-            id: DateTime.now().millisecondsSinceEpoch.toString(),
-            userId: 'official1',
-            userName: 'Barangay Official',
-            title: _titleController.text.trim(),
-            content: _contentController.text.trim(),
-            category: _selectedCategory,
-            createdAt: DateTime.now(),
-            imageUrls: _selectedImages,
-          );
+          final announcement = {
+            'id': 'announcement-${DateTime.now().millisecondsSinceEpoch}',
+            'title': _titleController.text.trim(),
+            'description': _contentController.text.trim(),
+            'postedBy': 'Barangay Official',
+            'date': DateTime.now(),
+            'category': _selectedCategory.displayName,
+            'unreadCount': 0,
+            'isRead': false,
+          };
+          _dataService.addAnnouncement(announcement);
           break;
 
         case CreateType.product:
@@ -87,34 +113,44 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             return;
           }
 
-          result = ProductModel(
-            id: DateTime.now().millisecondsSinceEpoch.toString(),
-            sellerId: 'vendor1',
-            sellerName: 'Vendor',
+          final product = ProductModel(
+            id: 'product-${DateTime.now().millisecondsSinceEpoch}',
+            sellerId: 'me',
+            sellerName: 'You',
             title: _titleController.text.trim(),
             description: _descriptionController.text.trim(),
             price: price,
             category: _selectedProductCategory,
             createdAt: DateTime.now(),
             isAvailable: true,
-            imageUrls: _selectedImages,
+            imageUrls: _selectedImagePaths,
           );
+          _dataService.addProduct(product);
           break;
 
         case CreateType.task:
-          result = TaskModel(
-            id: DateTime.now().millisecondsSinceEpoch.toString(),
+          final task = TaskModel(
+            id: 'task-${DateTime.now().millisecondsSinceEpoch}',
             title: _titleController.text.trim(),
             description: _descriptionController.text.trim(),
-            requesterName: 'Resident',
+            requesterName: 'Juan Dela Cruz',
             createdAt: DateTime.now(),
             status: TaskStatus.open,
             priority: _selectedPriority,
           );
+          _dataService.addTask(task);
           break;
       }
 
-      Navigator.of(context).pop(result);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${_selectedType.displayName} created successfully!'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        Navigator.of(context).pop();
+      }
     }
   }
 
@@ -515,9 +551,49 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 ),
                 if (_selectedImages.isNotEmpty) ...[
                   const SizedBox(height: 8),
-                  Text(
-                    '${_selectedImages.length} image(s) selected',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  SizedBox(
+                    height: 100,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _selectedImages.length,
+                      itemBuilder: (context, index) {
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: Stack(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.file(
+                                  File(_selectedImages[index].path),
+                                  width: 100,
+                                  height: 100,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              Positioned(
+                                top: 4,
+                                right: 4,
+                                child: GestureDetector(
+                                  onTap: () => _removeImage(index),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.close,
+                                      size: 16,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ],
                 const SizedBox(height: 16),

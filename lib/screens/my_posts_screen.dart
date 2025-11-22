@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/task_model.dart';
+import '../services/dummy_data_service.dart';
 import '../widgets/errand_job_card.dart';
 import 'task_edit_screen.dart';
 
@@ -18,10 +19,16 @@ class MyPostsScreen extends StatefulWidget {
 }
 
 class _MyPostsScreenState extends State<MyPostsScreen> {
+  final DummyDataService _dataService = DummyDataService();
+  
   List<TaskModel> get _myPosts {
-    return widget.allTasks
+    return _dataService.tasks
         .where((task) => task.requesterName == widget.currentUserName)
         .toList();
+  }
+  
+  void _refreshPosts() {
+    setState(() {});
   }
 
   @override
@@ -97,8 +104,8 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
                           status: status,
                           statusLabel: task.status.displayName,
                           volunteerName: task.assignedTo,
-                          onViewPressed: () {
-                            Navigator.of(context).push(
+                          onViewPressed: () async {
+                            await Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) => TaskEditScreen(
                                   task: task,
@@ -106,6 +113,8 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
                                 ),
                               ),
                             );
+                            // Refresh posts after returning from edit screen
+                            _refreshPosts();
                           },
                         );
                       },

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/task_model.dart';
+import '../services/dummy_data_service.dart';
 import '../widgets/errand_job_card.dart';
 import 'create_task_screen.dart';
 import 'my_posts_screen.dart';
@@ -14,82 +15,20 @@ class TasksScreen extends StatefulWidget {
 }
 
 class TasksScreenState extends State<TasksScreen> {
-  final List<TaskModel> _tasks = [
-    TaskModel(
-      id: '1',
-      title: 'Kinahanglan og mo alsag bugas',
-      description:
-          'I need help carrying 10 sacks of rice from the truck to my storage. The truck will arrive tomorrow morning at 8 AM. Looking for 2-3 strong volunteers.',
-      requesterName: 'Maria Santos',
-      createdAt: DateTime(2025, 11, 24, 16, 50),
-      status: TaskStatus.open,
-      priority: TaskPriority.medium,
-    ),
-    TaskModel(
-      id: '2',
-      title: 'Hanap kog maka tutor sakong anak',
-      description:
-          'My daughter needs help with Math and Science subjects. Grade 6 level. Looking for someone who can tutor 2-3 times a week in the afternoon.',
-      requesterName: 'Jason Kurada',
-      createdAt: DateTime(2025, 11, 24, 16, 50),
-      status: TaskStatus.ongoing,
-      assignedTo: 'Ana Garcia',
-      priority: TaskPriority.high,
-    ),
-    TaskModel(
-      id: '3',
-      title: 'Kinahanglan kog manlilugay',
-      description:
-          'Kinahanglan ko manglimpyo kay mag padag akoa, kinahanglan ko 3 ka tao.',
-      requesterName: 'Maria Otakan',
-      createdAt: DateTime(2025, 11, 24, 16, 50),
-      status: TaskStatus.completed,
-      assignedTo: 'Barangay Youth',
-      priority: TaskPriority.low,
-    ),
-    // Juan Dela Cruz's posts for "My post" screen
-    TaskModel(
-      id: '4',
-      title: 'Magpa buak og lugit ng lubi',
-      description:
-          'Nanginahanglan kog 1 ka tao na mo buak, og 3 ka taon na mo lugit. Karong sabado ko magpa trabaho',
-      requesterName: 'Juan Dela Cruz',
-      createdAt: DateTime(2025, 11, 24, 16, 50),
-      status: TaskStatus.open,
-      priority: TaskPriority.medium,
-    ),
-    TaskModel(
-      id: '5',
-      title: 'Hanap kog maka Dag ug niyug',
-      description:
-          'Magpakopras ko karung Sabado, need nako og 3 ka menadadag.',
-      requesterName: 'Juan Dela Cruz',
-      createdAt: DateTime(2025, 11, 24, 16, 50),
-      status: TaskStatus.ongoing,
-      assignedTo: 'Ana Garcia',
-      priority: TaskPriority.medium,
-    ),
-    TaskModel(
-      id: '6',
-      title: 'Nag hanap kog mo garas',
-      description:
-          'Nag hanap kog mo garas sa bukid, libri kaon. Pacquiao akong gusto.',
-      requesterName: 'Juan Dela Cruz',
-      createdAt: DateTime(2025, 11, 24, 16, 50),
-      status: TaskStatus.completed,
-      assignedTo: 'Clinch Lansaderas',
-      priority: TaskPriority.low,
-    ),
-  ];
+  final DummyDataService _dataService = DummyDataService();
+  
+  // Get all tasks except the feed-specific duplicate (already sorted by date in service)
+  List<TaskModel> get _tasks => _dataService.tasks
+      .where((t) => t.id != 'task-2-feed')
+      .toList();
 
   void addTask(TaskModel task) {
-    setState(() {
-      _tasks.insert(0, task);
-    });
+    _dataService.addTask(task);
+    setState(() {});
   }
 
-  void _handlePostTask() {
-    Navigator.of(context).push(
+  void _handlePostTask() async {
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => CreateTaskScreen(
           onTaskCreated: (task) {
@@ -98,10 +37,12 @@ class TasksScreenState extends State<TasksScreen> {
         ),
       ),
     );
+    // Refresh tasks after returning
+    setState(() {});
   }
 
-  void _handleMyPosts() {
-    Navigator.of(context).push(
+  void _handleMyPosts() async {
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => MyPostsScreen(
           allTasks: _tasks,
@@ -109,6 +50,8 @@ class TasksScreenState extends State<TasksScreen> {
         ),
       ),
     );
+    // Refresh tasks after returning from my posts
+    setState(() {});
   }
 
   @override

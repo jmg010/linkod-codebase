@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/user_role.dart';
+import '../services/dummy_data_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final UserRole userRole;
@@ -21,12 +22,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   int _selectedPurok = 5;
   File? _selectedImage;
   final ImagePicker _imagePicker = ImagePicker();
+  final DummyDataService _dataService = DummyDataService();
 
   @override
   void initState() {
     super.initState();
     _phoneController = TextEditingController(text: _getPhoneNumber(widget.userRole));
     _purokController = TextEditingController(text: '5');
+    // Load saved profile image if exists
+    final savedImagePath = _dataService.getCurrentUserProfileImage();
+    if (savedImagePath != null) {
+      _selectedImage = File(savedImagePath);
+    }
   }
 
   @override
@@ -310,6 +317,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           // Update Profile Button
           ElevatedButton(
             onPressed: () {
+              // Save profile image path
+              if (_selectedImage != null) {
+                _dataService.setCurrentUserProfileImage(_selectedImage!.path);
+              }
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('Profile updated successfully!'),

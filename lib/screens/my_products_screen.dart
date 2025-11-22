@@ -1,43 +1,15 @@
 import 'package:flutter/material.dart';
-
+import 'dart:io';
 import '../models/product_model.dart';
+import '../services/dummy_data_service.dart';
 import 'product_detail_screen.dart';
 
 class MyProductsScreen extends StatelessWidget {
   MyProductsScreen({super.key});
 
-  final List<ProductModel> _myProducts = [
-    ProductModel(
-      id: 'mine-1',
-      sellerId: 'me',
-      sellerName: 'You',
-      title: 'Available napud atong talong',
-      description: 'Freshly harvested talong ready for pickup.',
-      price: 50,
-      category: 'Food',
-      createdAt: DateTime(2025, 11, 24, 16, 50),
-      location: 'Purok 3, Kidid',
-      contactNumber: '0917 000 1111',
-      imageUrls: const [
-        'https://images.unsplash.com/photo-1506806732259-39c2d0268443',
-      ],
-    ),
-    ProductModel(
-      id: 'mine-2',
-      sellerId: 'me',
-      sellerName: 'You',
-      title: 'Available atong Kwek2',
-      description: 'Bag-o lang luto nga kwek-kwek para sa tanan.',
-      price: 20,
-      category: 'Food',
-      createdAt: DateTime(2025, 11, 24, 16, 50),
-      location: 'Purok 2, Gym',
-      contactNumber: '0917 000 2222',
-      imageUrls: const [
-        'https://images.unsplash.com/photo-1504674900247-0877df9cc836',
-      ],
-    ),
-  ];
+  final DummyDataService _dataService = DummyDataService();
+  
+  List<ProductModel> get _myProducts => _dataService.getProductsBySeller('me');
 
   @override
   Widget build(BuildContext context) {
@@ -170,12 +142,7 @@ class _MyProductCard extends StatelessWidget {
               child: AspectRatio(
                 aspectRatio: 16 / 9,
                 child: product.imageUrls.isNotEmpty
-                    ? Image.network(
-                        product.imageUrls.first,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                            _placeholder(),
-                      )
+                    ? _buildImageWidget(product.imageUrls.first)
                     : _placeholder(),
               ),
             ),
@@ -266,6 +233,29 @@ class _MyProductCard extends StatelessWidget {
   String _unit(String category) {
     if (category.toLowerCase() == 'food') return 'kg';
     return 'pcs';
+  }
+
+  Widget _buildImageWidget(String imageUrl) {
+    // Check if it's a local file path or network URL
+    final bool isLocalFile = imageUrl.startsWith('/') || 
+                            imageUrl.startsWith('file://') ||
+                            (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://'));
+    
+    if (isLocalFile) {
+      return Image.file(
+        File(imageUrl),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) =>
+            _placeholder(),
+      );
+    } else {
+      return Image.network(
+        imageUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) =>
+            _placeholder(),
+      );
+    }
   }
 
   Widget _placeholder() {

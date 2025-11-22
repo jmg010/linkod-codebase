@@ -7,6 +7,7 @@ class AnnouncementCard extends StatelessWidget {
   final DateTime date;
   final String? category;
   final int? unreadCount;
+  final int? viewCount;
   final bool isRead;
   final VoidCallback? onMarkAsReadPressed;
   final bool showTag;
@@ -19,6 +20,7 @@ class AnnouncementCard extends StatelessWidget {
     required this.date,
     this.category,
     this.unreadCount,
+    this.viewCount,
     this.isRead = false,
     this.onMarkAsReadPressed,
     this.showTag = false,
@@ -127,7 +129,7 @@ class AnnouncementCard extends StatelessWidget {
                 Icon(Icons.visibility_outlined, size: 16, color: const Color(0xFF6E6E6E)),
                 const SizedBox(width: 6),
                 Text(
-                  '${unreadCount ?? 0} views',
+                  '${_getViewCount()} views',
                   style: const TextStyle(
                     fontSize: 12,
                     color: Color(0xFF6E6E6E),
@@ -160,6 +162,11 @@ class AnnouncementCard extends StatelessWidget {
       default:
         return Colors.grey.shade600;
     }
+  }
+
+  int _getViewCount() {
+    // Use viewCount if available, otherwise fall back to unreadCount
+    return viewCount ?? unreadCount ?? 0;
   }
 
   String _formatDate(DateTime date) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import '../models/product_model.dart';
 
 class ProductCard extends StatelessWidget {
@@ -142,15 +143,33 @@ class ProductCard extends StatelessWidget {
         width: double.infinity,
         color: Colors.grey.shade100,
         child: hasImages
-            ? Image.network(
-                product.imageUrls.first,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    _buildPlaceholder(context),
-              )
+            ? _buildImageWidget(product.imageUrls.first)
             : _buildPlaceholder(context),
       ),
     );
+  }
+
+  Widget _buildImageWidget(String imageUrl) {
+    // Check if it's a local file path or network URL
+    final bool isLocalFile = imageUrl.startsWith('/') || 
+                            imageUrl.startsWith('file://') ||
+                            !imageUrl.startsWith('http://') && !imageUrl.startsWith('https://');
+    
+    if (isLocalFile) {
+      return Image.file(
+        File(imageUrl),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) =>
+            _buildPlaceholder(context),
+      );
+    } else {
+      return Image.network(
+        imageUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) =>
+            _buildPlaceholder(context),
+      );
+    }
   }
 
   Widget _buildPlaceholder(BuildContext context) {

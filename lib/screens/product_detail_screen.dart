@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import '../models/product_model.dart';
 
 class ProductDetailScreen extends StatefulWidget {
@@ -212,12 +213,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             height: 180,
             width: double.infinity,
             child: hasImage
-                ? Image.network(
-                    product.imageUrls.first,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) =>
-                        _imagePlaceholder(),
-                  )
+                ? _buildImageWidget(product.imageUrls.first)
                 : _imagePlaceholder(),
           ),
         ),
@@ -247,6 +243,29 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         ),
       ],
     );
+  }
+
+  Widget _buildImageWidget(String imageUrl) {
+    // Check if it's a local file path or network URL
+    final bool isLocalFile = imageUrl.startsWith('/') || 
+                            imageUrl.startsWith('file://') ||
+                            (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://'));
+    
+    if (isLocalFile) {
+      return Image.file(
+        File(imageUrl),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) =>
+            _imagePlaceholder(),
+      );
+    } else {
+      return Image.network(
+        imageUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) =>
+            _imagePlaceholder(),
+      );
+    }
   }
 
   Widget _imagePlaceholder() {

@@ -20,7 +20,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   final List<String> categories = [
     "Senior", "Student", "PWD", "Youth", "Farmer",
     "Fisherman", "Tricycle Driver", "Small Business Owner",
-    "4Ps", "Tattoo", "Barangay Official", "Parent"
+    "4Ps", "Tanod", "Barangay Official", "Parent"
   ];
 
   final List<String> selectedCategories = [];
@@ -38,8 +38,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
               label: 'LINKod logo',
               child: Image.asset(
                 'assets/images/linkod_logo.png',
-                width: 182,
-                height: 143,
+                width: 315,
+                height: 89,
                 fit: BoxFit.contain,
               ),
             ),
@@ -69,7 +69,18 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                       const SizedBox(height: 24),
 
                       // FULL NAME
-                      const Text("Full Name *"),
+                      RichText(
+                        text: const TextSpan(
+                          text: "Full Name ",
+                          style: TextStyle(color: Colors.black),
+                          children: [
+                            TextSpan(
+                              text: "*",
+                              style: TextStyle(color: Colors.red),
+                            ),
+                          ],
+                        ),
+                      ),
                       const SizedBox(height: 6),
                       TextField(
                         controller: nameController,
@@ -83,7 +94,18 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                       const SizedBox(height: 18),
 
                       // PHONE NUMBER
-                      const Text("Phone Number *"),
+                      RichText(
+                        text: const TextSpan(
+                          text: "Phone Number ",
+                          style: TextStyle(color: Colors.black),
+                          children: [
+                            TextSpan(
+                              text: "*",
+                              style: TextStyle(color: Colors.red),
+                            ),
+                          ],
+                        ),
+                      ),
                       const SizedBox(height: 6),
                       TextField(
                         controller: phoneController,
@@ -98,7 +120,18 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                       const SizedBox(height: 18),
 
                       // PASSWORD
-                      const Text("Password *"),
+                      RichText(
+                        text: const TextSpan(
+                          text: "Password ",
+                          style: TextStyle(color: Colors.black),
+                          children: [
+                            TextSpan(
+                              text: "*",
+                              style: TextStyle(color: Colors.red),
+                            ),
+                          ],
+                        ),
+                      ),
                       const SizedBox(height: 6),
                       TextField(
                         controller: passwordController,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/task_model.dart';
+import '../services/dummy_data_service.dart';
 
 class TaskEditScreen extends StatefulWidget {
   final TaskModel task;
@@ -17,6 +18,7 @@ class TaskEditScreen extends StatefulWidget {
 
 class _TaskEditScreenState extends State<TaskEditScreen> {
   TaskStatus _selectedStatus = TaskStatus.open;
+  final DummyDataService _dataService = DummyDataService();
   final List<String> _volunteers = [
     'Regine Mae Lagura',
     'Regine Mae Lagura',
@@ -31,13 +33,14 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
   }
 
   void _handleSetStatus() {
-    // TODO: Update task status
+    _dataService.updateTaskStatus(widget.task.id, _selectedStatus);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Status set to ${_selectedStatus.displayName}'),
         duration: const Duration(seconds: 2),
       ),
     );
+    Navigator.of(context).pop();
   }
 
   void _handleAcceptVolunteer(String volunteerName) {

@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import '../models/product_model.dart';
+import '../services/dummy_data_service.dart';
 
 class SellProductScreen extends StatefulWidget {
   const SellProductScreen({super.key});
@@ -13,6 +17,9 @@ class _SellProductScreenState extends State<SellProductScreen> {
   final _descriptionController = TextEditingController();
   final _locationController = TextEditingController();
   final _contactController = TextEditingController();
+  final ImagePicker _imagePicker = ImagePicker();
+  final DummyDataService _dataService = DummyDataService();
+  File? _selectedImage;
 
   @override
   void dispose() {
@@ -22,6 +29,29 @@ class _SellProductScreenState extends State<SellProductScreen> {
     _locationController.dispose();
     _contactController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleImagePicker() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
+      if (image != null) {
+        setState(() {
+          _selectedImage = File(image.path);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error picking image: $e'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -55,11 +85,7 @@ class _SellProductScreenState extends State<SellProductScreen> {
               ),
               const SizedBox(height: 18),
               GestureDetector(
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Image picker coming soon')),
-                  );
-                },
+                onTap: _handleImagePicker,
                 child: Container(
                   height: 190,
                   width: double.infinity,
@@ -67,50 +93,87 @@ class _SellProductScreenState extends State<SellProductScreen> {
                     color: const Color(0xFFE3E3E3),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      SizedBox(
-                        width: 70,
-                        height: 70,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            const Icon(Icons.image_outlined,
-                                size: 46, color: Color(0xFF646464)),
-                            Positioned(
-                              right: 4,
-                              top: 6,
-                              child: Container(
-                                width: 20,
-                                height: 20,
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(
-                                    color: Colors.grey.shade400,
+                  child: _selectedImage != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: Stack(
+                            children: [
+                              Image.file(
+                                _selectedImage!,
+                                width: double.infinity,
+                                height: 190,
+                                fit: BoxFit.cover,
+                              ),
+                              Positioned(
+                                top: 8,
+                                right: 8,
+                                child: GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      _selectedImage = null;
+                                    });
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.close,
+                                      size: 18,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 ),
-                                child: const Icon(
-                                  Icons.add,
-                                  size: 14,
-                                  color: Colors.black87,
-                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 70,
+                              height: 70,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  const Icon(Icons.image_outlined,
+                                      size: 46, color: Color(0xFF646464)),
+                                  Positioned(
+                                    right: 4,
+                                    top: 6,
+                                    child: Container(
+                                      width: 20,
+                                      height: 20,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(
+                                          color: Colors.grey.shade400,
+                                        ),
+                                      ),
+                                      child: const Icon(
+                                        Icons.add,
+                                        size: 14,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'Tap to add photos',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF4C4C4C),
                               ),
                             ),
                           ],
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Tap to add photos',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Color(0xFF4C4C4C),
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -143,6 +206,49 @@ class _SellProductScreenState extends State<SellProductScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
+                    if (_titleController.text.trim().isEmpty ||
+                        _priceController.text.trim().isEmpty ||
+                        _descriptionController.text.trim().isEmpty ||
+                        _locationController.text.trim().isEmpty ||
+                        _contactController.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Please fill in all fields'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                      return;
+                    }
+
+                    final price = double.tryParse(_priceController.text.trim());
+                    if (price == null || price <= 0) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Please enter a valid price'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                      return;
+                    }
+
+                    final product = ProductModel(
+                      id: 'product-${DateTime.now().millisecondsSinceEpoch}',
+                      sellerId: 'me',
+                      sellerName: 'You',
+                      title: _titleController.text.trim(),
+                      description: _descriptionController.text.trim(),
+                      price: price,
+                      category: 'Food',
+                      createdAt: DateTime.now(),
+                      isAvailable: true,
+                      location: _locationController.text.trim(),
+                      contactNumber: _contactController.text.trim(),
+                      imageUrls: _selectedImage != null
+                          ? [_selectedImage!.path]
+                          : [],
+                    );
+
+                    _dataService.addProduct(product);
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Product posted!')),
                     );

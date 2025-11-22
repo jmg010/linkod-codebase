@@ -33,9 +33,9 @@ class LandingScreen extends StatelessWidget {
     final buttonFontSize = _scale(context, 16);
     final signInFontSize = _scale(context, 12.5); // ~12-13px range
 
-    // Logo dimensions - new logo is 182x143, scales responsively
-    final logoWidth = _scale(context, 182);
-    final logoHeight = _scale(context, 143);
+    // Logo dimensions - new logo is 315x89, scales responsively
+    final logoWidth = _scale(context, 315);
+    final logoHeight = _scale(context, 89);
 
     // Button dimensions
     final buttonHeight = _scale(context, 48);

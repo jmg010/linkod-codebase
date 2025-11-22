@@ -4,6 +4,7 @@ import '../widgets/errand_job_card.dart';
 import '../widgets/product_card.dart';
 import '../models/product_model.dart';
 import '../models/task_model.dart';
+import '../services/dummy_data_service.dart';
 import 'product_detail_screen.dart';
 import 'task_detail_screen.dart';
 
@@ -15,69 +16,13 @@ class HomeFeedScreen extends StatefulWidget {
 }
 
 class _HomeFeedScreenState extends State<HomeFeedScreen> {
-  // Mixed feed: Announcements, Errands/Jobs, and Products
-  final List<Map<String, dynamic>> _feed = [
-    {
-      'type': 'announcement',
-      'title': 'Health Check-up Schedule',
-      'description':
-          'Free health check-up for all residents will be held on Saturday, 10 AM at the Barangay Hall. Please bring your health cards.',
-      'postedBy': 'Barangay Official',
-      'date': DateTime.now().subtract(const Duration(days: 1)),
-      'category': 'Health',
-      'unreadCount': 21,
-      'isRead': false,
-    },
-    {
-      'type': 'request',
-      'title': 'Need help carrying rice sacks',
-      'description':
-          'I need help carrying 10 sacks of rice from the truck to my storage. The truck will arrive tomorrow morning at 8 AM. Looking for 2-3 strong volunteers.',
-      'postedBy': 'Maria Santos',
-      'date': DateTime.now().subtract(const Duration(hours: 3)),
-      'status': ErrandJobStatus.open,
-      'statusLabel': 'Open',
-    },
-    {
-      'type': 'product',
-      'product': ProductModel(
-        id: '1',
-        sellerId: 'vendor1',
-        sellerName: 'Juan Dela Cruz',
-        title: 'Fresh Eggplants',
-        description: 'Fresh eggplants available for sale',
-        price: 50.00,
-        category: 'Food',
-        createdAt: DateTime.now().subtract(const Duration(days: 1)),
-        isAvailable: true,
-        imageUrls: const [
-          'https://images.unsplash.com/photo-1514996937319-344454492b37',
-        ],
-      ),
-    },
-    {
-      'type': 'announcement',
-      'title': 'Livelihood Training Program',
-      'description':
-          'Free livelihood training program for all residents. Learn new skills and start your own business. Registration starts next week.',
-      'postedBy': 'Barangay Official',
-      'date': DateTime.now().subtract(const Duration(days: 2)),
-      'category': 'Livelihood',
-      'unreadCount': 15,
-      'isRead': true,
-    },
-    {
-      'type': 'request',
-      'title': 'Looking for Tutor',
-      'description':
-          'My daughter needs help with Math and Science subjects. Grade 6 level. Looking for someone who can tutor 2-3 times a week in the afternoon.',
-      'postedBy': 'Juan Dela Cruz',
-      'date': DateTime.now().subtract(const Duration(days: 1)),
-      'status': ErrandJobStatus.ongoing,
-      'statusLabel': 'Ongoing',
-      'volunteerName': 'Ana Garcia',
-    },
-  ];
+  final DummyDataService _dataService = DummyDataService();
+  
+  List<Map<String, dynamic>> get _feed => _dataService.homeFeed;
+  
+  void _refreshFeed() {
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -145,18 +90,38 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                               date: item['date'] as DateTime,
                               category: item['category'] as String?,
                               unreadCount: item['unreadCount'] as int?,
+                              viewCount: item['viewCount'] as int?,
                               isRead: item['isRead'] as bool? ?? false,
                               showTag: true,
                               onMarkAsReadPressed: () {
-                                setState(() {
-                                  item['isRead'] = true;
-                                });
-                                debugPrint('Mark as read pressed for: ${item['title']}');
+                                final announcementId = item['id'] as String?;
+                                if (announcementId != null) {
+                                  _dataService.markAnnouncementAsRead(announcementId);
+                                  _refreshFeed();
+                                }
                               },
                             );
                           } else if (type == 'request') {
                             final errandStatus = item['status'] as ErrandJobStatus?;
-                            final taskStatus = _mapErrandStatusToTaskStatus(errandStatus);
+                            final taskId = item['id'] as String?;
+                            
+                            // Find the actual task from data service
+                            TaskModel? task;
+                            if (taskId != null) {
+                              task = _dataService.tasks.firstWhere(
+                                (t) => t.id == taskId,
+                                orElse: () => TaskModel(
+                                  id: taskId,
+                                  title: item['title'] as String,
+                                  description: item['description'] as String,
+                                  requesterName: item['postedBy'] as String,
+                                  createdAt: item['date'] as DateTime,
+                                  status: _mapErrandStatusToTaskStatus(errandStatus),
+                                  assignedTo: item['volunteerName'] as String?,
+                                  priority: TaskPriority.medium,
+                                ),
+                              );
+                            }
                             
                             return ErrandJobCard(
                               title: item['title'] as String,
@@ -167,31 +132,31 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                               statusLabel: item['statusLabel'] as String?,
                               volunteerName: item['volunteerName'] as String?,
                               showTag: true,
-                              onViewPressed: () {
-                                // Create TaskModel from feed item
-                                final task = TaskModel(
-                                  id: 'feed_${item['title']}',
-                                  title: item['title'] as String,
-                                  description: item['description'] as String,
-                                  requesterName: item['postedBy'] as String,
-                                  createdAt: item['date'] as DateTime,
-                                  status: taskStatus,
-                                  assignedTo: item['volunteerName'] as String?,
-                                  priority: TaskPriority.medium,
-                                );
-                                
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => TaskDetailScreen(
-                                      task: task,
-                                      contactNumber: '09026095205',
-                                    ),
-                                  ),
-                                );
-                              },
+                              onViewPressed: task != null
+                                  ? () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => TaskDetailScreen(
+                                            task: task!,
+                                            contactNumber: '09026095205',
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  : null,
                               onVolunteerPressed: item['volunteerName'] == null
                                   ? () {
-                                      debugPrint('Volunteer pressed for: ${item['title']}');
+                                      final taskId = item['id'] as String?;
+                                      if (taskId != null) {
+                                        _dataService.volunteerForTask(taskId, 'You');
+                                        _refreshFeed();
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('You have volunteered for this task!'),
+                                            duration: Duration(seconds: 2),
+                                          ),
+                                        );
+                                      }
                                     }
                                   : null,
                             );

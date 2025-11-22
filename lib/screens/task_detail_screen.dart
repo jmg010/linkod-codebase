@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/task_model.dart';
+import '../services/dummy_data_service.dart';
 
 class TaskDetailScreen extends StatefulWidget {
   final TaskModel task;
@@ -16,6 +17,9 @@ class TaskDetailScreen extends StatefulWidget {
 }
 
 class _TaskDetailScreenState extends State<TaskDetailScreen> {
+  final DummyDataService _dataService = DummyDataService();
+  late TaskModel _currentTask;
+  
   final List<String> _volunteers = [
     'Regine Mae Lagura',
     'Clinch James Lansaderas',
@@ -23,13 +27,36 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     'Eugene Dave Festejo',
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _currentTask = widget.task;
+  }
+
   void _handleVolunteer() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('You have volunteered for this task!'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+    if (_currentTask.status == TaskStatus.open) {
+      _dataService.volunteerForTask(_currentTask.id, 'You');
+      // Refresh task from service
+      final updatedTask = _dataService.getTaskById(_currentTask.id);
+      if (updatedTask != null) {
+        setState(() {
+          _currentTask = updatedTask;
+        });
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You have volunteered for this task!'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This task is no longer available for volunteering.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   @override
@@ -82,7 +109,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         children: [
           // Title
           Text(
-            widget.task.title,
+            _currentTask.title,
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
@@ -96,7 +123,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           _buildSectionHeader('Description'),
           const SizedBox(height: 10),
           Text(
-            widget.task.description,
+            _currentTask.description,
             style: const TextStyle(
               fontSize: 14,
               color: Color(0xFF4C4C4C),
@@ -121,39 +148,71 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             children: [
               _buildSectionHeader('Status'),
               const SizedBox(width: 12),
-              _buildStatusPill(widget.task.status),
+              _buildStatusPill(_currentTask.status),
             ],
           ),
           const SizedBox(height: 20),
-          // Volunteer Button
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _handleVolunteer,
-              icon: const Icon(
-                Icons.favorite_border,
-                size: 18,
-                color: Color(0xFF4C4C4C),
-              ),
-              label: const Text(
-                'Volunteer',
-                style: TextStyle(
-                  fontSize: 14,
+          // Volunteer Button (only show if task is open and not already assigned)
+          if (_currentTask.status == TaskStatus.open && _currentTask.assignedTo == null)
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _handleVolunteer,
+                icon: const Icon(
+                  Icons.favorite_border,
+                  size: 18,
                   color: Color(0xFF4C4C4C),
-                  fontWeight: FontWeight.w600,
+                ),
+                label: const Text(
+                  'Volunteer',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF4C4C4C),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  minimumSize: const Size(0, 48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  side: BorderSide(color: Colors.grey.shade300, width: 1),
+                  backgroundColor: Colors.white,
                 ),
               ),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                minimumSize: const Size(0, 48),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+            )
+          else if (_currentTask.assignedTo != null)
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: null,
+                icon: const Icon(
+                  Icons.check_circle_outline,
+                  size: 18,
+                  color: Color(0xFF20BF6B),
                 ),
-                side: BorderSide(color: Colors.grey.shade300, width: 1),
-                backgroundColor: Colors.white,
+                label: Text(
+                  'Volunteered by: ${_currentTask.assignedTo}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF20BF6B),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  minimumSize: const Size(0, 48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  side: BorderSide(color: Colors.grey.shade300, width: 1),
+                  backgroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.white,
+                  disabledForegroundColor: const Color(0xFF20BF6B),
+                ),
               ),
             ),
-          ),
         ],
       ),
     );

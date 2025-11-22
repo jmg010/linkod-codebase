@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/post_model.dart';
+import '../services/dummy_data_service.dart';
 import '../widgets/announcement_card.dart';
 
 class AnnouncementsScreen extends StatefulWidget {
@@ -12,6 +13,8 @@ class AnnouncementsScreen extends StatefulWidget {
 class AnnouncementsScreenState extends State<AnnouncementsScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int _selectedTabIndex = 0;
+  final DummyDataService _dataService = DummyDataService();
+  
   @override
   void initState() {
     super.initState();
@@ -31,42 +34,26 @@ class AnnouncementsScreenState extends State<AnnouncementsScreen> with SingleTic
     super.dispose();
   }
 
-  // Announcements only (for Announcements screen)
-  final List<Map<String, dynamic>> _announcements = [
-    {
-      'title': 'Health Check-up Schedule',
-      'description':
-          'Free health check-up for all residents will be held on Saturday, 10 AM at the Barangay Hall. Please bring your health cards.',
-      'postedBy': 'Barangay Official',
-      'date': DateTime(2025, 11, 12),
-      'category': 'Health',
-      'unreadCount': 21,
-      'isRead': false,
-    },
-    {
-      'title': 'Livelihood Training Program',
-      'description':
-          'Free health check-up for all residents will be held on Saturday, 10 AM at the Barangay Hall. Please bring your health cards.',
-      'postedBy': 'Barangay Official',
-      'date': DateTime(2025, 11, 12),
-      'category': 'Livelihood',
-      'unreadCount': 21,
-      'isRead': true,
-    },
-  ];
+  List<Map<String, dynamic>> get _announcements => _dataService.announcements;
+  
+  void _refreshAnnouncements() {
+    setState(() {});
+  }
 
   void addPost(PostModel post) {
-    setState(() {
-      _announcements.insert(0, {
-        'title': post.title,
-        'description': post.content,
-        'postedBy': post.userName,
-        'date': post.createdAt,
-        'category': post.category.displayName,
-        'unreadCount': 0,
-        'isRead': false,
-      });
-    });
+    final announcement = {
+      'id': 'announcement-${DateTime.now().millisecondsSinceEpoch}',
+      'title': post.title,
+      'description': post.content,
+      'postedBy': post.userName,
+      'date': post.createdAt,
+      'category': post.category.displayName,
+      'unreadCount': 0,
+      'viewCount': 0,
+      'isRead': false,
+    };
+    _dataService.addAnnouncement(announcement);
+    _refreshAnnouncements();
   }
 
   List<Map<String, dynamic>> get _filteredAnnouncements {
@@ -74,8 +61,11 @@ class AnnouncementsScreenState extends State<AnnouncementsScreen> with SingleTic
       // "All" tab - show all announcements
       return _announcements;
     } else {
-      // "For me" tab - filter logic can be added here
-      return _announcements;
+      // "For me" tab - filter by user's demographic categories
+      final userDemographics = _dataService.getCurrentUserDemographics();
+      return _announcements.where((announcement) {
+        return _dataService.isAnnouncementRelevantForUser(announcement, userDemographics);
+      }).toList();
     }
   }
 
@@ -168,12 +158,14 @@ class AnnouncementsScreenState extends State<AnnouncementsScreen> with SingleTic
                           date: item['date'] as DateTime,
                           category: item['category'] as String?,
                           unreadCount: item['unreadCount'] as int?,
+                          viewCount: item['viewCount'] as int?,
                           isRead: item['isRead'] as bool? ?? false,
                           onMarkAsReadPressed: () {
-                            setState(() {
-                              item['isRead'] = true;
-                            });
-                            debugPrint('Mark as read pressed for: ${item['title']}');
+                            final announcementId = item['id'] as String?;
+                            if (announcementId != null) {
+                              _dataService.markAnnouncementAsRead(announcementId);
+                              _refreshAnnouncements();
+                            }
                           },
                         );
                       },
