@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../models/product_model.dart';
 import '../widgets/product_card.dart';
-import '../ui_constants.dart';
+import 'product_detail_screen.dart';
+import 'sell_product_screen.dart';
+import 'my_products_screen.dart';
 
 class MarketplaceScreen extends StatefulWidget {
   const MarketplaceScreen({super.key});
@@ -23,6 +25,8 @@ class MarketplaceScreenState extends State<MarketplaceScreen> {
       category: 'Food',
       createdAt: DateTime.now().subtract(const Duration(hours: 5)),
       isAvailable: true,
+      location: 'Purok 4 Kidid sa daycare center',
+      contactNumber: '0978192739813',
       imageUrls: const [
         'https://images.unsplash.com/photo-1514996937319-344454492b37',
       ],
@@ -137,133 +141,169 @@ class MarketplaceScreenState extends State<MarketplaceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isEmpty = _products.isEmpty;
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
-      body: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      body: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Title and Search icon row with white background
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Marketplace',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black,
-                        ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      _PillButton(
-                        label: 'Sell',
-                        icon: Icons.sell_outlined,
-                        color: kFacebookBlue,
-                        foreground: Colors.white,
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Sell your items soon!')),
-                          );
-                        },
-                      ),
-                      const SizedBox(width: 12),
-                      _PillButton(
-                        label: 'Categories',
-                        icon: Icons.grid_view_rounded,
-                        color: Colors.grey.shade200,
-                        foreground: Colors.black87,
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Categories coming soon!')),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    "Today's picks",
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      const Text(
+                        'Marketplace',
+                        style: TextStyle(
+                          fontSize: 24,
                           fontWeight: FontWeight.w700,
                           color: Colors.black87,
                         ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.search, color: Color(0xFF6E6E6E), size: 26),
+                    onPressed: () {
+                      debugPrint('Search marketplace');
+                    },
                   ),
                 ],
               ),
             ),
-          ),
-          if (_products.isEmpty)
-            SliverFillRemaining(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.shopping_basket_outlined,
-                        size: 64, color: Colors.grey.shade400),
-                    const SizedBox(height: 12),
-                    Text(
-                      'No products available',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey.shade600,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              sliver: SliverGrid.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 0.7,
-                ),
-                itemCount: _products.length,
-                itemBuilder: (context, index) {
-                  return ProductCard(product: _products[index]);
-                },
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+              child: Row(
+                children: [
+                  _PrimaryPillButton(
+                    label: 'Sell',
+                    icon: Icons.edit_outlined,
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const SellProductScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 12),
+                  _SecondaryPillButton(
+                    label: 'My product',
+                    icon: Icons.inventory_2_outlined,
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => MyProductsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
-        ],
-      ),
-    );
-  }
+            Expanded(
+              child: isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.shopping_basket_outlined,
+                              size: 64, color: Colors.grey.shade400),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No products available',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(color: Colors.grey.shade600),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                      physics: const ClampingScrollPhysics(),
+                      itemCount: _products.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 16),
+                      itemBuilder: (context, index) {
+                        final product = _products[index];
+                        return ProductCard(
+                          product: product,
+                          onInteract: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => ProductDetailScreen(
+                                  product: product,
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      );
+    }
 }
 
-class _PillButton extends StatelessWidget {
+class _PrimaryPillButton extends StatelessWidget {
   final String label;
   final IconData icon;
-  final Color color;
-  final Color foreground;
   final VoidCallback onPressed;
 
-  const _PillButton({
+  const _PrimaryPillButton({
     required this.label,
     required this.icon,
-    required this.color,
-    required this.foreground,
     required this.onPressed,
   });
 
   @override
   Widget build(BuildContext context) {
-    return FilledButton.icon(
+    return ElevatedButton.icon(
       onPressed: onPressed,
       icon: Icon(icon, size: 18),
       label: Text(label),
-      style: FilledButton.styleFrom(
-        backgroundColor: color,
-        foregroundColor: foreground,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF20BF6B),
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(28),
         ),
         elevation: 0,
+      ),
+    );
+  }
+}
+
+class _SecondaryPillButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  const _SecondaryPillButton({
+    required this.label,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18, color: const Color(0xFF30383F)),
+      label: Text(
+        label,
+        style: const TextStyle(color: Color(0xFF30383F)),
+      ),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(28),
+        ),
+        side: BorderSide(color: Colors.grey.shade300),
       ),
     );
   }

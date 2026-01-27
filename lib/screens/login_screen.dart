@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+
 import '../models/user_role.dart';
-import '../ui_constants.dart';
-import '../widgets/linkod_app_bar_title.dart';
+import 'create_account_screen.dart';
 import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -12,139 +12,177 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  UserRole _selectedRole = UserRole.resident;
+  final TextEditingController phoneController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+
+  bool obscurePassword = true;
+  bool isLoading = false;
 
   @override
   void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
+    phoneController.dispose();
+    passwordController.dispose();
     super.dispose();
   }
 
   void _handleLogin() {
-    if (_formKey.currentState!.validate()) {
-      // Save role in a simple variable
-      final selectedRole = _selectedRole;
+    if (isLoading) return;
+    setState(() => isLoading = true);
 
-      // Navigate to HomeScreen and pass the role
+    Future.delayed(const Duration(seconds: 1), () {
+      setState(() => isLoading = false);
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (context) => HomeScreen(userRole: selectedRole),
+          builder: (context) => const HomeScreen(userRole: UserRole.resident),
         ),
       );
-    }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final double buttonWidth = MediaQuery.of(context).size.width * 0.7;
     return Scaffold(
-      appBar: AppBar(title: const LinkodAppBarTitle()),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(kPaddingLarge * 1.5),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Logo or App Title
-                Text(
-                  'Welcome to LINKod',
-                  textAlign: TextAlign.center,
-                  style: kHeadlineMedium.copyWith(color: kFacebookBlue),
+      backgroundColor: const Color(0xFF00A651),
+      body: SafeArea(
+        child: Column(
+          children: [
+            const SizedBox(height: 30),
+            Semantics(
+              label: 'LINKod logo',
+              child: Image.asset(
+                'assets/images/linkod_logo.png',
+                width: 182,
+                height: 143,
+                fit: BoxFit.contain,
+              ),
+            ),
+            const SizedBox(height: 30),
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(30),
+                    topRight: Radius.circular(30),
+                  ),
                 ),
-                const SizedBox(height: kPaddingLarge * 3),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Center(
+                        child: Text(
+                          "Sign in your account",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      const _RequiredLabel(text: "Phone Number"),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: phoneController,
+                        keyboardType: TextInputType.phone,
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      const _RequiredLabel(text: "Password"),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: passwordController,
+                        obscureText: obscurePassword,
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          suffixIcon: IconButton(
+                            icon: Icon(obscurePassword ? Icons.visibility_off : Icons.visibility),
+                            onPressed: () {
+                              setState(() {
+                                obscurePassword = !obscurePassword;
+                              });
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 30),
+                      Center(
+                        child: SizedBox(
+                          width: buttonWidth,
+                          height: 50,
+                          child: ElevatedButton(
+                            onPressed: _handleLogin,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF00A651),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                            ),
+                            child: isLoading
+                                ? const CircularProgressIndicator(color: Colors.white)
+                                : const Text(
+                                    'Sign in',
+                                    style: TextStyle(fontSize: 18, color: Colors.white),
+                                  ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Center(
+                        child: TextButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const CreateAccountScreen(),
+                              ),
+                            );
+                          },
+                          child: const Text("Don't have an account? Create one"),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-                // Email Field
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    hintText: 'Enter your email',
-                    prefixIcon: Icon(Icons.email_outlined),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your email';
-                    }
-                    if (!value.contains('@')) {
-                      return 'Please enter a valid email';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: kPaddingLarge),
+class _RequiredLabel extends StatelessWidget {
+  final String text;
+  const _RequiredLabel({required this.text});
 
-                // Password Field
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Password',
-                    hintText: 'Enter your password',
-                    prefixIcon: Icon(Icons.lock_outlined),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your password';
-                    }
-                    if (value.length < 6) {
-                      return 'Password must be at least 6 characters';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: kPaddingLarge),
-
-                // Role Dropdown
-                DropdownButtonFormField<UserRole>(
-                  value: _selectedRole,
-                  decoration: const InputDecoration(
-                    labelText: 'User Role',
-                    prefixIcon: Icon(Icons.person_outline),
-                  ),
-                  items:
-                      UserRole.values.map((UserRole role) {
-                        return DropdownMenuItem<UserRole>(
-                          value: role,
-                          child: Text(role.displayName),
-                        );
-                      }).toList(),
-                  onChanged: (UserRole? newValue) {
-                    if (newValue != null) {
-                      setState(() {
-                        _selectedRole = newValue;
-                      });
-                    }
-                  },
-                ),
-                const SizedBox(height: kPaddingLarge * 2),
-
-                // Login Button
-                ElevatedButton(
-                  onPressed: _handleLogin,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: kPaddingLarge,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(kCardRadius),
-                    ),
-                  ),
-                  child: const Text(
-                    'Login',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
+  @override
+  Widget build(BuildContext context) {
+    return RichText(
+      text: TextSpan(
+        text: text,
+        style: const TextStyle(
+          color: Colors.black87,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+        children: const [
+          TextSpan(
+            text: ' *',
+            style: TextStyle(
+              color: Colors.red,
+              fontWeight: FontWeight.w600,
             ),
           ),
-        ),
+        ],
       ),
     );
   }

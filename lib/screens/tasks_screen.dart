@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+
 import '../models/task_model.dart';
-import '../widgets/task_card.dart';
+import '../widgets/errand_job_card.dart';
+import 'create_task_screen.dart';
+import 'my_posts_screen.dart';
+import 'task_detail_screen.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -13,149 +17,261 @@ class TasksScreenState extends State<TasksScreen> {
   final List<TaskModel> _tasks = [
     TaskModel(
       id: '1',
-      title: 'Need help carrying rice sacks',
+      title: 'Kinahanglan og mo alsag bugas',
       description:
           'I need help carrying 10 sacks of rice from the truck to my storage. The truck will arrive tomorrow morning at 8 AM. Looking for 2-3 strong volunteers.',
       requesterName: 'Maria Santos',
-      createdAt: DateTime.now().subtract(const Duration(hours: 3)),
+      createdAt: DateTime(2025, 11, 24, 16, 50),
       status: TaskStatus.open,
       priority: TaskPriority.medium,
     ),
     TaskModel(
       id: '2',
-      title: 'Looking for tutor',
+      title: 'Hanap kog maka tutor sakong anak',
       description:
           'My daughter needs help with Math and Science subjects. Grade 6 level. Looking for someone who can tutor 2-3 times a week in the afternoon.',
-      requesterName: 'Juan Dela Cruz',
-      createdAt: DateTime.now().subtract(const Duration(days: 1)),
+      requesterName: 'Jason Kurada',
+      createdAt: DateTime(2025, 11, 24, 16, 50),
       status: TaskStatus.ongoing,
       assignedTo: 'Ana Garcia',
       priority: TaskPriority.high,
     ),
     TaskModel(
       id: '3',
-      title: 'Help with garden cleanup',
+      title: 'Kinahanglan kog manlilugay',
       description:
-          'Need help cleaning up my backyard garden. There are fallen branches and overgrown plants. Will provide snacks and refreshments!',
-      requesterName: 'Lola Rosa',
-      createdAt: DateTime.now().subtract(const Duration(days: 2)),
-      status: TaskStatus.open,
+          'Kinahanglan ko manglimpyo kay mag padag akoa, kinahanglan ko 3 ka tao.',
+      requesterName: 'Maria Otakan',
+      createdAt: DateTime(2025, 11, 24, 16, 50),
+      status: TaskStatus.completed,
+      assignedTo: 'Barangay Youth',
       priority: TaskPriority.low,
     ),
+    // Juan Dela Cruz's posts for "My post" screen
     TaskModel(
       id: '4',
-      title: 'Need someone to fix leaky roof',
+      title: 'Magpa buak og lugit ng lubi',
       description:
-          'My roof has a leak and I need someone who knows basic roofing repair. Materials will be provided. Urgent!',
-      requesterName: 'Pedro Martinez',
-      createdAt: DateTime.now().subtract(const Duration(days: 3)),
-      status: TaskStatus.ongoing,
-      assignedTo: 'Carlos Reyes',
-      priority: TaskPriority.urgent,
+          'Nanginahanglan kog 1 ka tao na mo buak, og 3 ka taon na mo lugit. Karong sabado ko magpa trabaho',
+      requesterName: 'Juan Dela Cruz',
+      createdAt: DateTime(2025, 11, 24, 16, 50),
+      status: TaskStatus.open,
+      priority: TaskPriority.medium,
     ),
     TaskModel(
       id: '5',
-      title: 'Looking for someone to walk my dog',
+      title: 'Hanap kog maka Dag ug niyug',
       description:
-          'I need someone to walk my dog in the morning (7-8 AM) while I\'m at work. Dog is friendly and well-behaved. Willing to pay for the service.',
-      requesterName: 'Sofia Torres',
-      createdAt: DateTime.now().subtract(const Duration(days: 4)),
-      status: TaskStatus.completed,
-      assignedTo: 'Miguel Lopez',
+          'Magpakopras ko karung Sabado, need nako og 3 ka menadadag.',
+      requesterName: 'Juan Dela Cruz',
+      createdAt: DateTime(2025, 11, 24, 16, 50),
+      status: TaskStatus.ongoing,
+      assignedTo: 'Ana Garcia',
       priority: TaskPriority.medium,
     ),
     TaskModel(
       id: '6',
-      title: 'Need help moving furniture',
+      title: 'Nag hanap kog mo garas',
       description:
-          'Moving to a new house next week. Need help moving heavy furniture. Will provide lunch and transportation.',
-      requesterName: 'Roberto Cruz',
-      createdAt: DateTime.now().subtract(const Duration(days: 5)),
-      status: TaskStatus.open,
-      priority: TaskPriority.medium,
-    ),
-    TaskModel(
-      id: '7',
-      title: 'Looking for cooking lessons',
-      description:
-          'Want to learn how to cook traditional Filipino dishes. Looking for someone who can teach me on weekends.',
-      requesterName: 'Elena Fernandez',
-      createdAt: DateTime.now().subtract(const Duration(days: 6)),
-      status: TaskStatus.open,
+          'Nag hanap kog mo garas sa bukid, libri kaon. Pacquiao akong gusto.',
+      requesterName: 'Juan Dela Cruz',
+      createdAt: DateTime(2025, 11, 24, 16, 50),
+      status: TaskStatus.completed,
+      assignedTo: 'Clinch Lansaderas',
       priority: TaskPriority.low,
     ),
   ];
 
   void addTask(TaskModel task) {
     setState(() {
-      _tasks.insert(0, task); // Add to the top of the list
+      _tasks.insert(0, task);
     });
   }
 
-  void _handleVolunteer(TaskModel task) {
-    // Dummy volunteer action
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('You volunteered for: ${task.title}'),
-        duration: const Duration(seconds: 2),
+  void _handlePostTask() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CreateTaskScreen(
+          onTaskCreated: (task) {
+            addTask(task);
+          },
+        ),
       ),
     );
   }
 
-  void _handlePostTask() {
-    // Dummy post task action
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Post Task feature coming soon!'),
-        duration: Duration(seconds: 2),
+  void _handleMyPosts() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MyPostsScreen(
+          allTasks: _tasks,
+          currentUserName: 'Juan Dela Cruz',
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_tasks.isEmpty) {
-      return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.task_alt, size: 64, color: Colors.grey[400]),
-              const SizedBox(height: 16),
-              Text(
-                'No tasks available',
-                style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-              ),
-            ],
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4F4F4),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Title and Search icon row with white background
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Errand/Job Post',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black87,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.search,
+                      color: Color(0xFF6E6E6E), size: 26),
+                  splashRadius: 22,
+                  onPressed: () {},
+                ),
+              ],
+            ),
           ),
-        ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: _handlePostTask,
-          backgroundColor: Theme.of(context).colorScheme.primary,
-          foregroundColor: Colors.white,
-          icon: const Icon(Icons.add_task),
-          label: const Text('Post Task'),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+            child: Row(
+              children: [
+                _ActionPill(
+                  label: 'Create post',
+                  icon: Icons.edit_outlined,
+                  backgroundColor: const Color(0xFF20BF6B),
+                  foregroundColor: Colors.white,
+                  onPressed: _handlePostTask,
+                ),
+                const SizedBox(width: 12),
+                _ActionPill(
+                  label: 'My post',
+                  icon: Icons.inventory_2_outlined,
+                  backgroundColor: const Color(0xFFE9E9E9),
+                  foregroundColor: const Color(0xFF4A4A4A),
+                  onPressed: _handleMyPosts,
+                ),
+              ],
+            ),
+          ),
+            Expanded(
+              child: _tasks.isEmpty
+                  ? _EmptyState()
+                  : ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                      physics: const ClampingScrollPhysics(),
+                      itemCount: _tasks.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 16),
+                      itemBuilder: (context, index) {
+                        final task = _tasks[index];
+                        final status = _mapStatus(task.status);
+                        return ErrandJobCard(
+                          title: task.title,
+                          description: task.description,
+                          postedBy: task.requesterName,
+                          date: task.createdAt,
+                          status: status,
+                          statusLabel: task.status.displayName,
+                          volunteerName: task.assignedTo,
+                          onViewPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => TaskDetailScreen(
+                                  task: task,
+                                  contactNumber: '09026095205',
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+            ),
+          ],
         ),
       );
     }
 
-    return Scaffold(
-      body: ListView.builder(
-        itemCount: _tasks.length,
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        itemBuilder: (context, index) {
-          return TaskCard(
-            task: _tasks[index],
-            onVolunteer: () => _handleVolunteer(_tasks[index]),
-          );
-        },
+  ErrandJobStatus? _mapStatus(TaskStatus status) {
+    switch (status) {
+      case TaskStatus.open:
+        return ErrandJobStatus.open;
+      case TaskStatus.ongoing:
+        return ErrandJobStatus.ongoing;
+      case TaskStatus.completed:
+        return ErrandJobStatus.completed;
+    }
+  }
+}
+
+class _ActionPill extends StatelessWidget {
+  const _ActionPill({
+    required this.label,
+    required this.icon,
+    required this.backgroundColor,
+    required this.foregroundColor,
+    required this.onPressed,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color backgroundColor;
+  final Color foregroundColor;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 16),
+      label: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+        ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _handlePostTask,
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add_task),
-        label: const Text('Post Task'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: backgroundColor,
+        foregroundColor: foregroundColor,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        minimumSize: const Size(0, 36),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(28),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.task_alt, size: 62, color: Colors.grey.shade400),
+          const SizedBox(height: 12),
+          Text(
+            'No errands posted yet',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey.shade600,
+            ),
+          ),
+        ],
       ),
     );
   }
