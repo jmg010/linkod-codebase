@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/task_model.dart';
 import '../widgets/errand_job_card.dart';
+import '../services/tasks_service.dart';
 import 'create_task_screen.dart';
 import 'my_posts_screen.dart';
 import 'task_detail_screen.dart';
@@ -14,78 +15,8 @@ class TasksScreen extends StatefulWidget {
 }
 
 class TasksScreenState extends State<TasksScreen> {
-  final List<TaskModel> _tasks = [
-    TaskModel(
-      id: '1',
-      title: 'Kinahanglan og mo alsag bugas',
-      description:
-          'I need help carrying 10 sacks of rice from the truck to my storage. The truck will arrive tomorrow morning at 8 AM. Looking for 2-3 strong volunteers.',
-      requesterName: 'Maria Santos',
-      createdAt: DateTime(2025, 11, 24, 16, 50),
-      status: TaskStatus.open,
-      priority: TaskPriority.medium,
-    ),
-    TaskModel(
-      id: '2',
-      title: 'Hanap kog maka tutor sakong anak',
-      description:
-          'My daughter needs help with Math and Science subjects. Grade 6 level. Looking for someone who can tutor 2-3 times a week in the afternoon.',
-      requesterName: 'Jason Kurada',
-      createdAt: DateTime(2025, 11, 24, 16, 50),
-      status: TaskStatus.ongoing,
-      assignedTo: 'Ana Garcia',
-      priority: TaskPriority.high,
-    ),
-    TaskModel(
-      id: '3',
-      title: 'Kinahanglan kog manlilugay',
-      description:
-          'Kinahanglan ko manglimpyo kay mag padag akoa, kinahanglan ko 3 ka tao.',
-      requesterName: 'Maria Otakan',
-      createdAt: DateTime(2025, 11, 24, 16, 50),
-      status: TaskStatus.completed,
-      assignedTo: 'Barangay Youth',
-      priority: TaskPriority.low,
-    ),
-    // Juan Dela Cruz's posts for "My post" screen
-    TaskModel(
-      id: '4',
-      title: 'Magpa buak og lugit ng lubi',
-      description:
-          'Nanginahanglan kog 1 ka tao na mo buak, og 3 ka taon na mo lugit. Karong sabado ko magpa trabaho',
-      requesterName: 'Juan Dela Cruz',
-      createdAt: DateTime(2025, 11, 24, 16, 50),
-      status: TaskStatus.open,
-      priority: TaskPriority.medium,
-    ),
-    TaskModel(
-      id: '5',
-      title: 'Hanap kog maka Dag ug niyug',
-      description:
-          'Magpakopras ko karung Sabado, need nako og 3 ka menadadag.',
-      requesterName: 'Juan Dela Cruz',
-      createdAt: DateTime(2025, 11, 24, 16, 50),
-      status: TaskStatus.ongoing,
-      assignedTo: 'Ana Garcia',
-      priority: TaskPriority.medium,
-    ),
-    TaskModel(
-      id: '6',
-      title: 'Nag hanap kog mo garas',
-      description:
-          'Nag hanap kog mo garas sa bukid, libri kaon. Pacquiao akong gusto.',
-      requesterName: 'Juan Dela Cruz',
-      createdAt: DateTime(2025, 11, 24, 16, 50),
-      status: TaskStatus.completed,
-      assignedTo: 'Clinch Lansaderas',
-      priority: TaskPriority.low,
-    ),
-  ];
-
   void addTask(TaskModel task) {
-    setState(() {
-      _tasks.insert(0, task);
-    });
+    // Task will be added to Firestore and stream will update automatically
   }
 
   void _handlePostTask() {
@@ -103,10 +34,7 @@ class TasksScreenState extends State<TasksScreen> {
   void _handleMyPosts() {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => MyPostsScreen(
-          allTasks: _tasks,
-          currentUserName: 'Juan Dela Cruz',
-        ),
+        builder: (_) => const MyPostsScreen(),
       ),
     );
   }
@@ -165,37 +93,66 @@ class TasksScreenState extends State<TasksScreen> {
             ),
           ),
             Expanded(
-              child: _tasks.isEmpty
-                  ? _EmptyState()
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                      physics: const ClampingScrollPhysics(),
-                      itemCount: _tasks.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 16),
-                      itemBuilder: (context, index) {
-                        final task = _tasks[index];
-                        final status = _mapStatus(task.status);
-                        return ErrandJobCard(
-                          title: task.title,
-                          description: task.description,
-                          postedBy: task.requesterName,
-                          date: task.createdAt,
-                          status: status,
-                          statusLabel: task.status.displayName,
-                          volunteerName: task.assignedTo,
-                          onViewPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => TaskDetailScreen(
-                                  task: task,
-                                  contactNumber: '09026095205',
-                                ),
+              child: StreamBuilder<List<TaskModel>>(
+                stream: TasksService.getTasksStream(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Error loading tasks',
+                            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  final tasks = snapshot.data ?? [];
+
+                  if (tasks.isEmpty) {
+                    return _EmptyState();
+                  }
+
+                  return ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                    physics: const ClampingScrollPhysics(),
+                    itemCount: tasks.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 16),
+                    itemBuilder: (context, index) {
+                      final task = tasks[index];
+                      final status = _mapStatus(task.status);
+                      return ErrandJobCard(
+                        title: task.title,
+                        description: task.description,
+                        postedBy: task.requesterName,
+                        date: task.createdAt,
+                        status: status,
+                        statusLabel: task.status.displayName,
+                        volunteerName: task.assignedByName, // Use assignedByName instead of assignedTo
+                        onViewPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => TaskDetailScreen(
+                                task: task,
+                                contactNumber: task.contactNumber ?? '',
                               ),
-                            );
-                          },
-                        );
-                      },
-                    ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ],
         ),

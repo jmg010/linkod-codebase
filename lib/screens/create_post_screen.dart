@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/post_model.dart';
 import '../models/product_model.dart';
 import '../models/task_model.dart';
 import '../models/user_role.dart';
 import '../ui_constants.dart';
+import '../services/posts_service.dart';
+import '../services/products_service.dart';
+import '../services/tasks_service.dart';
+import '../services/firestore_service.dart';
 
 enum CreateType {
   announcement('Announcement'),
@@ -60,22 +66,55 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     );
   }
 
-  void _handleSubmit() {
-    if (_formKey.currentState!.validate()) {
-      dynamic result;
+  Future<void> _handleSubmit() async {
+    if (!_formKey.currentState!.validate()) return;
 
+    final currentUser = FirestoreService.auth.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in to create a post')),
+      );
+      return;
+    }
+
+    // Get user data from Firestore
+    final userDoc = await FirestoreService.instance
+        .collection('users')
+        .doc(currentUser.uid)
+        .get();
+    
+    if (!userDoc.exists) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User profile not found')),
+      );
+      return;
+    }
+
+    final userData = userDoc.data() as Map<String, dynamic>;
+    final userName = userData['fullName'] as String? ?? 'User';
+    final userRole = userData['role'] as String? ?? 'resident';
+
+    try {
       switch (_selectedType) {
         case CreateType.announcement:
-          result = PostModel(
-            id: DateTime.now().millisecondsSinceEpoch.toString(),
-            userId: 'official1',
-            userName: 'Barangay Official',
+          final post = PostModel(
+            id: '', // Will be set by Firestore
+            userId: currentUser.uid,
+            userName: userName,
             title: _titleController.text.trim(),
             content: _contentController.text.trim(),
             category: _selectedCategory,
             createdAt: DateTime.now(),
             imageUrls: _selectedImages,
+            isAnnouncement: widget.userRole == UserRole.official,
           );
+          await PostsService.createPost(post);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Post created successfully!')),
+            );
+            Navigator.of(context).pop();
+          }
           break;
 
         case CreateType.product:
@@ -87,10 +126,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             return;
           }
 
-          result = ProductModel(
-            id: DateTime.now().millisecondsSinceEpoch.toString(),
-            sellerId: 'vendor1',
-            sellerName: 'Vendor',
+          final product = ProductModel(
+            id: '', // Will be set by Firestore
+            sellerId: currentUser.uid,
+            sellerName: userName,
             title: _titleController.text.trim(),
             description: _descriptionController.text.trim(),
             price: price,
@@ -98,23 +137,45 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             createdAt: DateTime.now(),
             isAvailable: true,
             imageUrls: _selectedImages,
+            location: '', // Can be added later
+            contactNumber: userData['phoneNumber'] as String? ?? '',
           );
+          await ProductsService.createProduct(product);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Product created successfully!')),
+            );
+            Navigator.of(context).pop();
+          }
           break;
 
         case CreateType.task:
-          result = TaskModel(
-            id: DateTime.now().millisecondsSinceEpoch.toString(),
+          final task = TaskModel(
+            id: '', // Will be set by Firestore
             title: _titleController.text.trim(),
             description: _descriptionController.text.trim(),
-            requesterName: 'Resident',
+            requesterName: userName,
+            requesterId: currentUser.uid,
             createdAt: DateTime.now(),
             status: TaskStatus.open,
             priority: _selectedPriority,
+            contactNumber: userData['phoneNumber'] as String?,
           );
+          await TasksService.createTask(task);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Task created successfully!')),
+            );
+            Navigator.of(context).pop();
+          }
           break;
       }
-
-      Navigator.of(context).pop(result);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
     }
   }
 

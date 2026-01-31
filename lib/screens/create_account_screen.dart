@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'login_screen.dart';
 
 class CreateAccountScreen extends StatefulWidget {
@@ -184,14 +187,94 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     );
   }
 
-  void _signup() async {
+  String _phoneToEmail(String phone) {
+    final normalized = phone.trim();
+    return '$normalized@linkod.com';
+  }
+
+  Future<void> _signup() async {
+    final name = nameController.text.trim();
+    final phone = phoneController.text.trim();
+    final password = passwordController.text;
+
+    if (name.isEmpty || phone.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all required fields.')),
+      );
+      return;
+    }
+
+    if (selectedCategories.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select at least one category.')),
+      );
+      return;
+    }
+
     setState(() => isLoading = true);
-    await Future.delayed(const Duration(seconds: 2));
-    setState(() => isLoading = false);
-    
-    // Show success dialog
-    if (mounted) {
+
+    try {
+      // Create Firebase Auth account first (so user can log in after approval)
+      final email = _phoneToEmail(phone);
+      final credential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(email: email, password: password);
+
+      final user = credential.user;
+      if (user == null) {
+        throw FirebaseAuthException(code: 'user-null', message: 'User not created.');
+      }
+
+      final uid = user.uid;
+      final firestore = FirebaseFirestore.instance;
+
+      // Convert categories array to comma-separated string (per schema)
+      final categoryString = selectedCategories.join(', ');
+
+      // Store approval request in awaitingApproval collection (auto-generated ID)
+      await firestore.collection('awaitingApproval').add({
+        'userId': uid,
+        'fullName': name,
+        'phoneNumber': phone,
+        'password': password, // Store password for admin to create account after approval
+        'role': 'user', // Per schema: "admin" or "user" (will be mapped to "resident" or "official")
+        'category': categoryString, // Comma-separated string, not array
+        'status': 'pending', // pending | approved | rejected
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) return;
+
+      // Show success dialog
       _showSuccessDialog(context);
+    } on FirebaseAuthException catch (e) {
+      String message = 'Failed to create account. Please try again.';
+      if (e.code == 'email-already-in-use') {
+        message = 'An account already exists for that phone number.';
+      } else if (e.code == 'weak-password') {
+        message = 'The password is too weak.';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } on FirebaseException catch (e) {
+      String message = 'Something went wrong. Please try again.';
+      if (e.code == 'permission-denied') {
+        message = 'Permission denied. Please contact support.';
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Something went wrong: ${e.toString()}'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
 

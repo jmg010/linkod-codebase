@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/product_model.dart';
+import '../services/products_service.dart';
+import '../services/firestore_service.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final ProductModel product;
@@ -15,28 +18,7 @@ class ProductDetailScreen extends StatefulWidget {
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   final TextEditingController _messageController = TextEditingController();
-  final List<_ChatMessage> _messages = [
-    const _ChatMessage(
-      sender: 'Regine Mae Lagura',
-      message: 'Pa reserve ko 3 ka kilo madam',
-      isSeller: false,
-    ),
-    const _ChatMessage(
-      sender: 'Juan Dela Cruz',
-      message: 'Naka reserve na po para inyo maam.',
-      isSeller: true,
-    ),
-    const _ChatMessage(
-      sender: 'Regine Mae Lagura',
-      message: 'Pa reserve ko 3 ka kilo madam',
-      isSeller: false,
-    ),
-    const _ChatMessage(
-      sender: 'Juan Dela Cruz',
-      message: 'Naka reserve na po para inyo ma’am.',
-      isSeller: true,
-    ),
-  ];
+  bool _isSending = false;
 
   @override
   void dispose() {
@@ -178,12 +160,42 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               ),
                             ),
                             const SizedBox(height: 14),
-                            Column(
-                              children: _messages
-                                  .map(
-                                    (msg) => _MessageBubble(message: msg),
-                                  )
-                                  .toList(),
+                            StreamBuilder<List<Map<String, dynamic>>>(
+                              stream: ProductsService.getMessagesStream(widget.product.id),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState == ConnectionState.waiting) {
+                                  return const Center(child: CircularProgressIndicator());
+                                }
+
+                                if (snapshot.hasError) {
+                                  return Text('Error: ${snapshot.error}');
+                                }
+
+                                final messages = snapshot.data ?? [];
+
+                                if (messages.isEmpty) {
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                    child: Text(
+                                      'No messages yet',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ),
+                                  );
+                                }
+
+                                return Column(
+                                  children: messages.map((msg) {
+                                    return _MessageBubble(
+                                      sender: msg['senderName'] as String? ?? 'Unknown',
+                                      message: msg['message'] as String? ?? '',
+                                      isSeller: msg['isSeller'] as bool? ?? false,
+                                    );
+                                  }).toList(),
+                                );
+                              },
                             ),
                           ],
                         ),
@@ -272,6 +284,49 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
+  Future<void> _handleSendMessage() async {
+    if (_messageController.text.trim().isEmpty) return;
+
+    final currentUser = FirestoreService.auth.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in to send a message')),
+      );
+      return;
+    }
+
+    setState(() => _isSending = true);
+
+    try {
+      // Get user name
+      final userDoc = await FirestoreService.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+      
+      final userName = userDoc.data()?['fullName'] as String? ?? 'User';
+      final isSeller = currentUser.uid == widget.product.sellerId;
+
+      await ProductsService.addMessage(
+        widget.product.id,
+        currentUser.uid,
+        userName,
+        _messageController.text.trim(),
+        isSeller,
+      );
+
+      _messageController.clear();
+      setState(() => _isSending = false);
+    } catch (e) {
+      setState(() => _isSending = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
   Widget _buildMessageComposer() {
     return Row(
       children: [
@@ -297,20 +352,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         ),
         const SizedBox(width: 8),
         ElevatedButton(
-          onPressed: () {
-            if (_messageController.text.trim().isEmpty) return;
-            setState(() {
-              _messages.insert(
-                0,
-                _ChatMessage(
-                  sender: 'You',
-                  message: _messageController.text.trim(),
-                  isSeller: false,
-                ),
-              );
-              _messageController.clear();
-            });
-          },
+          onPressed: _isSending ? null : _handleSendMessage,
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF20BF6B),
             foregroundColor: Colors.white,
@@ -319,29 +361,32 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               borderRadius: BorderRadius.circular(14),
             ),
           ),
-          child: const Text('Send'),
+          child: _isSending
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Text('Send'),
         ),
       ],
     );
   }
 }
 
-class _ChatMessage {
+class _MessageBubble extends StatelessWidget {
   final String sender;
   final String message;
   final bool isSeller;
 
-  const _ChatMessage({
+  const _MessageBubble({
     required this.sender,
     required this.message,
     required this.isSeller,
   });
-}
-
-class _MessageBubble extends StatelessWidget {
-  final _ChatMessage message;
-
-  const _MessageBubble({required this.message});
 
   @override
   Widget build(BuildContext context) {
@@ -349,7 +394,7 @@ class _MessageBubble extends StatelessWidget {
       width: double.infinity,
       margin: EdgeInsets.only(
         bottom: 10,
-        left: message.isSeller ? 12 : 0,
+        left: isSeller ? 12 : 0,
       ),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
@@ -360,18 +405,18 @@ class _MessageBubble extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            message.sender,
+            sender,
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: message.isSeller
+              color: isSeller
                   ? const Color(0xFF20BF6B)
                   : Colors.grey.shade800,
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            message.message,
+            message,
             style: TextStyle(
               fontSize: 13,
               color: Colors.grey.shade800,

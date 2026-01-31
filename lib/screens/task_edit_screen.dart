@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/task_model.dart';
+import '../services/tasks_service.dart';
+import '../services/firestore_service.dart';
 
 class TaskEditScreen extends StatefulWidget {
   final TaskModel task;
@@ -17,12 +19,8 @@ class TaskEditScreen extends StatefulWidget {
 
 class _TaskEditScreenState extends State<TaskEditScreen> {
   TaskStatus _selectedStatus = TaskStatus.open;
-  final List<String> _volunteers = [
-    'Regine Mae Lagura',
-    'Regine Mae Lagura',
-    'Regine Mae Lagura',
-    'Regine Mae Lagura',
-  ];
+  bool _isUpdatingStatus = false;
+  bool _isAcceptingVolunteer = false;
 
   @override
   void initState() {
@@ -30,24 +28,95 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
     _selectedStatus = widget.task.status;
   }
 
-  void _handleSetStatus() {
-    // TODO: Update task status
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Status set to ${_selectedStatus.displayName}'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+  Future<void> _handleSetStatus() async {
+    if (_isUpdatingStatus) return;
+
+    setState(() {
+      _isUpdatingStatus = true;
+    });
+
+    try {
+      await TasksService.updateTask(widget.task.id, {
+        'status': _selectedStatus.name,
+      });
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Status updated to ${_selectedStatus.displayName}'),
+          duration: const Duration(seconds: 2),
+          backgroundColor: const Color(0xFF20BF6B),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Error updating status: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error updating status: ${e.toString()}'),
+          duration: const Duration(seconds: 2),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUpdatingStatus = false;
+        });
+      }
+    }
   }
 
-  void _handleAcceptVolunteer(String volunteerName) {
-    // TODO: Accept volunteer
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Accepted volunteer: $volunteerName'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+  Future<void> _handleAcceptVolunteer(String volunteerDocId, String volunteerName) async {
+    if (_isAcceptingVolunteer) return;
+
+    final currentUser = FirestoreService.auth.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please log in to accept volunteers'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isAcceptingVolunteer = true;
+    });
+
+    try {
+      await TasksService.acceptVolunteer(
+        widget.task.id,
+        volunteerDocId,
+        widget.task.requesterId,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Accepted volunteer: $volunteerName'),
+          duration: const Duration(seconds: 2),
+          backgroundColor: const Color(0xFF20BF6B),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Error accepting volunteer: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error accepting volunteer: ${e.toString()}'),
+          duration: const Duration(seconds: 2),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isAcceptingVolunteer = false;
+        });
+      }
+    }
   }
 
   @override
@@ -143,7 +212,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
               ),
               const SizedBox(width: 12),
               ElevatedButton(
-                onPressed: _handleSetStatus,
+                onPressed: _isUpdatingStatus ? null : _handleSetStatus,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF20BF6B),
                   foregroundColor: Colors.white,
@@ -154,13 +223,22 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                   ),
                   elevation: 0,
                 ),
-                child: const Text(
-                  'Set',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                child: _isUpdatingStatus
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Text(
+                        'Set',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
               ),
             ],
           ),
@@ -256,21 +334,72 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          // Volunteer List
-          ..._volunteers.asMap().entries.map((entry) {
-            final index = entry.key;
-            final volunteer = entry.value;
-            return Padding(
-              padding: EdgeInsets.only(bottom: index < _volunteers.length - 1 ? 14 : 0),
-              child: _buildVolunteerItem(volunteer),
-            );
-          }),
+          // Volunteer List from Firestore
+          StreamBuilder<List<Map<String, dynamic>>>(
+            stream: TasksService.getVolunteersStream(widget.task.id),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(20.0),
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+              }
+
+              if (snapshot.hasError) {
+                return Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Text(
+                    'Error loading volunteers: ${snapshot.error}',
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                );
+              }
+
+              final volunteers = snapshot.data ?? [];
+              
+              // Filter to show only pending volunteers (not accepted/rejected)
+              final pendingVolunteers = volunteers.where((v) {
+                final status = v['status'] as String? ?? 'pending';
+                return status == 'pending';
+              }).toList();
+
+              if (pendingVolunteers.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Text(
+                    'No pending volunteers',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                );
+              }
+
+              return Column(
+                children: pendingVolunteers.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final volunteer = entry.value;
+                  final volunteerDocId = volunteer['volunteerDocId'] as String;
+                  final volunteerName = volunteer['volunteerName'] as String? ?? 'Unknown';
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      bottom: index < pendingVolunteers.length - 1 ? 14 : 0,
+                    ),
+                    child: _buildVolunteerItem(volunteerDocId, volunteerName),
+                  );
+                }).toList(),
+              );
+            },
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildVolunteerItem(String volunteerName) {
+  Widget _buildVolunteerItem(String volunteerDocId, String volunteerName) {
     return Row(
       children: [
         Container(
@@ -298,7 +427,9 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
           ),
         ),
         OutlinedButton(
-          onPressed: () => _handleAcceptVolunteer(volunteerName),
+          onPressed: _isAcceptingVolunteer
+              ? null
+              : () => _handleAcceptVolunteer(volunteerDocId, volunteerName),
           style: OutlinedButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
             minimumSize: const Size(80, 40),
@@ -308,14 +439,23 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
             side: BorderSide(color: Colors.grey.shade300, width: 1),
             backgroundColor: Colors.white,
           ),
-          child: const Text(
-            'Accept',
-            style: TextStyle(
-              fontSize: 13,
-              color: Color(0xFF4C4C4C),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          child: _isAcceptingVolunteer
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4C4C4C)),
+                  ),
+                )
+              : const Text(
+                  'Accept',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF4C4C4C),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
         ),
       ],
     );

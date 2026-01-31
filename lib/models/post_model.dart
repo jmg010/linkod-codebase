@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 enum PostCategory {
   health('Health'),
   livelihood('Livelihood'),
@@ -18,6 +20,9 @@ class PostModel {
   final List<String> imageUrls;
   final int likesCount;
   final int commentsCount;
+  final int sharesCount;
+  final bool isAnnouncement;
+  final bool isActive;
 
   PostModel({
     required this.id,
@@ -30,6 +35,9 @@ class PostModel {
     this.imageUrls = const [],
     this.likesCount = 0,
     this.commentsCount = 0,
+    this.sharesCount = 0,
+    this.isAnnouncement = false,
+    this.isActive = true,
   });
 
   Map<String, dynamic> toJson() {
@@ -40,31 +48,61 @@ class PostModel {
       'title': title,
       'content': content,
       'category': category.name,
-      'createdAt': createdAt.toIso8601String(),
+      'createdAt': Timestamp.fromDate(createdAt),
       'imageUrls': imageUrls,
       'likesCount': likesCount,
       'commentsCount': commentsCount,
+      'sharesCount': sharesCount,
+      'isAnnouncement': isAnnouncement,
+      'isActive': isActive,
     };
   }
 
   factory PostModel.fromJson(Map<String, dynamic> json) {
     return PostModel(
-      id: json['id'] as String,
-      userId: json['userId'] as String,
-      userName: json['userName'] as String,
+      id: json['id'] as String? ?? '',
+      userId: json['userId'] as String? ?? '',
+      userName: json['userName'] as String? ?? '',
       title: json['title'] as String? ?? '',
-      content: json['content'] as String,
+      content: json['content'] as String? ?? '',
       category: PostCategory.values.firstWhere(
         (e) => e.name == json['category'],
         orElse: () => PostCategory.health,
       ),
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      createdAt: _parseTimestamp(json['createdAt']),
       imageUrls: (json['imageUrls'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],
-      likesCount: json['likesCount'] as int? ?? 0,
-      commentsCount: json['commentsCount'] as int? ?? 0,
+      likesCount: (json['likesCount'] as num?)?.toInt() ?? 0,
+      commentsCount: (json['commentsCount'] as num?)?.toInt() ?? 0,
+      sharesCount: (json['sharesCount'] as num?)?.toInt() ?? 0,
+      isAnnouncement: json['isAnnouncement'] as bool? ?? false,
+      isActive: json['isActive'] as bool? ?? true,
     );
+  }
+
+  // Helper to parse Firestore Timestamp or ISO string
+  static DateTime _parseTimestamp(dynamic timestamp) {
+    if (timestamp == null) return DateTime.now();
+    if (timestamp is DateTime) return timestamp;
+    if (timestamp is Timestamp) return timestamp.toDate();
+    if (timestamp is String) {
+      try {
+        return DateTime.parse(timestamp);
+      } catch (e) {
+        return DateTime.now();
+      }
+    }
+    return DateTime.now();
+  }
+
+  // Factory method for Firestore documents
+  factory PostModel.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return PostModel.fromJson({
+      ...data,
+      'id': doc.id,
+    });
   }
 }

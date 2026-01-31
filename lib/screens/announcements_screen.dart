@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/post_model.dart';
 import '../widgets/announcement_card.dart';
+import '../services/announcements_service.dart';
+import '../services/firestore_service.dart';
 
 class AnnouncementsScreen extends StatefulWidget {
   const AnnouncementsScreen({super.key});
@@ -12,6 +15,9 @@ class AnnouncementsScreen extends StatefulWidget {
 class AnnouncementsScreenState extends State<AnnouncementsScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int _selectedTabIndex = 0;
+  Set<String> _readAnnouncementIds = {};
+  List<String> _userCategories = [];
+
   @override
   void initState() {
     super.initState();
@@ -23,6 +29,8 @@ class AnnouncementsScreenState extends State<AnnouncementsScreen> with SingleTic
         });
       }
     });
+    _loadUserCategories();
+    _loadReadAnnouncements();
   }
 
   @override
@@ -31,52 +39,67 @@ class AnnouncementsScreenState extends State<AnnouncementsScreen> with SingleTic
     super.dispose();
   }
 
-  // Announcements only (for Announcements screen)
-  final List<Map<String, dynamic>> _announcements = [
-    {
-      'title': 'Health Check-up Schedule',
-      'description':
-          'Free health check-up for all residents will be held on Saturday, 10 AM at the Barangay Hall. Please bring your health cards.',
-      'postedBy': 'Barangay Official',
-      'date': DateTime(2025, 11, 12),
-      'category': 'Health',
-      'unreadCount': 21,
-      'isRead': false,
-    },
-    {
-      'title': 'Livelihood Training Program',
-      'description':
-          'Free health check-up for all residents will be held on Saturday, 10 AM at the Barangay Hall. Please bring your health cards.',
-      'postedBy': 'Barangay Official',
-      'date': DateTime(2025, 11, 12),
-      'category': 'Livelihood',
-      'unreadCount': 21,
-      'isRead': true,
-    },
-  ];
+  Future<void> _loadUserCategories() async {
+    final currentUser = FirestoreService.auth.currentUser;
+    if (currentUser == null) return;
 
-  void addPost(PostModel post) {
-    setState(() {
-      _announcements.insert(0, {
-        'title': post.title,
-        'description': post.content,
-        'postedBy': post.userName,
-        'date': post.createdAt,
-        'category': post.category.displayName,
-        'unreadCount': 0,
-        'isRead': false,
-      });
-    });
+    try {
+      // Per schema: users collection uses Firebase Auth UID as document ID
+      final userDoc = await FirestoreService.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+      
+      if (userDoc.exists) {
+        final data = userDoc.data();
+        final categoryString = data?['category'] as String? ?? '';
+        setState(() {
+          _userCategories = categoryString
+              .split(',')
+              .map((c) => c.trim())
+              .where((c) => c.isNotEmpty)
+              .toList();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading user categories: $e');
+    }
   }
 
-  List<Map<String, dynamic>> get _filteredAnnouncements {
-    if (_selectedTabIndex == 0) {
-      // "All" tab - show all announcements
-      return _announcements;
-    } else {
-      // "For me" tab - filter logic can be added here
-      return _announcements;
+  Future<void> _loadReadAnnouncements() async {
+    final currentUser = FirestoreService.auth.currentUser;
+    if (currentUser == null) return;
+
+    try {
+      final readIds = await AnnouncementsService.getReadAnnouncementIds(currentUser.uid);
+      setState(() {
+        _readAnnouncementIds = readIds;
+      });
+    } catch (e) {
+      debugPrint('Error loading read announcements: $e');
     }
+  }
+
+  Future<void> _markAsRead(String announcementId) async {
+    final currentUser = FirestoreService.auth.currentUser;
+    if (currentUser == null) return;
+
+    try {
+      await AnnouncementsService.markAsRead(announcementId, currentUser.uid);
+      setState(() {
+        _readAnnouncementIds.add(announcementId);
+      });
+    } catch (e) {
+      debugPrint('Error marking as read: $e');
+    }
+  }
+
+  /// Add a post to announcements (called from home screen)
+  /// Note: Since announcements are loaded via stream, this is mainly for compatibility
+  void addPost(PostModel post) {
+    // The stream will automatically update when a new announcement is added to Firestore
+    // This method exists for compatibility with home_screen.dart
+    // If needed, you could trigger a refresh here
   }
 
   @override
@@ -139,8 +162,35 @@ class AnnouncementsScreenState extends State<AnnouncementsScreen> with SingleTic
               ),
             ),
             Expanded(
-              child: _filteredAnnouncements.isEmpty
-                  ? Center(
+              child: StreamBuilder<List<Map<String, dynamic>>>(
+                stream: _selectedTabIndex == 0
+                    ? AnnouncementsService.getAnnouncementsStream()
+                    : AnnouncementsService.getAnnouncementsForUserStream(_userCategories),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Error loading announcements',
+                            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  final announcements = snapshot.data ?? [];
+
+                  if (announcements.isEmpty) {
+                    return Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -152,32 +202,35 @@ class AnnouncementsScreenState extends State<AnnouncementsScreen> with SingleTic
                           ),
                         ],
                       ),
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-                      physics: const ClampingScrollPhysics(),
-                      itemCount: _filteredAnnouncements.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(height: 16),
-                      itemBuilder: (context, index) {
-                        final item = _filteredAnnouncements[index];
-                        return AnnouncementCard(
-                          title: item['title'] as String,
-                          description: item['description'] as String,
-                          postedBy: item['postedBy'] as String,
-                          date: item['date'] as DateTime,
-                          category: item['category'] as String?,
-                          unreadCount: item['unreadCount'] as int?,
-                          isRead: item['isRead'] as bool? ?? false,
-                          onMarkAsReadPressed: () {
-                            setState(() {
-                              item['isRead'] = true;
-                            });
-                            debugPrint('Mark as read pressed for: ${item['title']}');
-                          },
-                        );
-                      },
-                    ),
+                    );
+                  }
+
+                  return ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                    physics: const ClampingScrollPhysics(),
+                    itemCount: announcements.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 16),
+                    itemBuilder: (context, index) {
+                      final announcement = announcements[index];
+                      final announcementId = announcement['id'] as String;
+                      final isRead = _readAnnouncementIds.contains(announcementId);
+                      
+                      return AnnouncementCard(
+                        title: announcement['title'] as String? ?? '',
+                        description: announcement['content'] as String? ?? announcement['description'] as String? ?? '',
+                        postedBy: announcement['postedBy'] as String? ?? 'Barangay Official',
+                        date: announcement['date'] as DateTime? ?? announcement['createdAt'] as DateTime,
+                        category: announcement['category'] as String?,
+                        unreadCount: null, // Can be calculated from reads if needed
+                        isRead: isRead,
+                        onMarkAsReadPressed: () {
+                          _markAsRead(announcementId);
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ],
         ),

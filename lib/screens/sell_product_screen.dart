@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/product_model.dart';
+import '../services/products_service.dart';
+import '../services/firestore_service.dart';
 
 class SellProductScreen extends StatefulWidget {
   const SellProductScreen({super.key});
@@ -22,6 +27,85 @@ class _SellProductScreenState extends State<SellProductScreen> {
     _locationController.dispose();
     _contactController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handlePost() async {
+    if (_titleController.text.trim().isEmpty ||
+        _priceController.text.trim().isEmpty ||
+        _descriptionController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all required fields')),
+      );
+      return;
+    }
+
+    final price = double.tryParse(_priceController.text.trim());
+    if (price == null || price <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid price')),
+      );
+      return;
+    }
+
+    final currentUser = FirestoreService.auth.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in to post a product')),
+      );
+      return;
+    }
+
+    // Get user data from Firestore
+    final userDoc = await FirestoreService.instance
+        .collection('users')
+        .doc(currentUser.uid)
+        .get();
+    
+    if (!userDoc.exists) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User profile not found')),
+      );
+      return;
+    }
+
+    final userData = userDoc.data() as Map<String, dynamic>;
+    final userName = userData['fullName'] as String? ?? 'User';
+
+    try {
+      final product = ProductModel(
+        id: '', // Will be set by Firestore
+        sellerId: currentUser.uid,
+        sellerName: userName,
+        title: _titleController.text.trim(),
+        description: _descriptionController.text.trim(),
+        price: price,
+        category: 'General', // Can be made selectable later
+        createdAt: DateTime.now(),
+        isAvailable: true,
+        imageUrls: [], // Can be added later with image picker
+        location: _locationController.text.trim().isNotEmpty
+            ? _locationController.text.trim()
+            : 'Location not specified',
+        contactNumber: _contactController.text.trim().isNotEmpty
+            ? _contactController.text.trim()
+            : (userData['phoneNumber'] as String? ?? ''),
+      );
+
+      await ProductsService.createProduct(product);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Product posted successfully!')),
+        );
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
+    }
   }
 
   @override
@@ -142,12 +226,7 @@ class _SellProductScreenState extends State<SellProductScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Product posted!')),
-                    );
-                    Navigator.of(context).pop();
-                  },
+                  onPressed: _handlePost,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF20BF6B),
                     foregroundColor: Colors.white,

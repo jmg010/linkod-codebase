@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/task_model.dart';
 import '../models/product_model.dart';
+import '../services/notifications_service.dart';
+import '../services/tasks_service.dart';
+import '../services/products_service.dart';
+import '../services/firestore_service.dart';
 import 'task_detail_screen.dart';
 import 'product_detail_screen.dart';
 
@@ -24,84 +29,70 @@ class NotificationItem {
   });
 }
 
-class NotificationsScreen extends StatelessWidget {
+class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
 
-  // Sample notifications with types
-  List<NotificationItem> get _notifications => [
-    NotificationItem(
-      message: 'Clinch James Lansaderas accepted you to volunteer in hist request post.',
-      type: NotificationType.volunteerAccepted,
-      taskId: 'task_1',
-    ),
-    NotificationItem(
-      message: '5 People volunteered to your errand/job post.',
-      type: NotificationType.errandJobVolunteers,
-      taskId: 'task_2',
-    ),
-    NotificationItem(
-      message: '2 People dropped a message to your product post.',
-      type: NotificationType.productMessages,
-      productId: 'product_1',
-    ),
-  ];
+  @override
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
+}
 
-  void _handleNotificationTap(BuildContext context, NotificationItem notification) {
-    switch (notification.type) {
-      case NotificationType.volunteerAccepted:
-      case NotificationType.errandJobVolunteers:
-        // Navigate to TaskDetailScreen
-        final task = _createSampleTask(notification.taskId ?? 'task_1');
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => TaskDetailScreen(
-              task: task,
-              contactNumber: '09026095205',
-            ),
-          ),
-        );
-        break;
-      case NotificationType.productMessages:
-        // Navigate to ProductDetailScreen
-        final product = _createSampleProduct(notification.productId ?? 'product_1');
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => ProductDetailScreen(
-              product: product,
-            ),
-          ),
-        );
-        break;
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  Future<void> _handleNotificationTap(BuildContext context, Map<String, dynamic> notification) async {
+    final type = notification['type'] as String?;
+    final taskId = notification['taskId'] as String?;
+    final productId = notification['productId'] as String?;
+    final postId = notification['postId'] as String?;
+    final notificationId = notification['notificationId'] as String?;
+
+    // Mark as read
+    if (notificationId != null) {
+      await NotificationsService.markAsRead(notificationId);
     }
-  }
 
-  TaskModel _createSampleTask(String taskId) {
-    return TaskModel(
-      id: taskId,
-      title: 'Sample Errand/Job Post',
-      description: 'This is a sample errand/job post that you can view details for.',
-      requesterName: 'Juan Dela Cruz',
-      createdAt: DateTime.now().subtract(const Duration(days: 2)),
-      status: TaskStatus.open,
-      priority: TaskPriority.medium,
-      assignedTo: taskId == 'task_1' ? 'Clinch James Lansaderas' : null,
-    );
-  }
-
-  ProductModel _createSampleProduct(String productId) {
-    return ProductModel(
-      id: productId,
-      sellerId: 'seller_1',
-      sellerName: 'Juan Dela Cruz',
-      title: 'Sample Product',
-      description: 'This is a sample product that you can view details for.',
-      price: 150.00,
-      category: 'General',
-      createdAt: DateTime.now().subtract(const Duration(days: 1)),
-      isAvailable: true,
-      location: 'Purok 4 Kidid sa daycare center',
-      contactNumber: '0978192739813',
-    );
+    if (taskId != null) {
+      try {
+        final taskDoc = await FirestoreService.instance
+            .collection('tasks')
+            .doc(taskId)
+            .get();
+        
+        if (taskDoc.exists) {
+          final task = TaskModel.fromFirestore(taskDoc);
+          if (mounted) {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => TaskDetailScreen(
+                  task: task,
+                  contactNumber: task.contactNumber,
+                ),
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        debugPrint('Error loading task: $e');
+      }
+    } else if (productId != null) {
+      try {
+        final productDoc = await FirestoreService.instance
+            .collection('products')
+            .doc(productId)
+            .get();
+        
+        if (productDoc.exists) {
+          final product = ProductModel.fromFirestore(productDoc);
+          if (mounted) {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => ProductDetailScreen(product: product),
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        debugPrint('Error loading product: $e');
+      }
+    }
   }
 
   @override
@@ -125,16 +116,74 @@ class NotificationsScreen extends StatelessWidget {
         ),
         centerTitle: true,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          ..._notifications.map((notification) => InkWell(
+      body: FirestoreService.auth.currentUser == null
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.login, size: 64, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Please log in to view notifications',
+                    style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            )
+          : StreamBuilder<List<Map<String, dynamic>>>(
+              stream: NotificationsService.getUserNotificationsStream(
+                FirestoreService.auth.currentUser!.uid,
+              ),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Error loading notifications',
+                    style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          final notifications = snapshot.data ?? [];
+
+          if (notifications.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.notifications_none, size: 64, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No notifications yet',
+                    style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return ListView(
+            padding: const EdgeInsets.all(20),
+            children: notifications.map((notification) {
+              final isRead = notification['isRead'] as bool? ?? false;
+              return InkWell(
                 onTap: () => _handleNotificationTap(context, notification),
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 16),
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: isRead ? Colors.white : Colors.blue.shade50,
                     borderRadius: BorderRadius.circular(18),
                     boxShadow: [
                       BoxShadow(
@@ -148,10 +197,10 @@ class NotificationsScreen extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          notification.message,
-                          style: const TextStyle(
+                          notification['message'] as String? ?? '',
+                          style: TextStyle(
                             fontSize: 16,
-                            fontWeight: FontWeight.w400,
+                            fontWeight: isRead ? FontWeight.w400 : FontWeight.w600,
                             color: Colors.black87,
                           ),
                         ),
@@ -165,8 +214,10 @@ class NotificationsScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-              )),
-        ],
+              );
+            }).toList(),
+          );
+        },
       ),
     );
   }

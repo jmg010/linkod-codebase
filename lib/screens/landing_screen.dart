@@ -103,7 +103,7 @@ class LandingScreen extends StatelessWidget {
               // Large spacer to push button section lower (20% of screen height)
               SizedBox(height: MediaQuery.of(context).size.height * 0.25),
 
-              // Get Started button (white pill)
+              // Get Started button (white pill) - goes to Login screen
               SizedBox(
                 width: buttonWidth,
                 height: buttonHeight,
@@ -114,7 +114,9 @@ class LandingScreen extends StatelessWidget {
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const CreateAccountScreen())
+                        MaterialPageRoute(
+                          builder: (context) => const CreateAccountScreen(),
+                        ),
                       );
                     },
                     style: ElevatedButton.styleFrom(

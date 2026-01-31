@@ -1,31 +1,98 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/task_model.dart';
+import '../services/tasks_service.dart';
+import '../services/firestore_service.dart';
 import '../widgets/errand_job_card.dart';
 import 'task_edit_screen.dart';
 
 class MyPostsScreen extends StatefulWidget {
-  final List<TaskModel> allTasks;
-  final String currentUserName;
-
-  const MyPostsScreen({
-    super.key,
-    required this.allTasks,
-    this.currentUserName = 'Juan Dela Cruz',
-  });
+  const MyPostsScreen({super.key});
 
   @override
   State<MyPostsScreen> createState() => _MyPostsScreenState();
 }
 
 class _MyPostsScreenState extends State<MyPostsScreen> {
-  List<TaskModel> get _myPosts {
-    return widget.allTasks
-        .where((task) => task.requesterName == widget.currentUserName)
-        .toList();
+  String? _currentUserName;
+  bool _isLoadingUser = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentUser();
+  }
+
+  Future<void> _loadCurrentUser() async {
+    final currentUser = FirestoreService.auth.currentUser;
+    if (currentUser == null) {
+      setState(() {
+        _isLoadingUser = false;
+      });
+      return;
+    }
+
+    try {
+      final userDoc = await FirestoreService.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+      
+      if (userDoc.exists) {
+        final data = userDoc.data();
+        setState(() {
+          _currentUserName = data?['fullName'] as String? ?? 'User';
+          _isLoadingUser = false;
+        });
+      } else {
+        setState(() {
+          _currentUserName = 'User';
+          _isLoadingUser = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading user: $e');
+      setState(() {
+        _currentUserName = 'User';
+        _isLoadingUser = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final currentUserId = FirestoreService.currentUserId;
+    
+    if (currentUserId == null) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF4F4F4),
+        body: SafeArea(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                const SizedBox(height: 16),
+                const Text(
+                  'Please log in to view your posts',
+                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (_isLoadingUser) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF4F4F4),
+        body: const SafeArea(
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF4F4F4),
       body: SafeArea(
@@ -64,8 +131,30 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
             ),
             // Posts list
             Expanded(
-              child: _myPosts.isEmpty
-                  ? Center(
+              child: StreamBuilder<List<TaskModel>>(
+                stream: TasksService.getRequesterTasksStream(currentUserId),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Error: ${snapshot.error}',
+                            style: const TextStyle(fontSize: 16, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  final tasks = snapshot.data ?? [];
+                  if (tasks.isEmpty) {
+                    return Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -80,36 +169,39 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
                           ),
                         ],
                       ),
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                      physics: const ClampingScrollPhysics(),
-                      itemCount: _myPosts.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 16),
-                      itemBuilder: (context, index) {
-                        final task = _myPosts[index];
-                        final status = _mapStatus(task.status);
-                        return _MyPostCard(
-                          title: task.title,
-                          description: task.description,
-                          postedBy: task.requesterName,
-                          date: task.createdAt,
-                          status: status,
-                          statusLabel: task.status.displayName,
-                          volunteerName: task.assignedTo,
-                          onViewPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => TaskEditScreen(
-                                  task: task,
-                                  contactNumber: '09026095205',
-                                ),
+                    );
+                  }
+                  return ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                    physics: const ClampingScrollPhysics(),
+                    itemCount: tasks.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 16),
+                    itemBuilder: (context, index) {
+                      final task = tasks[index];
+                      final status = _mapStatus(task.status);
+                      return _MyPostCard(
+                        title: task.title,
+                        description: task.description,
+                        postedBy: task.requesterName,
+                        date: task.createdAt,
+                        status: status,
+                        statusLabel: task.status.displayName,
+                        volunteerName: task.assignedByName,
+                        onViewPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => TaskEditScreen(
+                                task: task,
+                                contactNumber: task.contactNumber ?? '',
                               ),
-                            );
-                          },
-                        );
-                      },
-                    ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ],
         ),

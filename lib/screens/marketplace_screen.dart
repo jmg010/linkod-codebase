@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/product_model.dart';
 import '../widgets/product_card.dart';
+import '../services/products_service.dart';
 import 'product_detail_screen.dart';
 import 'sell_product_screen.dart';
 import 'my_products_screen.dart';
@@ -13,135 +14,12 @@ class MarketplaceScreen extends StatefulWidget {
 }
 
 class MarketplaceScreenState extends State<MarketplaceScreen> {
-  final List<ProductModel> _products = [
-    ProductModel(
-      id: '1',
-      sellerId: 'vendor1',
-      sellerName: 'Maria\'s Store',
-      title: 'Fresh Vegetables Bundle',
-      description:
-          'Fresh vegetables from local farms. Includes tomatoes, onions, and leafy greens.',
-      price: 150.00,
-      category: 'Food',
-      createdAt: DateTime.now().subtract(const Duration(hours: 5)),
-      isAvailable: true,
-      location: 'Purok 4 Kidid sa daycare center',
-      contactNumber: '0978192739813',
-      imageUrls: const [
-        'https://images.unsplash.com/photo-1514996937319-344454492b37',
-      ],
-    ),
-    ProductModel(
-      id: '2',
-      sellerId: 'vendor2',
-      sellerName: 'Juan\'s Crafts',
-      title: 'Handmade Woven Basket',
-      description:
-          'Beautiful handwoven basket perfect for storage or decoration. Made with natural materials.',
-      price: 350.00,
-      category: 'Handicrafts',
-      createdAt: DateTime.now().subtract(const Duration(days: 1)),
-      isAvailable: true,
-      imageUrls: const [
-        'https://images.unsplash.com/photo-1523419409543-0c1df022bdd1',
-      ],
-    ),
-    ProductModel(
-      id: '3',
-      sellerId: 'vendor3',
-      sellerName: 'Lola\'s Kitchen',
-      title: 'Homemade Ube Jam',
-      description:
-          'Delicious homemade ube jam made with fresh ingredients. Perfect for breakfast or snacks.',
-      price: 120.00,
-      category: 'Food',
-      createdAt: DateTime.now().subtract(const Duration(days: 2)),
-      isAvailable: true,
-      imageUrls: const [
-        'https://images.unsplash.com/photo-1509440159596-0249088772ff',
-      ],
-    ),
-    ProductModel(
-      id: '4',
-      sellerId: 'vendor1',
-      sellerName: 'Maria\'s Store',
-      title: 'Organic Rice (5kg)',
-      description: 'Premium organic rice grown locally. Healthy and nutritious.',
-      price: 280.00,
-      category: 'Food',
-      createdAt: DateTime.now().subtract(const Duration(days: 3)),
-      isAvailable: true,
-      imageUrls: const [
-        'https://images.unsplash.com/photo-1509440159596-0249088772ff',
-      ],
-    ),
-    ProductModel(
-      id: '5',
-      sellerId: 'vendor4',
-      sellerName: 'Artisan Pottery',
-      title: 'Ceramic Plant Pot',
-      description: 'Beautiful ceramic pot for your plants. Handcrafted with care.',
-      price: 450.00,
-      category: 'Handicrafts',
-      createdAt: DateTime.now().subtract(const Duration(days: 4)),
-      isAvailable: true,
-      imageUrls: const [
-        'https://images.unsplash.com/photo-1457574173809-67cf0d13aa74',
-      ],
-    ),
-    ProductModel(
-      id: '6',
-      sellerId: 'vendor2',
-      sellerName: 'Juan\'s Crafts',
-      title: 'Bamboo Placemats Set',
-      description: 'Set of 4 eco-friendly bamboo placemats. Perfect for dining.',
-      price: 200.00,
-      category: 'Home',
-      createdAt: DateTime.now().subtract(const Duration(days: 5)),
-      isAvailable: true,
-      imageUrls: const [
-        'https://images.unsplash.com/photo-1616628182501-a3d1e70f3f65',
-      ],
-    ),
-    ProductModel(
-      id: '7',
-      sellerId: 'vendor5',
-      sellerName: 'Local Honey Farm',
-      title: 'Pure Honey (500ml)',
-      description: '100% pure local honey. Natural and unprocessed.',
-      price: 380.00,
-      category: 'Food',
-      createdAt: DateTime.now().subtract(const Duration(days: 6)),
-      isAvailable: true,
-      imageUrls: const [
-        'https://images.unsplash.com/photo-1514996937319-344454492b37',
-      ],
-    ),
-    ProductModel(
-      id: '8',
-      sellerId: 'vendor3',
-      sellerName: 'Lola\'s Kitchen',
-      title: 'Coconut Oil (1L)',
-      description: 'Cold-pressed virgin coconut oil. Great for cooking and skincare.',
-      price: 250.00,
-      category: 'Food',
-      createdAt: DateTime.now().subtract(const Duration(days: 7)),
-      isAvailable: false,
-      imageUrls: const [
-        'https://images.unsplash.com/photo-1483478550801-ceba5fe50e8e',
-      ],
-    ),
-  ];
-
   void addProduct(ProductModel product) {
-    setState(() {
-      _products.insert(0, product);
-    });
+    // Product will be added to Firestore and stream will update automatically
   }
 
   @override
   Widget build(BuildContext context) {
-    final bool isEmpty = _products.isEmpty;
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
       body: Column(
@@ -202,8 +80,33 @@ class MarketplaceScreenState extends State<MarketplaceScreen> {
               ),
             ),
             Expanded(
-              child: isEmpty
-                  ? Center(
+              child: StreamBuilder<List<ProductModel>>(
+                stream: ProductsService.getProductsStream(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Error loading products',
+                            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  final products = snapshot.data ?? [];
+
+                  if (products.isEmpty) {
+                    return Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -219,28 +122,32 @@ class MarketplaceScreenState extends State<MarketplaceScreen> {
                           ),
                         ],
                       ),
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-                      physics: const ClampingScrollPhysics(),
-                      itemCount: _products.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 16),
-                      itemBuilder: (context, index) {
-                        final product = _products[index];
-                        return ProductCard(
-                          product: product,
-                          onInteract: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => ProductDetailScreen(
-                                  product: product,
-                                ),
+                    );
+                  }
+
+                  return ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                    physics: const ClampingScrollPhysics(),
+                    itemCount: products.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 16),
+                    itemBuilder: (context, index) {
+                      final product = products[index];
+                      return ProductCard(
+                        product: product,
+                        onInteract: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => ProductDetailScreen(
+                                product: product,
                               ),
-                            );
-                          },
-                        );
-                      },
-                    ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ],
         ),

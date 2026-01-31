@@ -1,46 +1,38 @@
 import 'package:flutter/material.dart';
 
 import '../models/product_model.dart';
+import '../services/products_service.dart';
+import '../services/firestore_service.dart';
 import 'product_detail_screen.dart';
 
 class MyProductsScreen extends StatelessWidget {
-  MyProductsScreen({super.key});
-
-  final List<ProductModel> _myProducts = [
-    ProductModel(
-      id: 'mine-1',
-      sellerId: 'me',
-      sellerName: 'You',
-      title: 'Available napud atong talong',
-      description: 'Freshly harvested talong ready for pickup.',
-      price: 50,
-      category: 'Food',
-      createdAt: DateTime(2025, 11, 24, 16, 50),
-      location: 'Purok 3, Kidid',
-      contactNumber: '0917 000 1111',
-      imageUrls: const [
-        'https://images.unsplash.com/photo-1506806732259-39c2d0268443',
-      ],
-    ),
-    ProductModel(
-      id: 'mine-2',
-      sellerId: 'me',
-      sellerName: 'You',
-      title: 'Available atong Kwek2',
-      description: 'Bag-o lang luto nga kwek-kwek para sa tanan.',
-      price: 20,
-      category: 'Food',
-      createdAt: DateTime(2025, 11, 24, 16, 50),
-      location: 'Purok 2, Gym',
-      contactNumber: '0917 000 2222',
-      imageUrls: const [
-        'https://images.unsplash.com/photo-1504674900247-0877df9cc836',
-      ],
-    ),
-  ];
+  const MyProductsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final currentUserId = FirestoreService.currentUserId;
+    
+    if (currentUserId == null) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF4F4F4),
+        body: SafeArea(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                const SizedBox(height: 16),
+                const Text(
+                  'Please log in to view your products',
+                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF4F4F4),
       body: SafeArea(
@@ -76,28 +68,53 @@ class MyProductsScreen extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: _myProducts.isEmpty
-                  ? _buildEmptyState(context)
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                      itemCount: _myProducts.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 16),
-                      itemBuilder: (context, index) {
-                        final product = _myProducts[index];
-                        return _MyProductCard(
-                          product: product,
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => ProductDetailScreen(
-                                  product: product,
-                                ),
+              child: StreamBuilder<List<ProductModel>>(
+                stream: ProductsService.getSellerProductsStream(currentUserId),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Error: ${snapshot.error}',
+                            style: const TextStyle(fontSize: 16, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  final products = snapshot.data ?? [];
+                  if (products.isEmpty) {
+                    return _buildEmptyState(context);
+                  }
+                  return ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                    itemCount: products.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 16),
+                    itemBuilder: (context, index) {
+                      final product = products[index];
+                      return _MyProductCard(
+                        product: product,
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => ProductDetailScreen(
+                                product: product,
                               ),
-                            );
-                          },
-                        );
-                      },
-                    ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ],
         ),

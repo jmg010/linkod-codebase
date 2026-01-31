@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_role.dart';
+import '../services/firestore_service.dart';
 import 'login_screen.dart';
 import 'edit_profile_screen.dart';
 import 'notifications_screen.dart';
@@ -18,6 +20,58 @@ class MenuScreen extends StatefulWidget {
 
 class _MenuScreenState extends State<MenuScreen> {
   bool _darkModeEnabled = false;
+  String? _userName;
+  String? _phoneNumber;
+  String? _profileImageUrl;
+  bool _isLoadingUser = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserProfile();
+  }
+
+  Future<void> _loadUserProfile() async {
+    final currentUser = FirestoreService.auth.currentUser;
+    if (currentUser == null) {
+      setState(() {
+        _userName = _getUserName(widget.userRole);
+        _phoneNumber = _getPhoneNumber(widget.userRole);
+        _isLoadingUser = false;
+      });
+      return;
+    }
+
+    try {
+      final userDoc = await FirestoreService.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+
+      if (userDoc.exists) {
+        final data = userDoc.data();
+        setState(() {
+          _userName = data?['fullName'] as String? ?? _getUserName(widget.userRole);
+          _phoneNumber = data?['phoneNumber'] as String? ?? _getPhoneNumber(widget.userRole);
+          _profileImageUrl = data?['profileImageUrl'] as String?;
+          _isLoadingUser = false;
+        });
+      } else {
+        setState(() {
+          _userName = _getUserName(widget.userRole);
+          _phoneNumber = _getPhoneNumber(widget.userRole);
+          _isLoadingUser = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading user profile: $e');
+      setState(() {
+        _userName = _getUserName(widget.userRole);
+        _phoneNumber = _getPhoneNumber(widget.userRole);
+        _isLoadingUser = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -65,19 +119,24 @@ class _MenuScreenState extends State<MenuScreen> {
                 CircleAvatar(
                   radius: 50,
                   backgroundColor: const Color(0xFF20BF6B),
-                  child: Text(
-                    widget.userRole.displayName[0],
-                    style: const TextStyle(
-                      fontSize: 40,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
+                  backgroundImage: _profileImageUrl != null && _profileImageUrl!.isNotEmpty
+                      ? NetworkImage(_profileImageUrl!)
+                      : null,
+                  child: _profileImageUrl == null || _profileImageUrl!.isEmpty
+                      ? Text(
+                          (_userName?.isNotEmpty ?? false) ? _userName![0].toUpperCase() : widget.userRole.displayName[0],
+                          style: const TextStyle(
+                            fontSize: 40,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        )
+                      : null,
                 ),
                 const SizedBox(height: 16),
-                // User Name (based on role)
+                // User Name (from Firestore or fallback to role-based)
                 Text(
-                  _getUserName(widget.userRole),
+                  _isLoadingUser ? 'Loading...' : (_userName ?? _getUserName(widget.userRole)),
                   style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w700,
@@ -85,9 +144,9 @@ class _MenuScreenState extends State<MenuScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                // Phone Number
+                // Phone Number (from Firestore or fallback to role-based)
                 Text(
-                  _getPhoneNumber(widget.userRole),
+                  _isLoadingUser ? '' : (_phoneNumber ?? _getPhoneNumber(widget.userRole)),
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey.shade600,
@@ -115,12 +174,14 @@ class _MenuScreenState extends State<MenuScreen> {
                 _MenuItem(
                   icon: Icons.person_outline,
                   title: 'Edit Profile',
-                  onTap: () {
-                    Navigator.of(context).push(
+                  onTap: () async {
+                    await Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (context) => EditProfileScreen(userRole: widget.userRole),
+                        builder: (context) => const EditProfileScreen(),
                       ),
                     );
+                    // Reload user profile after returning from edit screen
+                    _loadUserProfile();
                   },
                 ),
                 Divider(

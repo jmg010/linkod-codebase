@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/user_role.dart';
 import 'create_account_screen.dart';
@@ -25,18 +27,105 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _handleLogin() {
+  String _phoneToEmail(String phone) {
+    final normalized = phone.trim();
+    return '$normalized@linkod.com';
+  }
+
+  Future<void> _handleLogin() async {
     if (isLoading) return;
+
+    final phone = phoneController.text.trim();
+    final password = passwordController.text;
+
+    if (phone.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter phone number and password.')),
+      );
+      return;
+    }
+
     setState(() => isLoading = true);
 
-    Future.delayed(const Duration(seconds: 1), () {
-      setState(() => isLoading = false);
+    try {
+      final email = _phoneToEmail(phone);
+      final credential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: email, password: password);
+
+      final user = credential.user;
+      if (user == null) {
+        throw FirebaseAuthException(code: 'user-null', message: 'User not found.');
+      }
+
+      // Fetch Firestore user profile by UID (per schema: UID is document ID)
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      UserRole role = UserRole.resident;
+      if (doc.exists) {
+        final data = doc.data();
+        final isApproved = data?['isApproved'] as bool? ?? false;
+        if (!isApproved) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Your account is pending approval. Please wait for admin approval.'),
+            ),
+          );
+          return;
+        }
+        
+        final roleString = (data?['role'] as String?) ?? 'resident';
+        final lower = roleString.toLowerCase();
+        if (lower == 'official' || lower == 'admin') {
+          role = UserRole.official;
+        } else if (lower == 'vendor') {
+          role = UserRole.vendor;
+        } else {
+          role = UserRole.resident;
+        }
+      } else {
+        // User exists in Auth but not in Firestore (pending approval)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Your account is pending approval. Please wait for admin approval.'),
+          ),
+        );
+        return;
+      }
+
+      if (!mounted) return;
+
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (context) => const HomeScreen(userRole: UserRole.resident),
+          builder: (context) => HomeScreen(userRole: role),
         ),
       );
-    });
+    } on FirebaseAuthException catch (e) {
+      String message = 'Failed to sign in. Please try again.';
+      if (e.code == 'user-not-found') {
+        message = 'No account found for that phone number.';
+      } else if (e.code == 'wrong-password') {
+        message = 'Incorrect password. Please try again.';
+      } else if (e.code == 'invalid-credential') {
+        message = 'Invalid credentials. Please check your details.';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Something went wrong: ${e.toString()}'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
+    }
   }
 
   @override

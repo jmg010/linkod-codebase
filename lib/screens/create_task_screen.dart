@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/task_model.dart';
+import '../services/tasks_service.dart';
+import '../services/firestore_service.dart';
 
 class CreateTaskScreen extends StatefulWidget {
   final Function(TaskModel)? onTaskCreated;
@@ -37,26 +41,67 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
     super.dispose();
   }
 
-  void _handlePost() {
-    if (_formKey.currentState!.validate()) {
+  Future<void> _handlePost() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final currentUser = FirestoreService.auth.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in to create a task')),
+      );
+      return;
+    }
+
+    // Get user data from Firestore
+    final userDoc = await FirestoreService.instance
+        .collection('users')
+        .doc(currentUser.uid)
+        .get();
+    
+    if (!userDoc.exists) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User profile not found')),
+      );
+      return;
+    }
+
+    final userData = userDoc.data() as Map<String, dynamic>;
+    final userName = userData['fullName'] as String? ?? 'User';
+
+    try {
       final task = TaskModel(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        id: '', // Will be set by Firestore
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
-        requesterName: 'Current User', // TODO: Get from auth
+        requesterName: userName,
+        requesterId: currentUser.uid,
         createdAt: DateTime.now(),
         status: TaskStatus.open,
         priority: TaskPriority.medium,
+        contactNumber: _contactController.text.trim().isNotEmpty
+            ? _contactController.text.trim()
+            : (userData['phoneNumber'] as String?),
       );
 
+      await TasksService.createTask(task);
+      
       widget.onTaskCreated?.call(task);
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Errand/Job post created successfully!'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Errand/Job post created successfully!'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
     }
   }
 

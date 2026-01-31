@@ -1,9 +1,18 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../widgets/announcement_card.dart';
 import '../widgets/errand_job_card.dart';
 import '../widgets/product_card.dart';
+import '../widgets/post_card.dart';
 import '../models/product_model.dart';
 import '../models/task_model.dart';
+import '../models/post_model.dart';
+import '../services/posts_service.dart';
+import '../services/tasks_service.dart';
+import '../services/products_service.dart';
+import '../services/announcements_service.dart';
+import '../services/firestore_service.dart';
 import 'product_detail_screen.dart';
 import 'task_detail_screen.dart';
 
@@ -15,69 +24,86 @@ class HomeFeedScreen extends StatefulWidget {
 }
 
 class _HomeFeedScreenState extends State<HomeFeedScreen> {
-  // Mixed feed: Announcements, Errands/Jobs, and Products
-  final List<Map<String, dynamic>> _feed = [
-    {
-      'type': 'announcement',
-      'title': 'Health Check-up Schedule',
-      'description':
-          'Free health check-up for all residents will be held on Saturday, 10 AM at the Barangay Hall. Please bring your health cards.',
-      'postedBy': 'Barangay Official',
-      'date': DateTime.now().subtract(const Duration(days: 1)),
-      'category': 'Health',
-      'unreadCount': 21,
-      'isRead': false,
-    },
-    {
-      'type': 'request',
-      'title': 'Need help carrying rice sacks',
-      'description':
-          'I need help carrying 10 sacks of rice from the truck to my storage. The truck will arrive tomorrow morning at 8 AM. Looking for 2-3 strong volunteers.',
-      'postedBy': 'Maria Santos',
-      'date': DateTime.now().subtract(const Duration(hours: 3)),
-      'status': ErrandJobStatus.open,
-      'statusLabel': 'Open',
-    },
-    {
-      'type': 'product',
-      'product': ProductModel(
-        id: '1',
-        sellerId: 'vendor1',
-        sellerName: 'Juan Dela Cruz',
-        title: 'Fresh Eggplants',
-        description: 'Fresh eggplants available for sale',
-        price: 50.00,
-        category: 'Food',
-        createdAt: DateTime.now().subtract(const Duration(days: 1)),
-        isAvailable: true,
-        imageUrls: const [
-          'https://images.unsplash.com/photo-1514996937319-344454492b37',
-        ],
-      ),
-    },
-    {
-      'type': 'announcement',
-      'title': 'Livelihood Training Program',
-      'description':
-          'Free livelihood training program for all residents. Learn new skills and start your own business. Registration starts next week.',
-      'postedBy': 'Barangay Official',
-      'date': DateTime.now().subtract(const Duration(days: 2)),
-      'category': 'Livelihood',
-      'unreadCount': 15,
-      'isRead': true,
-    },
-    {
-      'type': 'request',
-      'title': 'Looking for Tutor',
-      'description':
-          'My daughter needs help with Math and Science subjects. Grade 6 level. Looking for someone who can tutor 2-3 times a week in the afternoon.',
-      'postedBy': 'Juan Dela Cruz',
-      'date': DateTime.now().subtract(const Duration(days: 1)),
-      'status': ErrandJobStatus.ongoing,
-      'statusLabel': 'Ongoing',
-      'volunteerName': 'Ana Garcia',
-    },
-  ];
+  Set<String> _readAnnouncementIds = {};
+  List<String> _userCategories = [];
+  
+  StreamController<List<Map<String, dynamic>>>? _feedController;
+  StreamSubscription<List<Map<String, dynamic>>>? _announcementsSubscription;
+  StreamSubscription<List<PostModel>>? _postsSubscription;
+  StreamSubscription<List<TaskModel>>? _tasksSubscription;
+  StreamSubscription<List<ProductModel>>? _productsSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserCategories();
+    _loadReadAnnouncements();
+  }
+
+  @override
+  void dispose() {
+    _announcementsSubscription?.cancel();
+    _postsSubscription?.cancel();
+    _tasksSubscription?.cancel();
+    _productsSubscription?.cancel();
+    _feedController?.close();
+    super.dispose();
+  }
+
+  Future<void> _loadUserCategories() async {
+    final currentUser = FirestoreService.auth.currentUser;
+    if (currentUser == null) return;
+
+    try {
+      // Per schema: users collection uses Firebase Auth UID as document ID
+      final userDoc = await FirestoreService.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+      
+      if (userDoc.exists) {
+        final data = userDoc.data();
+        final categoryString = data?['category'] as String? ?? '';
+        setState(() {
+          _userCategories = categoryString
+              .split(',')
+              .map((c) => c.trim())
+              .where((c) => c.isNotEmpty)
+              .toList();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading user categories: $e');
+    }
+  }
+
+  Future<void> _loadReadAnnouncements() async {
+    final currentUser = FirestoreService.auth.currentUser;
+    if (currentUser == null) return;
+
+    try {
+      final readIds = await AnnouncementsService.getReadAnnouncementIds(currentUser.uid);
+      setState(() {
+        _readAnnouncementIds = readIds;
+      });
+    } catch (e) {
+      debugPrint('Error loading read announcements: $e');
+    }
+  }
+
+  Future<void> _markAnnouncementAsRead(String announcementId) async {
+    final currentUser = FirestoreService.auth.currentUser;
+    if (currentUser == null) return;
+
+    try {
+      await AnnouncementsService.markAsRead(announcementId, currentUser.uid);
+      setState(() {
+        _readAnnouncementIds.add(announcementId);
+      });
+    } catch (e) {
+      debugPrint('Error marking as read: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -110,115 +136,305 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
               ),
             ),
             
-            // Mixed feed list
+            // Mixed feed list - combining posts, tasks, products, and announcements
             Expanded(
-              child: _feed.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.home, size: 64, color: Colors.grey[400]),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No posts yet',
-                            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-                          ),
-                        ],
-                      ),
-                    )
-                  : Scrollbar(
-                      thumbVisibility: false,
-                      child: ListView.separated(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        physics: const ClampingScrollPhysics(),
-                        itemCount: _feed.length,
-                        separatorBuilder: (context, index) => const SizedBox(height: 0),
-                        itemBuilder: (context, index) {
-                          final item = _feed[index];
-                          final type = item['type'] as String;
-                          
-                          if (type == 'announcement') {
-                            return AnnouncementCard(
-                              title: item['title'] as String,
-                              description: item['description'] as String,
-                              postedBy: item['postedBy'] as String,
-                              date: item['date'] as DateTime,
-                              category: item['category'] as String?,
-                              unreadCount: item['unreadCount'] as int?,
-                              isRead: item['isRead'] as bool? ?? false,
-                              showTag: true,
-                              onMarkAsReadPressed: () {
-                                setState(() {
-                                  item['isRead'] = true;
-                                });
-                                debugPrint('Mark as read pressed for: ${item['title']}');
-                              },
-                            );
-                          } else if (type == 'request') {
-                            final errandStatus = item['status'] as ErrandJobStatus?;
-                            final taskStatus = _mapErrandStatusToTaskStatus(errandStatus);
-                            
-                            return ErrandJobCard(
-                              title: item['title'] as String,
-                              description: item['description'] as String,
-                              postedBy: item['postedBy'] as String,
-                              date: item['date'] as DateTime,
-                              status: errandStatus,
-                              statusLabel: item['statusLabel'] as String?,
-                              volunteerName: item['volunteerName'] as String?,
-                              showTag: true,
-                              onViewPressed: () {
-                                // Create TaskModel from feed item
-                                final task = TaskModel(
-                                  id: 'feed_${item['title']}',
-                                  title: item['title'] as String,
-                                  description: item['description'] as String,
-                                  requesterName: item['postedBy'] as String,
-                                  createdAt: item['date'] as DateTime,
-                                  status: taskStatus,
-                                  assignedTo: item['volunteerName'] as String?,
-                                  priority: TaskPriority.medium,
-                                );
-                                
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => TaskDetailScreen(
-                                      task: task,
-                                      contactNumber: '09026095205',
-                                    ),
-                                  ),
-                                );
-                              },
-                              onVolunteerPressed: item['volunteerName'] == null
-                                  ? () {
-                                      debugPrint('Volunteer pressed for: ${item['title']}');
-                                    }
-                                  : null,
-                            );
-                          } else if (type == 'product') {
-                            return ProductCard(
-                              product: item['product'] as ProductModel,
-                              showTag: true,
-                              onInteract: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => ProductDetailScreen(
-                                      product: item['product'] as ProductModel,
-                                    ),
-                                  ),
-                                );
-                              },
-                            );
-                          }
-                          return const SizedBox.shrink();
-                        },
-                      ),
-                    ),
+              child: _buildFeedStream(),
             ),
           ],
         ),
       );
     }
+
+  Stream<List<Map<String, dynamic>>>? _feedStream;
+
+  Stream<List<Map<String, dynamic>>> _getFeedStream() {
+    _feedStream ??= _combineFeedStreams();
+    return _feedStream!;
+  }
+
+  Widget _buildFeedStream() {
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: _getFeedStream(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
+                const SizedBox(height: 16),
+                Text(
+                  'Error loading feed',
+                  style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final feedItems = snapshot.data ?? [];
+
+        if (feedItems.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.home, size: 64, color: Colors.grey[400]),
+                const SizedBox(height: 16),
+                Text(
+                  'No posts yet',
+                  style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return Scrollbar(
+          thumbVisibility: false,
+          child: ListView.separated(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            physics: const ClampingScrollPhysics(),
+            itemCount: feedItems.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 0),
+            itemBuilder: (context, index) {
+              final item = feedItems[index];
+              final type = item['type'] as String;
+
+              if (type == 'announcement') {
+                final announcementId = item['id'] as String;
+                final isRead = _readAnnouncementIds.contains(announcementId);
+                return AnnouncementCard(
+                  title: item['title'] as String? ?? '',
+                  description: item['content'] as String? ?? item['description'] as String? ?? '',
+                  postedBy: item['postedBy'] as String? ?? 'Barangay Official',
+                  date: item['date'] as DateTime? ?? item['createdAt'] as DateTime,
+                  category: item['category'] as String?,
+                  unreadCount: null,
+                  isRead: isRead,
+                  showTag: true,
+                  onMarkAsReadPressed: () {
+                    _markAnnouncementAsRead(announcementId);
+                  },
+                );
+              } else if (type == 'post') {
+                final post = item['post'] as PostModel;
+                return PostCard(post: post);
+              } else if (type == 'task') {
+                final task = item['task'] as TaskModel;
+                final errandStatus = _mapTaskStatusToErrandStatus(task.status);
+                return ErrandJobCard(
+                  title: task.title,
+                  description: task.description,
+                  postedBy: task.requesterName,
+                  date: task.createdAt,
+                  status: errandStatus,
+                  statusLabel: task.status.displayName,
+                  volunteerName: task.assignedByName,
+                  showTag: true,
+                  onViewPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => TaskDetailScreen(
+                          task: task,
+                          contactNumber: task.contactNumber,
+                        ),
+                      ),
+                    );
+                  },
+                  onVolunteerPressed: task.status == TaskStatus.open && task.assignedByName == null
+                      ? () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => TaskDetailScreen(
+                                task: task,
+                                contactNumber: task.contactNumber,
+                              ),
+                            ),
+                          );
+                        }
+                      : null,
+                );
+              } else if (type == 'product') {
+                final product = item['product'] as ProductModel;
+                return ProductCard(
+                  product: product,
+                  showTag: true, // Show "For Sale" tag
+                  onInteract: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ProductDetailScreen(product: product),
+                      ),
+                    );
+                  },
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Stream<List<Map<String, dynamic>>> _combineFeedStreams() {
+    // Create controller only once
+    _feedController ??= StreamController<List<Map<String, dynamic>>>.broadcast();
+    
+    List<Map<String, dynamic>>? lastAnnouncements;
+    List<PostModel>? lastPosts;
+    List<TaskModel>? lastTasks;
+    List<ProductModel>? lastProducts;
+    
+    // Track which streams have emitted at least once
+    bool announcementsReady = false;
+    bool postsReady = false;
+    bool tasksReady = false;
+    bool productsReady = false;
+
+    void emitCombined() {
+      if (!mounted || _feedController == null || _feedController!.isClosed) {
+        return;
+      }
+
+      final List<Map<String, dynamic>> feed = [];
+
+      // Add announcements (use empty list if not ready yet)
+      if (announcementsReady && lastAnnouncements != null) {
+        for (final announcement in lastAnnouncements!) {
+          feed.add({
+            'type': 'announcement',
+            ...announcement,
+          });
+        }
+      }
+
+      // Add posts (use empty list if not ready yet)
+      if (postsReady && lastPosts != null) {
+        for (final post in lastPosts!) {
+          feed.add({
+            'type': 'post',
+            'post': post,
+            'timestamp': post.createdAt,
+          });
+        }
+      }
+
+      // Add tasks (use empty list if not ready yet)
+      if (tasksReady && lastTasks != null) {
+        for (final task in lastTasks!) {
+          feed.add({
+            'type': 'task',
+            'task': task,
+            'timestamp': task.createdAt,
+          });
+        }
+      }
+
+      // Add products (use empty list if not ready yet)
+      if (productsReady && lastProducts != null) {
+        for (final product in lastProducts!) {
+          feed.add({
+            'type': 'product',
+            'product': product,
+            'timestamp': product.createdAt,
+          });
+        }
+      }
+
+      // Sort by timestamp (newest first)
+      feed.sort((a, b) {
+        final aTime = a['timestamp'] as DateTime? ?? DateTime.now();
+        final bTime = b['timestamp'] as DateTime? ?? DateTime.now();
+        return bTime.compareTo(aTime);
+      });
+
+      if (!_feedController!.isClosed) {
+        _feedController!.add(feed);
+      }
+    }
+
+    // Cancel existing subscriptions before creating new ones
+    _announcementsSubscription?.cancel();
+    _postsSubscription?.cancel();
+    _tasksSubscription?.cancel();
+    _productsSubscription?.cancel();
+
+    // Listen to all streams with error handling
+    _announcementsSubscription = AnnouncementsService.getAnnouncementsForUserStream(_userCategories)
+        .listen(
+      (announcements) {
+        lastAnnouncements = announcements;
+        announcementsReady = true;
+        emitCombined();
+      },
+      onError: (error) {
+        debugPrint('Error in announcements stream: $error');
+        lastAnnouncements = [];
+        announcementsReady = true;
+        emitCombined();
+      },
+    );
+
+    _postsSubscription = PostsService.getPostsStream().listen(
+      (posts) {
+        lastPosts = posts;
+        postsReady = true;
+        emitCombined();
+      },
+      onError: (error) {
+        debugPrint('Error in posts stream: $error');
+        lastPosts = [];
+        postsReady = true;
+        emitCombined();
+      },
+    );
+
+    _tasksSubscription = TasksService.getTasksStream().listen(
+      (tasks) {
+        lastTasks = tasks;
+        tasksReady = true;
+        emitCombined();
+      },
+      onError: (error) {
+        debugPrint('Error in tasks stream: $error');
+        lastTasks = [];
+        tasksReady = true;
+        emitCombined();
+      },
+    );
+
+    _productsSubscription = ProductsService.getProductsStream().listen(
+      (products) {
+        lastProducts = products;
+        productsReady = true;
+        emitCombined();
+      },
+      onError: (error) {
+        debugPrint('Error in products stream: $error');
+        lastProducts = [];
+        productsReady = true;
+        emitCombined();
+      },
+    );
+
+    return _feedController!.stream;
+  }
+
+  ErrandJobStatus _mapTaskStatusToErrandStatus(TaskStatus status) {
+    switch (status) {
+      case TaskStatus.open:
+        return ErrandJobStatus.open;
+      case TaskStatus.ongoing:
+        return ErrandJobStatus.ongoing;
+      case TaskStatus.completed:
+        return ErrandJobStatus.completed;
+    }
+  }
 
   TaskStatus _mapErrandStatusToTaskStatus(ErrandJobStatus? errandStatus) {
     if (errandStatus == null) return TaskStatus.open;
