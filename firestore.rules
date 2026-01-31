@@ -1,0 +1,70 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+		
+      function isAdmin() {
+      return request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+  match /users/{userId} {
+    // userId is the phone number (per schema: phone number is document ID)
+    
+    // Users can read any user profile (phone numbers aren't sensitive)
+    allow read: if request.auth != null;
+    
+    // Users can update their own profile (phoneNumber field must match document ID)
+    allow update: if request.auth != null
+                   && request.resource.data.phoneNumber == userId
+                   && request.resource.data.phoneNumber == resource.data.phoneNumber;
+
+    // User can create THEIR OWN doc (on first login after approval)
+    // phoneNumber field must match document ID
+    allow create: if request.auth != null
+                 && request.resource.data.phoneNumber == userId
+                 && request.resource.data.keys().hasAll(['fullName', 'phoneNumber', 'role', 'createdAt']);
+
+    // Admin full access
+    allow read, create, update, delete: if isAdmin();
+  }
+
+    // Announcements collection (used by dashboard & announcements screen)
+    match /announcements/{docId} {
+      // Everyone can read announcements
+      allow read: if true;
+      // Only admins can create/update/delete
+      allow write: if isAdmin();
+    }
+    
+      match /announcementDrafts/{docId} {
+      // Everyone can read announcementsDrafts
+      allow read: if true;
+      // Only admins can create/update/delete
+      allow write: if isAdmin();
+    }
+
+    // Awaiting approval collection (for dashboard + admin flows)
+    match /awaitingApproval/{docId} {
+      // Admin can read/manage all approval requests
+      allow read, update, delete: if isAdmin();
+      
+      // A logged-in user can create ONLY their own approval request doc
+      // (userId field must match their auth uid, and required fields must be present)
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.keys().hasAll(['fullName', 'phoneNumber', 'password', 'role', 'category', 'createdAt'])
+                    && request.resource.data.role == 'user';
+    }
+
+    // Products (your example public collection)
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Admin-only settings
+    match /adminSettings/{document} {
+      allow read, write: if isAdmin();
+    }
+  }
+}
