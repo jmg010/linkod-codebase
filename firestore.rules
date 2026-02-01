@@ -1,70 +1,98 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-		
-      function isAdmin() {
-      return request.auth != null &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+
+    // Helper: true if current user has admin/official role in users/{uid}
+    function isOfficial() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'official'];
     }
 
-  match /users/{userId} {
-    // userId is the phone number (per schema: phone number is document ID)
-    
-    // Users can read any user profile (phone numbers aren't sensitive)
-    allow read: if request.auth != null;
-    
-    // Users can update their own profile (phoneNumber field must match document ID)
-    allow update: if request.auth != null
-                   && request.resource.data.phoneNumber == userId
-                   && request.resource.data.phoneNumber == resource.data.phoneNumber;
-
-    // User can create THEIR OWN doc (on first login after approval)
-    // phoneNumber field must match document ID
-    allow create: if request.auth != null
-                 && request.resource.data.phoneNumber == userId
-                 && request.resource.data.keys().hasAll(['fullName', 'phoneNumber', 'role', 'createdAt']);
-
-    // Admin full access
-    allow read, create, update, delete: if isAdmin();
-  }
-
-    // Announcements collection (used by dashboard & announcements screen)
-    match /announcements/{docId} {
-      // Everyone can read announcements
-      allow read: if true;
-      // Only admins can create/update/delete
-      allow write: if isAdmin();
-    }
-    
-      match /announcementDrafts/{docId} {
-      // Everyone can read announcementsDrafts
-      allow read: if true;
-      // Only admins can create/update/delete
-      allow write: if isAdmin();
+    // Users: own doc by UID; officials can read/write all (admin panel CRUD)
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if isOfficial();
     }
 
-    // Awaiting approval collection (for dashboard + admin flows)
+    // AwaitingApproval: officials read/update/delete; any auth can create (sign-up); applicant can delete own doc after approval (email matches phone@linkod.com)
     match /awaitingApproval/{docId} {
-      // Admin can read/manage all approval requests
-      allow read, update, delete: if isAdmin();
-      
-      // A logged-in user can create ONLY their own approval request doc
-      // (userId field must match their auth uid, and required fields must be present)
-      allow create: if request.auth != null
-                    && request.resource.data.userId == request.auth.uid
-                    && request.resource.data.keys().hasAll(['fullName', 'phoneNumber', 'password', 'role', 'category', 'createdAt'])
-                    && request.resource.data.role == 'user';
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if isOfficial();
+      allow delete: if request.auth != null
+        && request.auth.token.email == (resource.data.phoneNumber + '@linkod.com');
     }
 
-    // Products (your example public collection)
+    // Announcements: read by auth; write by officials
+    match /announcements/{docId} {
+      allow read: if request.auth != null;
+      allow write: if isOfficial();
+      // Authenticated users can update viewCount field only (preserve earlier functionality)
+      allow update: if request.auth != null
+                   && !isOfficial()
+                   && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewCount', 'updatedAt']);
+    }
+
+    // AnnouncementDrafts: officials only
+    match /announcementDrafts/{docId} {
+      allow read, write: if isOfficial();
+    }
+
+    // Posts and subcollections: auth required; owner or official can write (align with mobile)
+    match /posts/{postId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null
+        && (resource.data.userId == request.auth.uid || isOfficial());
+      match /likes/{likeId} {
+        allow read, write: if request.auth != null;
+      }
+      match /comments/{commentId} {
+        allow read, write: if request.auth != null;
+      }
+    }
+
+    // Products and subcollection
     match /products/{productId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null
+        && (resource.data.sellerId == request.auth.uid || isOfficial());
+      // Authenticated users can update messagesCount field only (preserve earlier functionality)
+      allow update: if request.auth != null
+                   && !isOfficial()
+                   && resource.data.sellerId != request.auth.uid
+                   && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['messagesCount', 'updatedAt']);
+      match /messages/{messageId} {
+        allow read, write: if request.auth != null;
+      }
     }
 
-    // Admin-only settings
-    match /adminSettings/{document} {
-      allow read, write: if isAdmin();
+    // Tasks and subcollection
+    match /tasks/{taskId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null
+        && (resource.data.requesterId == request.auth.uid || resource.data.assignedTo == request.auth.uid || isOfficial());
+      match /volunteers/{volunteerId} {
+        allow read, write: if request.auth != null;
+      }
+    }
+
+    // Notifications: own by userId
+    match /notifications/{notificationId} {
+      allow read, update, delete: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
+    }
+
+    // User announcement reads: own by userId
+    match /userAnnouncementReads/{readId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
     }
   }
 }
