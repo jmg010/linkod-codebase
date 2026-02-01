@@ -197,10 +197,11 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
         return Scrollbar(
           thumbVisibility: false,
           child: ListView.separated(
-            padding: const EdgeInsets.symmetric(vertical: 8),
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 24),
+
             physics: const ClampingScrollPhysics(),
             itemCount: feedItems.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 0),
+            separatorBuilder: (context, index) => const SizedBox(height: 5),
             itemBuilder: (context, index) {
               final item = feedItems[index];
               final type = item['type'] as String;
@@ -208,13 +209,14 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
               if (type == 'announcement') {
                 final announcementId = item['id'] as String;
                 final isRead = _readAnnouncementIds.contains(announcementId);
+                final viewCount = item['viewCount'] as int? ?? 0;
                 return AnnouncementCard(
                   title: item['title'] as String? ?? '',
                   description: item['content'] as String? ?? item['description'] as String? ?? '',
                   postedBy: item['postedBy'] as String? ?? 'Barangay Official',
                   date: item['date'] as DateTime? ?? item['createdAt'] as DateTime,
                   category: item['category'] as String?,
-                  unreadCount: null,
+                  unreadCount: viewCount,
                   isRead: isRead,
                   showTag: true,
                   onMarkAsReadPressed: () {

@@ -99,7 +99,7 @@ class AnnouncementsService {
         });
   }
 
-  /// Mark announcement as read
+  /// Mark announcement as read and increment view count
   static Future<void> markAsRead(String announcementId, String userId) async {
     // Check if already read
     final existingRead = await _readsCollection
@@ -113,7 +113,19 @@ class AnnouncementsService {
         'announcementId': announcementId,
         'readAt': FieldValue.serverTimestamp(),
       });
+      
+      // Increment view count for this announcement
+      await _announcementsCollection.doc(announcementId).update({
+        'viewCount': FieldValue.increment(1),
+      });
     }
+  }
+
+  /// Increment view count (called when announcement is viewed)
+  static Future<void> incrementViewCount(String announcementId) async {
+    await _announcementsCollection.doc(announcementId).update({
+      'viewCount': FieldValue.increment(1),
+    });
   }
 
   /// Check if announcement is read by user

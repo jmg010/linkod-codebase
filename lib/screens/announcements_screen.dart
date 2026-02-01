@@ -214,6 +214,7 @@ class AnnouncementsScreenState extends State<AnnouncementsScreen> with SingleTic
                       final announcement = announcements[index];
                       final announcementId = announcement['id'] as String;
                       final isRead = _readAnnouncementIds.contains(announcementId);
+                      final viewCount = announcement['viewCount'] as int? ?? 0;
                       
                       return AnnouncementCard(
                         title: announcement['title'] as String? ?? '',
@@ -221,7 +222,7 @@ class AnnouncementsScreenState extends State<AnnouncementsScreen> with SingleTic
                         postedBy: announcement['postedBy'] as String? ?? 'Barangay Official',
                         date: announcement['date'] as DateTime? ?? announcement['createdAt'] as DateTime,
                         category: announcement['category'] as String?,
-                        unreadCount: null, // Can be calculated from reads if needed
+                        unreadCount: viewCount,
                         isRead: isRead,
                         onMarkAsReadPressed: () {
                           _markAsRead(announcementId);
