@@ -3,13 +3,78 @@
 // Uses logo image from assets/images/linkod_logo.png
 
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'create_account_screen.dart';
 import 'login_screen.dart';
+import 'home_screen.dart';
+import '../models/user_role.dart';
 
 
-class LandingScreen extends StatelessWidget {
+class LandingScreen extends StatefulWidget {
   const LandingScreen({Key? key}) : super(key: key);
+
+  @override
+  State<LandingScreen> createState() => _LandingScreenState();
+}
+
+class _LandingScreenState extends State<LandingScreen> {
+  bool _isCheckingAuth = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAuthState();
+  }
+
+  Future<void> _checkAuthState() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      // User is already logged in, check if approved and navigate to home
+      try {
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
+        if (doc.exists) {
+          final data = doc.data();
+          final isApproved = data?['isApproved'] as bool? ?? false;
+          if (isApproved) {
+            UserRole role = UserRole.resident;
+            final roleString = (data?['role'] as String?) ?? 'resident';
+            final lower = roleString.toLowerCase();
+            if (lower == 'official' || lower == 'admin') {
+              role = UserRole.official;
+            } else if (lower == 'vendor') {
+              role = UserRole.vendor;
+            } else {
+              role = UserRole.resident;
+            }
+
+            if (mounted) {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (context) => HomeScreen(userRole: role),
+                ),
+              );
+              return;
+            }
+          }
+        }
+      } catch (e) {
+        // If there's an error checking user, continue to show landing screen
+        debugPrint('Error checking auth state: $e');
+      }
+    }
+    
+    if (mounted) {
+      setState(() {
+        _isCheckingAuth = false;
+      });
+    }
+  }
 
   // Primary design color from the screenshot
   static const Color kGreen = Color(0xFF20BF6B);
@@ -24,6 +89,51 @@ class LandingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Show splash screen with logo while checking auth state
+    if (_isCheckingAuth) {
+      return Scaffold(
+        backgroundColor: kGreen,
+        body: SafeArea(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Logo image
+                Semantics(
+                  label: 'Linkod logo image',
+                  child: Image.asset(
+                    'assets/images/linkod_logo.png',
+                    width: _scale(context, 182),
+                    height: _scale(context, 143),
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        width: _scale(context, 182),
+                        height: _scale(context, 143),
+                        decoration: BoxDecoration(
+                          color: kWhite.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.image,
+                          color: kWhite.withOpacity(0.5),
+                          size: _scale(context, 182) * 0.5,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(kWhite),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     final media = MediaQuery.of(context);
     final width = media.size.width;
     final height = media.size.height;

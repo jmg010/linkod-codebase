@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 
+import '../services/fcm_token_service.dart';
 import 'login_screen.dart';
 
 class CreateAccountScreen extends StatefulWidget {
@@ -230,9 +231,11 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       // Convert categories array to comma-separated string (per schema)
       final categoryString = selectedCategories.join(', ');
 
-      // Store approval request in awaitingApproval collection (auto-generated ID)
-      await firestore.collection('awaitingApproval').add({
+      // Store approval request in awaitingApproval collection (auto-generated ID).
+      // requestedByUid lets Firestore rules allow this user to update the doc (e.g. add fcmTokens).
+      final docRef = await firestore.collection('awaitingApproval').add({
         'userId': uid,
+        'requestedByUid': uid, // Auth uid at sign-up; required so rule allows update for addTokenToAwaitingApprovalDocument
         'fullName': name,
         'phoneNumber': phone,
         'password': password, // Store password for admin to create account after approval
@@ -241,6 +244,9 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         'status': 'pending', // pending | approved | rejected
         'createdAt': FieldValue.serverTimestamp(),
       });
+
+      // Write this device's FCM token so the backend can send approval push when admin approves
+      await FcmTokenService.instance.addTokenToAwaitingApprovalDocument(docRef);
 
       if (!mounted) return;
 

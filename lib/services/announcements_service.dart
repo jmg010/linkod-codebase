@@ -137,6 +137,26 @@ class AnnouncementsService {
     return read.docs.isNotEmpty;
   }
 
+  /// Get a single announcement by ID (e.g. for notification deep link).
+  static Future<Map<String, dynamic>?> getAnnouncementById(String announcementId) async {
+    final doc = await _announcementsCollection.doc(announcementId).get();
+    if (!doc.exists) return null;
+    final data = doc.data() as Map<String, dynamic>?;
+    if (data == null) return null;
+    final status = data['status'] as String? ?? '';
+    final isActive = data['isActive'] as bool? ?? true;
+    if (status != 'published' || !isActive) return null;
+    return {
+      'id': doc.id,
+      ...data,
+      'date': FirestoreService.parseTimestamp(data['date'] ?? data['createdAt']),
+      'createdAt': FirestoreService.parseTimestamp(data['createdAt']),
+      'updatedAt': data['updatedAt'] != null
+          ? FirestoreService.parseTimestamp(data['updatedAt'])
+          : null,
+    };
+  }
+
   /// Get read status for multiple announcements
   static Future<Set<String>> getReadAnnouncementIds(String userId) async {
     final reads = await _readsCollection

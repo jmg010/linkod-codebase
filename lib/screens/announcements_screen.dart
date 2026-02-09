@@ -224,6 +224,7 @@ class AnnouncementsScreenState extends State<AnnouncementsScreen> with SingleTic
                         category: announcement['category'] as String?,
                         unreadCount: viewCount,
                         isRead: isRead,
+                        announcementId: announcementId,
                         onMarkAsReadPressed: () {
                           _markAsRead(announcementId);
                         },

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../screens/announcement_detail_screen.dart';
 
 class AnnouncementCard extends StatelessWidget {
   final String title;
@@ -10,6 +11,7 @@ class AnnouncementCard extends StatelessWidget {
   final bool isRead;
   final VoidCallback? onMarkAsReadPressed;
   final bool showTag;
+  final String? announcementId;
 
   const AnnouncementCard({
     super.key,
@@ -22,6 +24,7 @@ class AnnouncementCard extends StatelessWidget {
     this.isRead = false,
     this.onMarkAsReadPressed,
     this.showTag = false,
+    this.announcementId,
   });
 
   @override
@@ -140,7 +143,18 @@ class AnnouncementCard extends StatelessWidget {
               width: double.infinity,
               child: _ReadButton(
                 isRead: isRead,
-                onPressed: onMarkAsReadPressed,
+                onPressed: () {
+                  if (onMarkAsReadPressed != null) {
+                    onMarkAsReadPressed!();
+                  }
+                  if (announcementId != null && announcementId!.isNotEmpty) {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => AnnouncementDetailScreen(announcementId: announcementId!),
+                      ),
+                    );
+                  }
+                },
               ),
             ),
           ],

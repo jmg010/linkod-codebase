@@ -219,6 +219,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                   unreadCount: viewCount,
                   isRead: isRead,
                   showTag: true,
+                  announcementId: announcementId,
                   onMarkAsReadPressed: () {
                     _markAnnouncementAsRead(announcementId);
                   },

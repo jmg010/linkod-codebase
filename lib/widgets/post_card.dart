@@ -4,6 +4,7 @@ import '../models/post_model.dart';
 import '../ui_constants.dart';
 import '../services/posts_service.dart';
 import '../services/firestore_service.dart';
+import '../screens/post_detail_screen.dart';
 
 class PostCard extends StatefulWidget {
   final PostModel post;
@@ -108,7 +109,15 @@ class _PostCardState extends State<PostCard> {
     final post = widget.post;
     final textTheme = Theme.of(context).textTheme;
 
-    return Card(
+    return InkWell(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => PostDetailScreen(postId: post.id),
+          ),
+        );
+      },
+      child: Card(
       margin: const EdgeInsets.symmetric(horizontal: kPaddingSmall, vertical: kPaddingSmall / 2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -187,6 +196,7 @@ class _PostCardState extends State<PostCard> {
           ),
           const SizedBox(height: kPaddingSmall),
         ],
+      ),
       ),
     );
   }

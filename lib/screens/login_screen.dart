@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/user_role.dart';
+import '../services/fcm_token_service.dart';
 import 'create_account_screen.dart';
 import 'home_screen.dart';
 
@@ -96,6 +98,9 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       if (!mounted) return;
+
+      // Register FCM token for this device so backend can send push notifications.
+      unawaited(FcmTokenService.instance.registerCurrentTokenForUser(user.uid));
 
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(

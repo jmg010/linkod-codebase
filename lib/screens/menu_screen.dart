@@ -1,9 +1,11 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import '../models/user_role.dart';
+import '../services/fcm_token_service.dart';
 import '../services/firestore_service.dart';
-import 'login_screen.dart';
 import 'edit_profile_screen.dart';
+import 'login_screen.dart';
 import 'notifications_screen.dart';
 
 class MenuScreen extends StatefulWidget {
@@ -229,7 +231,13 @@ class _MenuScreenState extends State<MenuScreen> {
                 _MenuItem(
                   icon: Icons.logout,
                   title: 'Logout',
-                  onTap: () {
+                  onTap: () async {
+                    final uid = FirebaseAuth.instance.currentUser?.uid;
+                    if (uid != null) {
+                      await FcmTokenService.instance.removeTokenOnLogout(uid);
+                    }
+                    await FirebaseAuth.instance.signOut();
+                    if (!context.mounted) return;
                     Navigator.of(context).pushReplacement(
                       MaterialPageRoute(
                         builder: (_) => const LoginScreen(),

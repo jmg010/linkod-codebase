@@ -1,23 +1,53 @@
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'screens/landing_screen.dart';
 import 'ui_constants.dart';
 import 'firebase_options.dart';
+import 'services/fcm_token_service.dart';
+import 'services/push_notification_handler.dart';
+
+/// Top-level handler for FCM messages when app is in background or terminated.
+/// Must be a top-level or static function so the isolate can call it.
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // No UI here; tap is handled via getInitialMessage / onMessageOpenedApp.
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  runApp(const LinkodApp());
+
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  final navigatorKey = GlobalKey<NavigatorState>();
+  final pushHandler = PushNotificationHandler(navigatorKey);
+  await pushHandler.setup();
+
+  FcmTokenService.instance.start();
+  
+  // Request notification permission on first app run
+  await FcmTokenService.instance.requestPermissionOnFirstRun();
+
+  runApp(LinkodApp(navigatorKey: navigatorKey));
+
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    PushNotificationHandler.handleInitialMessage(navigatorKey);
+  });
 }
 
 class LinkodApp extends StatelessWidget {
-  const LinkodApp({super.key});
+  const LinkodApp({super.key, this.navigatorKey});
+
+  final GlobalKey<NavigatorState>? navigatorKey;
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'LINKod',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(

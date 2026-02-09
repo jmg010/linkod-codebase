@@ -20,6 +20,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   File? _selectedImage;
   String? _profileImageUrl;
   String? _fullName;
+  List<String> _demographyCategories = [];
   bool _isLoading = true;
   final ImagePicker _imagePicker = ImagePicker();
 
@@ -57,6 +58,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       if (userDoc.exists) {
         final data = userDoc.data();
+        // Parse demography categories from comma-separated string
+        final categoryString = data?['category'] as String? ?? '';
+        final categories = categoryString
+            .split(',')
+            .map((c) => c.trim())
+            .where((c) => c.isNotEmpty)
+            .toList();
         setState(() {
           _fullName = data?['fullName'] as String? ?? 'User';
           _phoneController.text = data?['phoneNumber'] as String? ?? '';
@@ -64,6 +72,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           _purokController.text = _selectedPurok.toString();
           _nameController.text = _fullName ?? 'User';
           _profileImageUrl = data?['profileImageUrl'] as String?;
+          _demographyCategories = categories;
           _isLoading = false;
         });
       } else {
@@ -431,6 +440,64 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 24),
+          // Demography Section (Read-only)
+          const Text(
+            'Demography',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: _demographyCategories.isEmpty
+                ? Text(
+                    'No demographics set',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade500,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  )
+                : Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _demographyCategories.map((category) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF20BF6B).withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          category,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF20BF6B),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Contact a barangay official to update your demographics.',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade500,
+              fontStyle: FontStyle.italic,
+            ),
           ),
           const SizedBox(height: 32),
           // Update Profile Button

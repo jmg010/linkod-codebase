@@ -2,17 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/task_model.dart';
 import '../models/product_model.dart';
+import '../models/post_model.dart';
 import '../services/notifications_service.dart';
 import '../services/tasks_service.dart';
 import '../services/products_service.dart';
+import '../services/posts_service.dart';
 import '../services/firestore_service.dart';
 import 'task_detail_screen.dart';
 import 'product_detail_screen.dart';
+import 'announcement_detail_screen.dart';
+import 'post_detail_screen.dart';
 
 enum NotificationType {
   volunteerAccepted,
   errandJobVolunteers,
   productMessages,
+  accountApproved,
+  announcement,
+  postComment,
+  postLike,
+  taskAssigned,
 }
 
 class NotificationItem {
@@ -42,6 +51,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final taskId = notification['taskId'] as String?;
     final productId = notification['productId'] as String?;
     final postId = notification['postId'] as String?;
+    final announcementId = notification['announcementId'] as String?;
     final notificationId = notification['notificationId'] as String?;
 
     // Mark as read
@@ -49,7 +59,23 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       await NotificationsService.markAsRead(notificationId);
     }
 
-    if (taskId != null) {
+    if (announcementId != null && announcementId.isNotEmpty) {
+      if (mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => AnnouncementDetailScreen(announcementId: announcementId),
+          ),
+        );
+      }
+    } else if (postId != null && postId.isNotEmpty) {
+      if (mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => PostDetailScreen(postId: postId),
+          ),
+        );
+      }
+    } else if (taskId != null) {
       try {
         final taskDoc = await FirestoreService.instance
             .collection('tasks')

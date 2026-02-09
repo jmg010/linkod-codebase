@@ -117,6 +117,17 @@ class PostsService {
     return docRef.id;
   }
 
+  /// Get a single post by ID (e.g. for notification deep link).
+  static Future<PostModel?> getPostById(String postId) async {
+    final doc = await _postsCollection.doc(postId).get();
+    if (!doc.exists) return null;
+    try {
+      return PostModel.fromFirestore(doc);
+    } catch (e) {
+      return null;
+    }
+  }
+
   /// Get comments for a post
   static Stream<List<Map<String, dynamic>>> getCommentsStream(String postId) {
     return _postsCollection
