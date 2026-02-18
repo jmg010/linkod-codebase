@@ -11,11 +11,13 @@ enum NavDestination {
 class LinkodNavbar extends StatelessWidget {
   final NavDestination currentDestination;
   final ValueChanged<NavDestination>? onDestinationChanged;
+  final bool hasUnreadAnnouncements;
 
   const LinkodNavbar({
     super.key,
     required this.currentDestination,
     this.onDestinationChanged,
+    this.hasUnreadAnnouncements = false,
   });
 
   @override
@@ -61,6 +63,12 @@ class LinkodNavbar extends StatelessWidget {
                 onTap: () => onDestinationChanged?.call(NavDestination.home),
               ),
               _NavIcon(
+                icon: Icons.campaign,
+                isActive: currentDestination == NavDestination.announcements,
+                onTap: () => onDestinationChanged?.call(NavDestination.announcements),
+                showAlert: hasUnreadAnnouncements,
+              ),
+              _NavIcon(
                 icon: Icons.storefront,
                 isActive: currentDestination == NavDestination.marketplace,
                 onTap: () => onDestinationChanged?.call(NavDestination.marketplace),
@@ -69,11 +77,6 @@ class LinkodNavbar extends StatelessWidget {
                 icon: Icons.handshake,
                 isActive: currentDestination == NavDestination.errandJobPost,
                 onTap: () => onDestinationChanged?.call(NavDestination.errandJobPost),
-              ),
-              _NavIcon(
-                icon: Icons.campaign,
-                isActive: currentDestination == NavDestination.announcements,
-                onTap: () => onDestinationChanged?.call(NavDestination.announcements),
               ),
               _NavIcon(
                 icon: Icons.menu,
@@ -93,11 +96,13 @@ class _NavIcon extends StatelessWidget {
   final IconData icon;
   final bool isActive;
   final VoidCallback onTap;
+  final bool showAlert;
 
   const _NavIcon({
     required this.icon,
     required this.isActive,
     required this.onTap,
+    this.showAlert = false,
   });
 
   @override
@@ -114,10 +119,37 @@ class _NavIcon extends StatelessWidget {
             ),
           ),
         ),
-        child: Icon(
-          icon,
-          size: 28,
-          color: isActive ? const Color(0xFF20BF6B) : Colors.grey.shade600,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Icon(
+              icon,
+              size: 28,
+              color: isActive ? const Color(0xFF20BF6B) : Colors.grey.shade600,
+            ),
+            if (showAlert)
+              Positioned(
+                right: -2,
+                top: -2,
+                child: Container(
+                  width: 14,
+                  height: 14,
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: const Text(
+                    '!',
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );

@@ -26,6 +26,7 @@ class _MenuScreenState extends State<MenuScreen> {
   String? _phoneNumber;
   String? _profileImageUrl;
   bool _isLoadingUser = true;
+  int? _purok;
 
   @override
   void initState() {
@@ -56,12 +57,14 @@ class _MenuScreenState extends State<MenuScreen> {
           _userName = data?['fullName'] as String? ?? _getUserName(widget.userRole);
           _phoneNumber = data?['phoneNumber'] as String? ?? _getPhoneNumber(widget.userRole);
           _profileImageUrl = data?['profileImageUrl'] as String?;
+          _purok = (data?['purok'] as num?)?.toInt();
           _isLoadingUser = false;
         });
       } else {
         setState(() {
           _userName = _getUserName(widget.userRole);
           _phoneNumber = _getPhoneNumber(widget.userRole);
+          _purok = null;
           _isLoadingUser = false;
         });
       }
@@ -70,6 +73,7 @@ class _MenuScreenState extends State<MenuScreen> {
       setState(() {
         _userName = _getUserName(widget.userRole);
         _phoneNumber = _getPhoneNumber(widget.userRole);
+        _purok = null;
         _isLoadingUser = false;
       });
     }
@@ -79,10 +83,10 @@ class _MenuScreenState extends State<MenuScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
-      body: ListView(
-        physics: const ClampingScrollPhysics(),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Title with white background - copied from announcements screen
+          // Title with white background - same structure as announcements_screen
           Container(
             color: Colors.white,
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
@@ -100,237 +104,255 @@ class _MenuScreenState extends State<MenuScreen> {
               ],
             ),
           ),
-          // Profile Header Card - simplified to match Figma design
-          Container(
-            margin: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            padding: const EdgeInsets.all(24),
-            child: Column(
+          // Scrollable content below title
+          Expanded(
+            child: ListView(
+              physics: const ClampingScrollPhysics(),
+              padding: EdgeInsets.zero,
               children: [
-                // Profile Avatar
-                CircleAvatar(
-                  radius: 50,
-                  backgroundColor: const Color(0xFF20BF6B),
-                  backgroundImage: _profileImageUrl != null && _profileImageUrl!.isNotEmpty
-                      ? NetworkImage(_profileImageUrl!)
-                      : null,
-                  child: _profileImageUrl == null || _profileImageUrl!.isEmpty
-                      ? Text(
-                          (_userName?.isNotEmpty ?? false) ? _userName![0].toUpperCase() : widget.userRole.displayName[0],
-                          style: const TextStyle(
-                            fontSize: 40,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                // Profile Header Card - simplified to match Figma design
+                Container(
+                  margin: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.06),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      // Profile Avatar
+                      CircleAvatar(
+                        radius: 50,
+                        backgroundColor: const Color(0xFF20BF6B),
+                        backgroundImage: _profileImageUrl != null && _profileImageUrl!.isNotEmpty
+                            ? NetworkImage(_profileImageUrl!)
+                            : null,
+                        child: _profileImageUrl == null || _profileImageUrl!.isEmpty
+                            ? Text(
+                                (_userName?.isNotEmpty ?? false) ? _userName![0].toUpperCase() : widget.userRole.displayName[0],
+                                style: const TextStyle(
+                                  fontSize: 40,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : null,
+                      ),
+                      const SizedBox(height: 16),
+                      // User Name (from Firestore or fallback to role-based)
+                      Text(
+                        _isLoadingUser ? 'Loading...' : (_userName ?? _getUserName(widget.userRole)),
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      // Phone Number (from Firestore or fallback to role-based)
+                      Text(
+                        _isLoadingUser ? '' : (_phoneNumber ?? _getPhoneNumber(widget.userRole)),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      if (!_isLoadingUser && _purok != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'Purok $_purok',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade600,
                           ),
-                        )
-                      : null,
-                ),
-                const SizedBox(height: 16),
-                // User Name (from Firestore or fallback to role-based)
-                Text(
-                  _isLoadingUser ? 'Loading...' : (_userName ?? _getUserName(widget.userRole)),
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black87,
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-                const SizedBox(height: 8),
-                // Phone Number (from Firestore or fallback to role-based)
-                Text(
-                  _isLoadingUser ? '' : (_phoneNumber ?? _getPhoneNumber(widget.userRole)),
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey.shade600,
+                // Menu Items Container - flat list matching Figma design
+                Container(
+                  margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.06),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      _MenuItem(
+                        icon: Icons.person_outline,
+                        title: 'Edit Profile',
+                        onTap: () async {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => const EditProfileScreen(),
+                            ),
+                          );
+                          _loadUserProfile();
+                        },
+                      ),
+                      Divider(
+                        height: 1,
+                        thickness: 1,
+                        color: Colors.grey.shade200,
+                        indent: 20,
+                        endIndent: 20,
+                      ),
+                      _MenuItem(
+                        icon: Icons.notifications_outlined,
+                        title: 'Notifications',
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => const NotificationsScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      Divider(
+                        height: 1,
+                        thickness: 1,
+                        color: Colors.grey.shade200,
+                        indent: 20,
+                        endIndent: 20,
+                      ),
+                      _DarkModeMenuItem(
+                        icon: Icons.dark_mode_outlined,
+                        title: 'Dark Mode',
+                        value: _darkModeEnabled,
+                        onChanged: (value) {
+                          setState(() {
+                            _darkModeEnabled = value;
+                          });
+                        },
+                      ),
+                      Divider(
+                        height: 1,
+                        thickness: 1,
+                        color: Colors.grey.shade200,
+                        indent: 20,
+                        endIndent: 20,
+                      ),
+                      _MenuItem(
+                        icon: Icons.logout,
+                        title: 'Logout',
+                        onTap: () async {
+                          final uid = FirebaseAuth.instance.currentUser?.uid;
+                          if (uid != null) {
+                            await FcmTokenService.instance.removeTokenOnLogout(uid);
+                          }
+                          await FirebaseAuth.instance.signOut();
+                          if (!context.mounted) return;
+                          Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(
+                              builder: (_) => const LoginScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ),
+                // Help & Support Section - kept as requested
+                Container(
+                  margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.06),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                        child: Text(
+                          'Help & Support',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                      _MenuItem(
+                        icon: Icons.help_outline,
+                        title: 'Help Center',
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Help Center coming soon!'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                      ),
+                      Divider(
+                        height: 1,
+                        thickness: 1,
+                        color: Colors.grey.shade200,
+                        indent: 20,
+                        endIndent: 20,
+                      ),
+                      _MenuItem(
+                        icon: Icons.support_agent_outlined,
+                        title: 'Report a Problem',
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Report a Problem feature coming soon!'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                      ),
+                      Divider(
+                        height: 1,
+                        thickness: 1,
+                        color: Colors.grey.shade200,
+                        indent: 20,
+                        endIndent: 20,
+                      ),
+                      _MenuItem(
+                        icon: Icons.info_outline,
+                        title: 'About',
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('About LINKod coming soon!'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
               ],
             ),
           ),
-          // Menu Items Container - flat list matching Figma design
-          Container(
-            margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                _MenuItem(
-                  icon: Icons.person_outline,
-                  title: 'Edit Profile',
-                  onTap: () async {
-                    await Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const EditProfileScreen(),
-                      ),
-                    );
-                    // Reload user profile after returning from edit screen
-                    _loadUserProfile();
-                  },
-                ),
-                Divider(
-                  height: 1,
-                  thickness: 1,
-                  color: Colors.grey.shade200,
-                  indent: 20,
-                  endIndent: 20,
-                ),
-                _MenuItem(
-                  icon: Icons.notifications_outlined,
-                  title: 'Notifications',
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const NotificationsScreen(),
-                      ),
-                    );
-                  },
-                ),
-                Divider(
-                  height: 1,
-                  thickness: 1,
-                  color: Colors.grey.shade200,
-                  indent: 20,
-                  endIndent: 20,
-                ),
-                _DarkModeMenuItem(
-                  icon: Icons.dark_mode_outlined,
-                  title: 'Dark Mode',
-                  value: _darkModeEnabled,
-                  onChanged: (value) {
-                    setState(() {
-                      _darkModeEnabled = value;
-                    });
-                  },
-                ),
-                Divider(
-                  height: 1,
-                  thickness: 1,
-                  color: Colors.grey.shade200,
-                  indent: 20,
-                  endIndent: 20,
-                ),
-                _MenuItem(
-                  icon: Icons.logout,
-                  title: 'Logout',
-                  onTap: () async {
-                    final uid = FirebaseAuth.instance.currentUser?.uid;
-                    if (uid != null) {
-                      await FcmTokenService.instance.removeTokenOnLogout(uid);
-                    }
-                    await FirebaseAuth.instance.signOut();
-                    if (!context.mounted) return;
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(
-                        builder: (_) => const LoginScreen(),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-          // Help & Support Section - kept as requested
-          Container(
-            margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-                  child: Text(
-                    'Help & Support',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ),
-                _MenuItem(
-                  icon: Icons.help_outline,
-                  title: 'Help Center',
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Help Center coming soon!'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  },
-                ),
-                Divider(
-                  height: 1,
-                  thickness: 1,
-                  color: Colors.grey.shade200,
-                  indent: 20,
-                  endIndent: 20,
-                ),
-                _MenuItem(
-                  icon: Icons.support_agent_outlined,
-                  title: 'Report a Problem',
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Report a Problem feature coming soon!'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  },
-                ),
-                Divider(
-                  height: 1,
-                  thickness: 1,
-                  color: Colors.grey.shade200,
-                  indent: 20,
-                  endIndent: 20,
-                ),
-                _MenuItem(
-                  icon: Icons.info_outline,
-                  title: 'About',
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('About LINKod coming soon!'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 8),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
         ],
       ),
     );

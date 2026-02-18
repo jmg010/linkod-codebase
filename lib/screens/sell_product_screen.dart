@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../constants/marketplace_categories.dart';
 import '../models/product_model.dart';
 import '../services/products_service.dart';
 import '../services/firestore_service.dart';
@@ -18,6 +19,29 @@ class _SellProductScreenState extends State<SellProductScreen> {
   final _descriptionController = TextEditingController();
   final _locationController = TextEditingController();
   final _contactController = TextEditingController();
+  String? _selectedCategory;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadUserPhone());
+  }
+
+  Future<void> _loadUserPhone() async {
+    final user = FirestoreService.auth.currentUser;
+    if (user == null) return;
+    try {
+      final doc = await FirestoreService.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      if (!doc.exists || !mounted) return;
+      final phone = doc.data()?['phoneNumber'] as String?;
+      if (phone != null && phone.isNotEmpty) {
+        _contactController.text = phone;
+      }
+    } catch (_) {}
+  }
 
   @override
   void dispose() {
@@ -35,6 +59,12 @@ class _SellProductScreenState extends State<SellProductScreen> {
         _descriptionController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill in all required fields')),
+      );
+      return;
+    }
+    if (_selectedCategory == null || _selectedCategory!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a category')),
       );
       return;
     }
@@ -79,7 +109,7 @@ class _SellProductScreenState extends State<SellProductScreen> {
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
         price: price,
-        category: 'General', // Can be made selectable later
+        category: _selectedCategory!,
         createdAt: DateTime.now(),
         isAvailable: true,
         imageUrls: [], // Can be added later with image picker
@@ -89,6 +119,7 @@ class _SellProductScreenState extends State<SellProductScreen> {
         contactNumber: _contactController.text.trim().isNotEmpty
             ? _contactController.text.trim()
             : (userData['phoneNumber'] as String? ?? ''),
+        status: 'Pending', // Admin approves in Activity Approvals; then visible on marketplace
       );
 
       await ProductsService.createProduct(product);
@@ -210,6 +241,32 @@ class _SellProductScreenState extends State<SellProductScreen> {
                 controller: _descriptionController,
                 hint: 'Description',
                 maxLines: 3,
+              ),
+              const SizedBox(height: 14),
+              const Text('Category *', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+              const SizedBox(height: 6),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFE0E0E0)),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedCategory,
+                    isExpanded: true,
+                    hint: const Text('Select category'),
+                    items: MarketplaceCategories.ids.map((id) {
+                      return DropdownMenuItem(
+                        value: id,
+                        child: Text(MarketplaceCategories.label(id)),
+                      );
+                    }).toList(),
+                    onChanged: (v) => setState(() => _selectedCategory = v),
+                  ),
+                ),
               ),
               const SizedBox(height: 14),
               _buildInputField(

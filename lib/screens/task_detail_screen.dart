@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/task_model.dart';
 import '../services/tasks_service.dart';
 import '../services/firestore_service.dart';
+import 'task_edit_screen.dart';
 
 class TaskDetailScreen extends StatefulWidget {
   final TaskModel task;
@@ -21,10 +22,13 @@ class TaskDetailScreen extends StatefulWidget {
 class _TaskDetailScreenState extends State<TaskDetailScreen> {
   bool _isVolunteering = false;
   bool _hasVolunteered = false;
+  bool _isOwner = false;
 
   @override
   void initState() {
     super.initState();
+    final uid = FirestoreService.auth.currentUser?.uid;
+    _isOwner = uid != null && uid == widget.task.requesterId;
     _checkVolunteerStatus();
   }
 
@@ -197,8 +201,46 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             ],
           ),
           const SizedBox(height: 20),
-          // Volunteer Button
-          if (widget.task.status == TaskStatus.open && !_hasVolunteered)
+          // Volunteer / Edit Button
+          if (_isOwner)
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => TaskEditScreen(
+                        task: widget.task,
+                        contactNumber: widget.contactNumber,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(
+                  Icons.edit_outlined,
+                  size: 18,
+                  color: Color(0xFF4C4C4C),
+                ),
+                label: const Text(
+                  'Edit',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF4C4C4C),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  minimumSize: const Size(0, 48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  side: BorderSide(color: Colors.grey.shade300, width: 1),
+                  backgroundColor: Colors.white,
+                ),
+              ),
+            )
+          else if (widget.task.status == TaskStatus.open && !_hasVolunteered)
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
@@ -385,6 +427,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   Widget _buildVolunteerItem(Map<String, dynamic> volunteer) {
     final volunteerName = volunteer['volunteerName'] as String? ?? 'Unknown';
+    final volunteerId = volunteer['volunteerId'] as String?;
     final status = volunteer['status'] as String? ?? 'pending';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
@@ -423,6 +466,24 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
+                if (volunteerId != null && volunteerId.isNotEmpty)
+                  FutureBuilder<String?>(
+                    future: _getVolunteerPhone(volunteerId),
+                    builder: (context, snap) {
+                      final phone = snap.data;
+                      if (phone == null || phone.isEmpty) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          phone,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blue.shade700,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 if (status == 'accepted')
                   Text(
                     'Accepted',
@@ -439,4 +500,17 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       ),
     );
   }
-}
+
+  Future<String?> _getVolunteerPhone(String volunteerId) async {
+    try {
+      final doc = await FirestoreService.instance
+          .collection('users')
+          .doc(volunteerId)
+          .get();
+      return doc.data()?['phoneNumber'] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  }

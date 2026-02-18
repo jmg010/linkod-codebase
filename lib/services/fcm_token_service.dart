@@ -90,6 +90,23 @@ class FcmTokenService {
     await _registerTokenForCurrentUser();
   }
 
+  /// Returns the current FCM token for inclusion in the initial awaitingApproval doc.
+  /// Use this when creating the doc so we don't need a follow-up update (avoids permission issues when not signed in).
+  Future<String?> getTokenForAwaitingApproval() async {
+    if (!_isSupportedPlatform) return null;
+    try {
+      await _requestPermissionIfNeeded();
+      final token = await FirebaseMessaging.instance.getToken();
+      return (token != null && token.trim().isNotEmpty) ? token : null;
+    } catch (e) {
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('FcmTokenService: getTokenForAwaitingApproval failed: $e');
+      }
+      return null;
+    }
+  }
+
   /// Writes the current device's FCM token into an awaitingApproval document.
   /// Call this when the user submits their sign-up/approval request so the
   /// backend can send the approval push to this device when the admin approves.

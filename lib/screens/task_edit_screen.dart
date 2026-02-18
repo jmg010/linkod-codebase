@@ -382,13 +382,11 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                 children: pendingVolunteers.asMap().entries.map((entry) {
                   final index = entry.key;
                   final volunteer = entry.value;
-                  final volunteerDocId = volunteer['volunteerDocId'] as String;
-                  final volunteerName = volunteer['volunteerName'] as String? ?? 'Unknown';
                   return Padding(
                     padding: EdgeInsets.only(
                       bottom: index < pendingVolunteers.length - 1 ? 14 : 0,
                     ),
-                    child: _buildVolunteerItem(volunteerDocId, volunteerName),
+                    child: _buildVolunteerItem(volunteer),
                   );
                 }).toList(),
               );
@@ -399,7 +397,10 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
     );
   }
 
-  Widget _buildVolunteerItem(String volunteerDocId, String volunteerName) {
+  Widget _buildVolunteerItem(Map<String, dynamic> volunteer) {
+    final volunteerDocId = volunteer['volunteerDocId'] as String;
+    final volunteerName = volunteer['volunteerName'] as String? ?? 'Unknown';
+    final volunteerId = volunteer['volunteerId'] as String?;
     return Row(
       children: [
         Container(
@@ -417,13 +418,37 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: Text(
-            volunteerName,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Colors.black87,
-              fontWeight: FontWeight.w500,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                volunteerName,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.black87,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              if (volunteerId != null && volunteerId.isNotEmpty)
+                FutureBuilder<String?>(
+                  future: _getVolunteerPhone(volunteerId),
+                  builder: (context, snap) {
+                    final phone = snap.data;
+                    if (phone == null || phone.isEmpty) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        phone,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.blue.shade700,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+            ],
           ),
         ),
         OutlinedButton(
@@ -459,6 +484,18 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
         ),
       ],
     );
+  }
+
+  Future<String?> _getVolunteerPhone(String volunteerId) async {
+    try {
+      final doc = await FirestoreService.instance
+          .collection('users')
+          .doc(volunteerId)
+          .get();
+      return doc.data()?['phoneNumber'] as String?;
+    } catch (_) {
+      return null;
+    }
   }
 }
 

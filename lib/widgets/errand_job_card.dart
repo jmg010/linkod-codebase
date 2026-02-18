@@ -17,6 +17,8 @@ class ErrandJobCard extends StatelessWidget {
   final VoidCallback? onViewPressed;
   final VoidCallback? onVolunteerPressed;
   final bool showTag;
+  final String viewButtonLabel;
+  final IconData viewButtonIcon;
 
   const ErrandJobCard({
     super.key,
@@ -30,6 +32,8 @@ class ErrandJobCard extends StatelessWidget {
     this.onViewPressed,
     this.onVolunteerPressed,
     this.showTag = false,
+    this.viewButtonLabel = 'View',
+    this.viewButtonIcon = Icons.visibility_outlined,
   });
 
   @override
@@ -203,14 +207,14 @@ class ErrandJobCard extends StatelessWidget {
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   onPressed: onViewPressed,
-                  icon: const Icon(
-                    Icons.visibility_outlined,
+                  icon: Icon(
+                    viewButtonIcon,
                     size: 16,
-                    color: Color(0xFF4C4C4C),
+                    color: const Color(0xFF4C4C4C),
                   ),
-                  label: const Text(
-                    'View',
-                    style: TextStyle(
+                  label: Text(
+                    viewButtonLabel,
+                    style: const TextStyle(
                       fontSize: 13,
                       color: Color(0xFF4C4C4C),
                     ),

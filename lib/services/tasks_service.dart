@@ -6,18 +6,18 @@ class TasksService {
   static final CollectionReference _tasksCollection =
       FirestoreService.instance.collection('tasks');
 
-  /// Get all tasks
+  /// Get all tasks (Gatekeeper: only Approved)
   static Stream<List<TaskModel>> getTasksStream() {
     return _tasksCollection
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => TaskModel.fromFirestore(doc))
-            .where((task) => task.isActive) // Filter in code to avoid index requirement
+            .where((task) => task.isActive && task.approvalStatus == 'Approved')
             .toList());
   }
 
-  /// Get tasks by status
+  /// Get tasks by status (Gatekeeper: only Approved)
   static Stream<List<TaskModel>> getTasksByStatusStream(String status) {
     return _tasksCollection
         .where('status', isEqualTo: status)
@@ -25,7 +25,7 @@ class TasksService {
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => TaskModel.fromFirestore(doc))
-            .where((task) => task.isActive) // Filter in code
+            .where((task) => task.isActive && task.approvalStatus == 'Approved')
             .toList());
   }
 
@@ -37,15 +37,14 @@ class TasksService {
         .map((snapshot) {
           final tasks = snapshot.docs
               .map((doc) => TaskModel.fromFirestore(doc))
-              .where((task) => task.isActive) // Filter in code
+              .where((task) => task.isActive)
               .toList();
-          // Sort by createdAt descending in code to avoid index requirement
           tasks.sort((a, b) => b.createdAt.compareTo(a.createdAt));
           return tasks;
         });
   }
 
-  /// Get tasks assigned to a user
+  /// Get tasks assigned to a user (Gatekeeper: only Approved)
   static Stream<List<TaskModel>> getAssignedTasksStream(String userId) {
     return _tasksCollection
         .where('assignedTo', isEqualTo: userId)
@@ -53,7 +52,7 @@ class TasksService {
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => TaskModel.fromFirestore(doc))
-            .where((task) => task.isActive) // Filter in code
+            .where((task) => task.isActive && task.approvalStatus == 'Approved')
             .toList());
   }
 

@@ -5,6 +5,7 @@ class AnnouncementCard extends StatelessWidget {
   final String title;
   final String description;
   final String postedBy;
+  final String? postedByPosition;
   final DateTime date;
   final String? category;
   final int? unreadCount;
@@ -18,6 +19,7 @@ class AnnouncementCard extends StatelessWidget {
     required this.title,
     required this.description,
     required this.postedBy,
+    this.postedByPosition,
     required this.date,
     this.category,
     this.unreadCount,
@@ -69,7 +71,9 @@ class AnnouncementCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'From: $postedBy',
+                  postedByPosition != null && postedByPosition!.isNotEmpty
+                      ? 'From: $postedBy ($postedByPosition)'
+                      : 'From: $postedBy',
                   style: TextStyle(
                     fontSize: 12,
                     color: const Color(0xFF6E6E6E),
@@ -205,7 +209,7 @@ class _ReadButton extends StatelessWidget {
       onPressed: onPressed ?? () {},
       icon: Icon(icon, size: 18, color: textColor),
       label: Text(
-        isRead ? 'Read' : 'Mark as read',
+        isRead ? 'Viewed' : 'View',
         style: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w600,

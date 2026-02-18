@@ -17,7 +17,9 @@ import 'product_detail_screen.dart';
 import 'task_detail_screen.dart';
 
 class HomeFeedScreen extends StatefulWidget {
-  const HomeFeedScreen({super.key});
+  final ValueChanged<bool>? onUnreadAnnouncementsChanged;
+
+  const HomeFeedScreen({super.key, this.onUnreadAnnouncementsChanged});
 
   @override
   State<HomeFeedScreen> createState() => _HomeFeedScreenState();
@@ -26,28 +28,59 @@ class HomeFeedScreen extends StatefulWidget {
 class _HomeFeedScreenState extends State<HomeFeedScreen> {
   Set<String> _readAnnouncementIds = {};
   List<String> _userCategories = [];
-  
+
+  static const int _initialPageSize = 15;
+  static const int _loadMorePageSize = 15;
+  int _displayCount = _initialPageSize;
+  final ScrollController _scrollController = ScrollController();
+
   StreamController<List<Map<String, dynamic>>>? _feedController;
   StreamSubscription<List<Map<String, dynamic>>>? _announcementsSubscription;
   StreamSubscription<List<PostModel>>? _postsSubscription;
   StreamSubscription<List<TaskModel>>? _tasksSubscription;
   StreamSubscription<List<ProductModel>>? _productsSubscription;
+  int _totalFeedLength = 0;
+  bool _showBackToTop = false;
 
   @override
   void initState() {
     super.initState();
     _loadUserCategories();
     _loadReadAnnouncements();
+    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _announcementsSubscription?.cancel();
     _postsSubscription?.cancel();
     _tasksSubscription?.cancel();
     _productsSubscription?.cancel();
     _feedController?.close();
     super.dispose();
+  }
+
+  void _onScroll() {
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.position.pixels;
+    if (maxScroll - currentScroll < 200) {
+      _loadMoreIfNeeded();
+    }
+    final shouldShow = currentScroll > 400;
+    if (shouldShow != _showBackToTop) {
+      setState(() {
+        _showBackToTop = shouldShow;
+      });
+    }
+  }
+
+  void _loadMoreIfNeeded() {
+    if (_displayCount >= _totalFeedLength) return;
+    setState(() {
+      _displayCount = (_displayCount + _loadMorePageSize).clamp(0, _totalFeedLength);
+    });
   }
 
   Future<void> _loadUserCategories() async {
@@ -135,7 +168,6 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                 ],
               ),
             ),
-            
             // Mixed feed list - combining posts, tasks, products, and announcements
             Expanded(
               child: _buildFeedStream(),
@@ -177,8 +209,26 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
         }
 
         final feedItems = snapshot.data ?? [];
+        final withReadFlag = _tagReadStatus(feedItems);
+        final sorted = _sortUnreadFirst(withReadFlag);
+        final displayItems = sorted;
 
-        if (feedItems.isEmpty) {
+        final hasUnreadAnnouncements = sorted.any((item) {
+          final type = item['type'] as String?;
+          final isRead = item['isRead'] as bool? ?? false;
+          return type == 'announcement' && !isRead;
+        });
+        if (widget.onUnreadAnnouncementsChanged != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              widget.onUnreadAnnouncementsChanged!(hasUnreadAnnouncements);
+            }
+          });
+        }
+
+        _totalFeedLength = displayItems.length;
+
+        if (displayItems.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -194,16 +244,158 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
           );
         }
 
-        return Scrollbar(
-          thumbVisibility: false,
-          child: ListView.separated(
-            padding: const EdgeInsets.fromLTRB(10, 8, 10, 24),
+        final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+        final todayItems = displayItems.where((item) => _isFromToday(item['timestamp'] as DateTime?, today)).toList();
+        final olderItems = displayItems.where((item) => !_isFromToday(item['timestamp'] as DateTime?, today)).toList();
 
-            physics: const ClampingScrollPhysics(),
-            itemCount: feedItems.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 5),
-            itemBuilder: (context, index) {
-              final item = feedItems[index];
+        final visibleCount = _displayCount.clamp(0, displayItems.length);
+        final showLoadMore = visibleCount < displayItems.length;
+        final visibleOlderCount = (visibleCount - todayItems.length).clamp(0, olderItems.length);
+
+        return Stack(
+          children: [
+            Scrollbar(
+              thumbVisibility: false,
+              child: ListView.builder(
+                controller: _scrollController,
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 24),
+                physics: const ClampingScrollPhysics(),
+                itemCount: 2 + visibleOlderCount + (showLoadMore ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFF00A651).withOpacity(0.4), width: 1.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.06),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+                            child: Text(
+                              'New postings',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF00A651),
+                              ),
+                            ),
+                          ),
+                          if (todayItems.isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+                              child: Text('No new postings today.', style: TextStyle(fontSize: 14, color: Colors.black54)),
+                            )
+                          else
+                            ...todayItems.map((item) => Padding(
+                              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                              child: _buildFeedItem(item),
+                            )),
+                        ],
+                      ),
+                    );
+                  }
+                  if (index == 1) {
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 4, 4, 12),
+                      child: Text(
+                        'Older',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                    );
+                  }
+                  if (showLoadMore && index == 2 + visibleOlderCount) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Center(
+                        child: GestureDetector(
+                          onTap: _loadMoreIfNeeded,
+                          child: Text(
+                            'Load more',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: const Color(0xFF00A651),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                  final olderIndex = index - 2;
+                  final item = olderItems[olderIndex];
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: olderIndex < visibleOlderCount - 1 ? 5 : 0),
+                    child: _buildFeedItem(item),
+                  );
+                },
+              ),
+            ),
+            if (_showBackToTop)
+              Positioned(
+                bottom: 20,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: GestureDetector(
+                    onTap: () {
+                      _scrollController.animateTo(
+                        0,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOut,
+                      );
+                    },
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.35),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.25),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.arrow_upward,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  bool _isFromToday(DateTime? t, DateTime today) {
+    if (t == null) return false;
+    final d = DateTime(t.year, t.month, t.day);
+    return d == today;
+  }
+
+  Widget _buildFeedItem(Map<String, dynamic> item) {
               final type = item['type'] as String;
 
               if (type == 'announcement') {
@@ -214,6 +406,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                   title: item['title'] as String? ?? '',
                   description: item['content'] as String? ?? item['description'] as String? ?? '',
                   postedBy: item['postedBy'] as String? ?? 'Barangay Official',
+                  postedByPosition: item['postedByPosition'] as String?,
                   date: item['date'] as DateTime? ?? item['createdAt'] as DateTime,
                   category: item['category'] as String?,
                   unreadCount: viewCount,
@@ -277,11 +470,33 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                 );
               }
               return const SizedBox.shrink();
-            },
-          ),
-        );
-      },
-    );
+  }
+
+  List<Map<String, dynamic>> _tagReadStatus(List<Map<String, dynamic>> items) {
+    return items.map((item) {
+      final type = item['type'] as String?;
+      final isRead = type == 'announcement' && _readAnnouncementIds.contains(item['id'] as String?);
+      return {...item, 'isRead': isRead};
+    }).toList();
+  }
+
+  /// Announcements first (unread announcements then read), then other types by date descending
+  List<Map<String, dynamic>> _sortUnreadFirst(List<Map<String, dynamic>> items) {
+    final list = List<Map<String, dynamic>>.from(items);
+    list.sort((a, b) {
+      final aIsAnn = a['type'] == 'announcement';
+      final bIsAnn = b['type'] == 'announcement';
+      if (aIsAnn != bIsAnn) return aIsAnn ? -1 : 1;
+      if (aIsAnn) {
+        final aRead = a['isRead'] as bool? ?? false;
+        final bRead = b['isRead'] as bool? ?? false;
+        if (aRead != bRead) return aRead ? 1 : -1;
+      }
+      final aT = a['timestamp'] as DateTime? ?? DateTime(0);
+      final bT = b['timestamp'] as DateTime? ?? DateTime(0);
+      return bT.compareTo(aT);
+    });
+    return list;
   }
 
   Stream<List<Map<String, dynamic>>> _combineFeedStreams() {
@@ -306,12 +521,14 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
 
       final List<Map<String, dynamic>> feed = [];
 
-      // Add announcements (use empty list if not ready yet)
+      // Add announcements (use empty list if not ready yet); set timestamp so sort works
       if (announcementsReady && lastAnnouncements != null) {
         for (final announcement in lastAnnouncements!) {
+          final createdAt = announcement['createdAt'] ?? announcement['date'];
           feed.add({
             'type': 'announcement',
             ...announcement,
+            'timestamp': createdAt,
           });
         }
       }
@@ -330,6 +547,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
       // Add tasks (use empty list if not ready yet)
       if (tasksReady && lastTasks != null) {
         for (final task in lastTasks!) {
+          if (task.status == TaskStatus.completed) continue;
           feed.add({
             'type': 'task',
             'task': task,
@@ -349,10 +567,10 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
         }
       }
 
-      // Sort by timestamp (newest first)
+      // Sort by timestamp (order refined in _sortUnreadFirst after read status is applied)
       feed.sort((a, b) {
-        final aTime = a['timestamp'] as DateTime? ?? DateTime.now();
-        final bTime = b['timestamp'] as DateTime? ?? DateTime.now();
+        final aTime = a['timestamp'] as DateTime? ?? DateTime(0);
+        final bTime = b['timestamp'] as DateTime? ?? DateTime(0);
         return bTime.compareTo(aTime);
       });
 

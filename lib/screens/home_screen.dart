@@ -33,11 +33,12 @@ class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<MarketplaceScreenState> _marketplaceKey =
       GlobalKey<MarketplaceScreenState>();
   final GlobalKey<TasksScreenState> _tasksKey = GlobalKey<TasksScreenState>();
+  bool _hasUnreadAnnouncements = false;
   late final bool _isResident = widget.userRole == UserRole.resident;
   late final int _feedIndex = 0; // HomeFeedScreen (mixed feed)
-  late final int _marketIndex = 1; // MarketplaceScreen
-  late final int _tasksIndex = 2; // TasksScreen
-  late final int _announcementsIndex = 3; // AnnouncementsScreen
+  late final int _announcementsIndex = 1; // AnnouncementsScreen
+  late final int _marketIndex = 2; // MarketplaceScreen
+  late final int _tasksIndex = 3; // TasksScreen
   late final int _profileIndex = 4; // MenuScreen
 
   @override
@@ -53,10 +54,18 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   late final List<Widget> _screens = [
-    const HomeFeedScreen(), // Index 0: Home (mixed feed: announcements, errands, products)
-    MarketplaceScreen(key: _marketplaceKey), // Index 1: Marketplace
-    TasksScreen(key: _tasksKey), // Index 2: Errand/Job Post
-    AnnouncementsScreen(key: _announcementsKey), // Index 3: Announcements
+    HomeFeedScreen(
+      onUnreadAnnouncementsChanged: (hasUnread) {
+        if (_hasUnreadAnnouncements != hasUnread) {
+          setState(() {
+            _hasUnreadAnnouncements = hasUnread;
+          });
+        }
+      },
+    ), // Index 0: Home (mixed feed: announcements, errands, products)
+    AnnouncementsScreen(key: _announcementsKey), // Index 1: Announcements
+    MarketplaceScreen(key: _marketplaceKey), // Index 2: Marketplace
+    TasksScreen(key: _tasksKey), // Index 3: Errand/Job Post
     MenuScreen(userRole: widget.userRole), // Index 4: Menu/Profile
   ];
 
@@ -67,12 +76,12 @@ class _HomeScreenState extends State<HomeScreen> {
         // Update nav destination based on index
         if (index == _feedIndex) {
           _currentNavDestination = NavDestination.home;
+        } else if (index == _announcementsIndex) {
+          _currentNavDestination = NavDestination.announcements;
         } else if (index == _marketIndex) {
           _currentNavDestination = NavDestination.marketplace;
         } else if (index == _tasksIndex) {
           _currentNavDestination = NavDestination.errandJobPost;
-        } else if (index == _announcementsIndex) {
-          _currentNavDestination = NavDestination.announcements;
         } else if (index == _profileIndex) {
           _currentNavDestination = NavDestination.menu;
         }
@@ -91,14 +100,14 @@ class _HomeScreenState extends State<HomeScreen> {
       case NavDestination.home:
         targetIndex = _feedIndex;
         break;
-      case NavDestination.announcements:
-        targetIndex = _announcementsIndex;
-        break;
       case NavDestination.marketplace:
         targetIndex = _marketIndex;
         break;
       case NavDestination.errandJobPost:
         targetIndex = _tasksIndex;
+        break;
+      case NavDestination.announcements:
+        targetIndex = _announcementsIndex;
         break;
         case NavDestination.menu:
           targetIndex = _profileIndex;
@@ -208,6 +217,7 @@ class _HomeScreenState extends State<HomeScreen> {
           LinkodNavbar(
             currentDestination: _currentNavDestination,
             onDestinationChanged: _handleNavDestinationChange,
+            hasUnreadAnnouncements: _hasUnreadAnnouncements,
           ),
           // Content area with swipe support
           Expanded(
@@ -219,12 +229,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   // Update nav destination based on index
                   if (index == _feedIndex) {
                     _currentNavDestination = NavDestination.home;
+                  } else if (index == _announcementsIndex) {
+                    _currentNavDestination = NavDestination.announcements;
                   } else if (index == _marketIndex) {
                     _currentNavDestination = NavDestination.marketplace;
                   } else if (index == _tasksIndex) {
                     _currentNavDestination = NavDestination.errandJobPost;
-                  } else if (index == _announcementsIndex) {
-                    _currentNavDestination = NavDestination.announcements;
                   } else if (index == _profileIndex) {
                     _currentNavDestination = NavDestination.menu;
                   }

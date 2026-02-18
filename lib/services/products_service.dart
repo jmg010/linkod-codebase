@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/message_model.dart';
 import '../models/product_model.dart';
 import 'firestore_service.dart';
 
@@ -6,14 +7,14 @@ class ProductsService {
   static final CollectionReference _productsCollection =
       FirestoreService.instance.collection('products');
 
-  /// Get all available products
+  /// Get all available products (Gatekeeper: only Approved)
   static Stream<List<ProductModel>> getProductsStream() {
     return _productsCollection
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => ProductModel.fromFirestore(doc))
-            .where((product) => product.isAvailable) // Filter in code to avoid index requirement
+            .where((product) => product.isAvailable && product.status == 'Approved')
             .toList());
   }
 
@@ -33,7 +34,7 @@ class ProductsService {
         });
   }
 
-  /// Get products by category
+  /// Get products by category (Gatekeeper: only Approved)
   static Stream<List<ProductModel>> getProductsByCategoryStream(String category) {
     return _productsCollection
         .where('category', isEqualTo: category)
@@ -41,7 +42,7 @@ class ProductsService {
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => ProductModel.fromFirestore(doc))
-            .where((product) => product.isAvailable) // Filter in code
+            .where((product) => product.isAvailable && product.status == 'Approved')
             .toList());
   }
 
@@ -65,22 +66,25 @@ class ProductsService {
     });
   }
 
-  /// Add a message to a product
+  /// Add a message to a product. [parentId] optional; when set, message is a reply to that message.
   static Future<String> addMessage(
     String productId,
     String senderId,
     String senderName,
     String message,
-    bool isSeller,
-  ) async {
+    bool isSeller, {
+    String? parentId,
+  }) async {
     final messagesRef = _productsCollection.doc(productId).collection('messages');
-    final docRef = await messagesRef.add({
+    final data = <String, dynamic>{
       'senderId': senderId,
       'senderName': senderName,
       'message': message,
       'isSeller': isSeller,
       'createdAt': FieldValue.serverTimestamp(),
-    });
+    };
+    if (parentId != null) data['parentId'] = parentId;
+    final docRef = await messagesRef.add(data);
     
     // Increment messagesCount
     await _productsCollection.doc(productId).update({
@@ -90,22 +94,21 @@ class ProductsService {
     return docRef.id;
   }
 
-  /// Get messages for a product
-  static Stream<List<Map<String, dynamic>>> getMessagesStream(String productId) {
+  /// Get all messages for a product in a single list (top-level and replies).
+  static Stream<List<MessageModel>> getMessagesStream(String productId) {
     return _productsCollection
         .doc(productId)
         .collection('messages')
         .orderBy('createdAt', descending: false)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  return <String, dynamic>{
-                    'messageId': doc.id,
-                    ...data,
-                    'createdAt': FirestoreService.parseTimestamp(data['createdAt']),
-                  };
-                })
-            .toList());
+        .map((snapshot) {
+          return snapshot.docs.map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            return MessageModel.fromMap(
+              {...data, 'createdAt': FirestoreService.parseTimestamp(data['createdAt'])},
+              id: doc.id,
+            );
+          }).toList();
+        });
   }
 }

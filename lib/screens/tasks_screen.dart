@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import '../models/task_model.dart';
 import '../widgets/errand_job_card.dart';
 import '../services/tasks_service.dart';
+import '../services/firestore_service.dart';
 import 'create_task_screen.dart';
 import 'my_posts_screen.dart';
 import 'task_detail_screen.dart';
+import 'task_edit_screen.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -15,8 +17,129 @@ class TasksScreen extends StatefulWidget {
 }
 
 class TasksScreenState extends State<TasksScreen> {
+  static const String _filterAll = 'All';
+  static const List<String> _taskCategories = [
+    'General',
+    'Labor',
+    'Tutoring',
+    'Transportation',
+    'Home Repair',
+    'Other',
+  ];
+  List<String> get _categoryFilters => [_filterAll, ..._taskCategories];
+  String _selectedFilter = _filterAll;
+
+  static const int _initialPageSize = 15;
+  static const int _loadMorePageSize = 15;
+  int _displayCount = _initialPageSize;
+  int _totalTaskCount = 0;
+  final ScrollController _scrollController = ScrollController();
+
+  List<TaskModel> _filterByCategory(List<TaskModel> tasks) {
+    if (_selectedFilter == _filterAll) return tasks;
+    return tasks.where((t) => (t.category ?? 'General') == _selectedFilter).toList();
+  }
+
   void addTask(TaskModel task) {
     // Task will be added to Firestore and stream will update automatically
+  }
+
+  static bool _isFromToday(DateTime? date) {
+    if (date == null) return false;
+    final now = DateTime.now();
+    return date.year == now.year && date.month == now.month && date.day == now.day;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.position.pixels;
+    if (maxScroll - currentScroll < 200) _loadMoreIfNeeded();
+  }
+
+  void _loadMoreIfNeeded() {
+    if (_displayCount >= _totalTaskCount) return;
+    setState(() {
+      _displayCount = (_displayCount + _loadMorePageSize).clamp(0, _totalTaskCount);
+    });
+  }
+
+  Future<void> _showCategoryPicker() async {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (ctx) {
+        final items = _categoryFilters;
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                child: Row(
+                  children: [
+                    const Icon(Icons.category_outlined, size: 20, color: Color(0xFF30383F)),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Change Category',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              SizedBox(
+                height: 380,
+                child: ListView.builder(
+                  itemCount: items.length,
+                  itemBuilder: (context, index) {
+                    final cat = items[index];
+                    final isSelected = cat == _selectedFilter;
+                    return ListTile(
+                      title: Text(
+                        cat == _filterAll ? 'All categories' : cat,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                          color: isSelected ? const Color(0xFF20BF6B) : Colors.black87,
+                        ),
+                      ),
+                      onTap: () => Navigator.of(context).pop(cat),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (selected != null && selected != _selectedFilter) {
+      setState(() {
+        _selectedFilter = selected;
+        _displayCount = _initialPageSize;
+      });
+    }
   }
 
   void _handlePostTask() {
@@ -41,6 +164,7 @@ class TasksScreenState extends State<TasksScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUserId = FirestoreService.currentUserId;
     return Scaffold(
       backgroundColor: const Color(0xFFF4F4F4),
       body: Column(
@@ -71,7 +195,7 @@ class TasksScreenState extends State<TasksScreen> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
             child: Row(
               children: [
                 _ActionPill(
@@ -88,6 +212,14 @@ class TasksScreenState extends State<TasksScreen> {
                   backgroundColor: const Color(0xFFE9E9E9),
                   foregroundColor: const Color(0xFF4A4A4A),
                   onPressed: _handleMyPosts,
+                ),
+                const SizedBox(width: 12),
+                _ActionPill(
+                  label: _selectedFilter == _filterAll ? 'Categories' : _selectedFilter,
+                  icon: Icons.category_outlined,
+                  backgroundColor: const Color(0xFFE9E9E9),
+                  foregroundColor: const Color(0xFF4A4A4A),
+                  onPressed: _showCategoryPicker,
                 ),
               ],
             ),
@@ -116,38 +248,174 @@ class TasksScreenState extends State<TasksScreen> {
                     );
                   }
 
-                  final tasks = snapshot.data ?? [];
+                  final nonCompleted = (snapshot.data ?? []).where((t) => t.status != TaskStatus.completed).toList();
+                  final allTasks = _filterByCategory(nonCompleted);
+                  final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+                  final todayTasks = allTasks.where((t) {
+                    final d = t.createdAt;
+                    return d.year == today.year && d.month == today.month && d.day == today.day;
+                  }).toList();
+                  final restTasks = allTasks.where((t) => !_isFromToday(t.createdAt)).toList();
+                  final orderedTasks = [...todayTasks, ...restTasks];
+                  _totalTaskCount = orderedTasks.length;
 
-                  if (tasks.isEmpty) {
+                  if (orderedTasks.isEmpty) {
                     return _EmptyState();
                   }
 
-                  return ListView.separated(
+                  final visibleCount = _displayCount.clamp(0, orderedTasks.length);
+                  final showLoadMore = visibleCount < orderedTasks.length;
+                  final hasNewListing = todayTasks.isNotEmpty;
+                  final visibleRestCount = (visibleCount - todayTasks.length).clamp(0, restTasks.length);
+
+                  return ListView.builder(
+                    controller: _scrollController,
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
                     physics: const ClampingScrollPhysics(),
-                    itemCount: tasks.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 16),
+                    itemCount: 2 + visibleRestCount + (showLoadMore ? 1 : 0),
                     itemBuilder: (context, index) {
-                      final task = tasks[index];
-                      final status = _mapStatus(task.status);
-                      return ErrandJobCard(
-                        title: task.title,
-                        description: task.description,
-                        postedBy: task.requesterName,
-                        date: task.createdAt,
-                        status: status,
-                        statusLabel: task.status.displayName,
-                        volunteerName: task.assignedByName, // Use assignedByName instead of assignedTo
-                        onViewPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => TaskDetailScreen(
-                                task: task,
-                                contactNumber: task.contactNumber ?? '',
+                      if (index == 0) {
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFF00A651).withOpacity(0.4), width: 1.5),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.06),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+                                child: Text(
+                                  'New Listing',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF00A651),
+                                  ),
+                                ),
+                              ),
+                              if (todayTasks.isEmpty)
+                                const Padding(
+                                  padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+                                  child: Text('No new postings today.', style: TextStyle(fontSize: 14, color: Colors.black54)),
+                                )
+                              else
+                                ...todayTasks.map((task) => Padding(
+                                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                                  child: ErrandJobCard(
+                                    title: task.title,
+                                    description: task.description,
+                                    postedBy: task.requesterName,
+                                    date: task.createdAt,
+                                    status: _mapStatus(task.status)!,
+                                    statusLabel: task.status.displayName,
+                                    volunteerName: task.assignedByName,
+                                    viewButtonLabel: (currentUserId != null && task.requesterId == currentUserId)
+                                        ? 'Edit'
+                                        : 'View',
+                                    viewButtonIcon: (currentUserId != null && task.requesterId == currentUserId)
+                                        ? Icons.edit_outlined
+                                        : Icons.visibility_outlined,
+                                    onViewPressed: () {
+                                      final isOwner = currentUserId != null && task.requesterId == currentUserId;
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => isOwner
+                                              ? TaskEditScreen(
+                                                  task: task,
+                                                  contactNumber: task.contactNumber ?? '',
+                                                )
+                                              : TaskDetailScreen(
+                                                  task: task,
+                                                  contactNumber: task.contactNumber ?? '',
+                                                ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                )),
+                            ],
+                          ),
+                        );
+                      }
+                      if (index == 1) {
+                        return Padding(
+                          padding: const EdgeInsets.fromLTRB(0, 4, 0, 12),
+                          child: Text(
+                            'Older',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                        );
+                      }
+                      if (showLoadMore && index == 2 + visibleRestCount) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          child: Center(
+                            child: GestureDetector(
+                              onTap: _loadMoreIfNeeded,
+                              child: Text(
+                                'Load more',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF00A651),
+                                ),
                               ),
                             ),
-                          );
-                        },
+                          ),
+                        );
+                      }
+                      final task = restTasks[index - 2];
+                      final status = _mapStatus(task.status);
+                      return Padding(
+                        padding: EdgeInsets.only(
+                          bottom: index - 2 < visibleRestCount - 1 ? 16 : 0,
+                        ),
+                        child: ErrandJobCard(
+                          title: task.title,
+                          description: task.description,
+                          postedBy: task.requesterName,
+                          date: task.createdAt,
+                          status: status!,
+                          statusLabel: task.status.displayName,
+                          volunteerName: task.assignedByName,
+                          viewButtonLabel: (currentUserId != null && task.requesterId == currentUserId)
+                              ? 'Edit'
+                              : 'View',
+                          viewButtonIcon: (currentUserId != null && task.requesterId == currentUserId)
+                              ? Icons.edit_outlined
+                              : Icons.visibility_outlined,
+                          onViewPressed: () {
+                            final isOwner = currentUserId != null && task.requesterId == currentUserId;
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => isOwner
+                                    ? TaskEditScreen(
+                                        task: task,
+                                        contactNumber: task.contactNumber ?? '',
+                                      )
+                                    : TaskDetailScreen(
+                                        task: task,
+                                        contactNumber: task.contactNumber ?? '',
+                                      ),
+                              ),
+                            );
+                          },
+                        ),
                       );
                     },
                   );

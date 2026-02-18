@@ -9,6 +9,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'create_account_screen.dart';
 import 'login_screen.dart';
 import 'home_screen.dart';
+import 'declined_status_screen.dart';
+import 'suspended_status_screen.dart';
 import '../models/user_role.dart';
 
 
@@ -40,8 +42,32 @@ class _LandingScreenState extends State<LandingScreen> {
 
         if (doc.exists) {
           final data = doc.data();
+          final accountStatus = (data?['accountStatus'] as String?)?.toLowerCase();
           final isApproved = data?['isApproved'] as bool? ?? false;
-          if (isApproved) {
+
+          if (accountStatus == 'declined' && mounted) {
+            final adminNote = (data?['adminNote'] as String?) ?? '';
+            final reapplyType = (data?['reapplyType'] as String?) ?? 'full';
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => DeclinedStatusScreen(
+                  adminNote: adminNote,
+                  reapplyType: reapplyType,
+                ),
+              ),
+            );
+            return;
+          }
+          if (accountStatus == 'suspended' && mounted) {
+            final adminNote = data?['adminNote'] as String?;
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => SuspendedStatusScreen(adminNote: adminNote),
+              ),
+            );
+            return;
+          }
+          if (isApproved || accountStatus == 'active') {
             UserRole role = UserRole.resident;
             final roleString = (data?['role'] as String?) ?? 'resident';
             final lower = roleString.toLowerCase();

@@ -220,6 +220,7 @@ class AnnouncementsScreenState extends State<AnnouncementsScreen> with SingleTic
                         title: announcement['title'] as String? ?? '',
                         description: announcement['content'] as String? ?? announcement['description'] as String? ?? '',
                         postedBy: announcement['postedBy'] as String? ?? 'Barangay Official',
+                        postedByPosition: announcement['postedByPosition'] as String?,
                         date: announcement['date'] as DateTime? ?? announcement['createdAt'] as DateTime,
                         category: announcement['category'] as String?,
                         unreadCount: viewCount,

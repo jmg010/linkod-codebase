@@ -16,10 +16,10 @@ class AnnouncementsService {
           final announcements = snapshot.docs
               .map((doc) {
                     final data = doc.data() as Map<String, dynamic>;
-                    // Filter by status and isActive in code to avoid index requirement
+                    // Filter by status and isActive (Gatekeeper: Approved; allow 'published' for backward compatibility)
                     final status = data['status'] as String? ?? '';
                     final isActive = data['isActive'] as bool? ?? true;
-                    if (status != 'published' || !isActive) return null;
+                    if ((status != 'Approved' && status != 'published') || !isActive) return null;
                     return {
                       'id': doc.id,
                       ...data,
@@ -59,10 +59,10 @@ class AnnouncementsService {
           final announcements = snapshot.docs
               .map((doc) {
                     final data = doc.data() as Map<String, dynamic>;
-                    // Filter by status and isActive in code to avoid index requirement
+                    // Filter by status and isActive (Gatekeeper: Approved; allow 'published' for backward compatibility)
                     final status = data['status'] as String? ?? '';
                     final isActive = data['isActive'] as bool? ?? true;
-                    if (status != 'published' || !isActive) return null;
+                    if ((status != 'Approved' && status != 'published') || !isActive) return null;
                     
                     // Filter by audiences in code to avoid index requirement
                     final audiences = data['audiences'] as List<dynamic>? ?? [];
@@ -71,11 +71,15 @@ class AnnouncementsService {
                         .where((a) => a.isNotEmpty)
                         .toSet();
                     
-                    // Check if any user category matches any announcement audience
-                    final hasMatchingAudience = normalizedUserCategories
-                        .any((userCat) => normalizedAudiences.contains(userCat));
-                    
-                    if (!hasMatchingAudience) return null;
+                    // "General Residents" means all residents receive this announcement
+                    if (normalizedAudiences.contains('general residents')) {
+                      // Include for everyone (no category filter)
+                    } else {
+                      // Check if any user category matches any announcement audience
+                      final hasMatchingAudience = normalizedUserCategories
+                          .any((userCat) => normalizedAudiences.contains(userCat));
+                      if (!hasMatchingAudience) return null;
+                    }
                     
                     return {
                       'id': doc.id,
@@ -118,6 +122,13 @@ class AnnouncementsService {
       await _announcementsCollection.doc(announcementId).update({
         'viewCount': FieldValue.increment(1),
       });
+      
+      // Also write to views subcollection for Admin "View Readers" (one doc per user per announcement)
+      final viewsRef = _announcementsCollection.doc(announcementId).collection('views');
+      await viewsRef.doc(userId).set({
+        'userId': userId,
+        'viewedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     }
   }
 
@@ -145,7 +156,7 @@ class AnnouncementsService {
     if (data == null) return null;
     final status = data['status'] as String? ?? '';
     final isActive = data['isActive'] as bool? ?? true;
-    if (status != 'published' || !isActive) return null;
+    if ((status != 'Approved' && status != 'published') || !isActive) return null;
     return {
       'id': doc.id,
       ...data,

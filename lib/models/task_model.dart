@@ -16,6 +16,10 @@ class TaskModel {
   final String? contactNumber;
   final int volunteersCount;
   final bool isActive;
+  /// Gatekeeper: Pending (awaiting admin) or Approved (visible on feed).
+  final String approvalStatus;
+  /// Task category for filtering (e.g. General, Labor, Tutoring).
+  final String? category;
 
   TaskModel({
     required this.id,
@@ -33,6 +37,8 @@ class TaskModel {
     this.contactNumber,
     this.volunteersCount = 0,
     this.isActive = true,
+    this.approvalStatus = 'Pending',
+    this.category,
   });
 
   Map<String, dynamic> toJson() {
@@ -52,6 +58,8 @@ class TaskModel {
       'contactNumber': contactNumber,
       'volunteersCount': volunteersCount,
       'isActive': isActive,
+      'approvalStatus': approvalStatus,
+      'category': category,
     };
   }
 
@@ -78,6 +86,8 @@ class TaskModel {
       contactNumber: json['contactNumber'] as String?,
       volunteersCount: (json['volunteersCount'] as num?)?.toInt() ?? 0,
       isActive: json['isActive'] as bool? ?? true,
+      approvalStatus: json['approvalStatus'] as String? ?? 'Approved',
+      category: json['category'] as String?,
     );
   }
 
@@ -96,12 +106,13 @@ class TaskModel {
     return DateTime.now();
   }
 
-  // Factory method for Firestore documents
+  // Factory method for Firestore documents (missing approvalStatus => Approved for backward compat)
   factory TaskModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return TaskModel.fromJson({
       ...data,
       'id': doc.id,
+      'approvalStatus': data['approvalStatus'] as String? ?? 'Approved',
     });
   }
 }

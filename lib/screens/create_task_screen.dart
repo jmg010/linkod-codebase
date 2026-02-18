@@ -34,6 +34,28 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadUserPhone());
+  }
+
+  Future<void> _loadUserPhone() async {
+    final user = FirestoreService.auth.currentUser;
+    if (user == null) return;
+    try {
+      final doc = await FirestoreService.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      if (!doc.exists || !mounted) return;
+      final phone = doc.data()?['phoneNumber'] as String?;
+      if (phone != null && phone.isNotEmpty) {
+        _contactController.text = phone;
+      }
+    } catch (_) {}
+  }
+
+  @override
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
@@ -81,6 +103,8 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
         contactNumber: _contactController.text.trim().isNotEmpty
             ? _contactController.text.trim()
             : (userData['phoneNumber'] as String?),
+        approvalStatus: 'Pending', // Admin approves in Errand Approvals
+        category: _selectedCategory,
       );
 
       await TasksService.createTask(task);

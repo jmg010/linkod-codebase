@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../models/message_model.dart';
 import '../models/product_model.dart';
 import '../services/products_service.dart';
 import '../services/firestore_service.dart';
@@ -18,11 +19,19 @@ class ProductDetailScreen extends StatefulWidget {
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   final TextEditingController _messageController = TextEditingController();
+  final FocusNode _messageFocusNode = FocusNode();
   bool _isSending = false;
+  /// Which message threads are expanded to show replies.
+  Set<String> expandedMessageIds = {};
+  /// When set, the next sent message will be a reply to this message ID.
+  String? replyingToId;
+  /// Sender name of the message we're replying to (for the indicator).
+  String? replyingToName;
 
   @override
   void dispose() {
     _messageController.dispose();
+    _messageFocusNode.dispose();
     super.dispose();
   }
 
@@ -127,7 +136,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               ],
                             ),
                             const SizedBox(height: 16),
-                            _buildMessageComposer(),
+                            if (replyingToId == null) _buildMessageComposer(),
                           ],
                         ),
                       ),
@@ -160,7 +169,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               ),
                             ),
                             const SizedBox(height: 14),
-                            StreamBuilder<List<Map<String, dynamic>>>(
+                            StreamBuilder<List<MessageModel>>(
                               stream: ProductsService.getMessagesStream(widget.product.id),
                               builder: (context, snapshot) {
                                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -172,8 +181,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                 }
 
                                 final messages = snapshot.data ?? [];
+                                final topLevel = messages.where((m) => m.parentId == null).toList();
+                                final repliesByParent = <String, List<MessageModel>>{};
+                                for (final m in messages) {
+                                  if (m.parentId != null) {
+                                    repliesByParent.putIfAbsent(m.parentId!, () => []).add(m);
+                                  }
+                                }
 
-                                if (messages.isEmpty) {
+                                if (topLevel.isEmpty) {
                                   return Padding(
                                     padding: const EdgeInsets.symmetric(vertical: 16),
                                     child: Text(
@@ -187,11 +203,101 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                 }
 
                                 return Column(
-                                  children: messages.map((msg) {
-                                    return _MessageBubble(
-                                      sender: msg['senderName'] as String? ?? 'Unknown',
-                                      message: msg['message'] as String? ?? '',
-                                      isSeller: msg['isSeller'] as bool? ?? false,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: topLevel.map((msg) {
+                                    final replies = repliesByParent[msg.id] ?? [];
+                                    final isExpanded = expandedMessageIds.contains(msg.id);
+                                    final showInlineReply = replyingToId == msg.id;
+                                    return Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        _MessageBubble(
+                                          sender: msg.senderName,
+                                          message: msg.message,
+                                          isSeller: msg.isSeller,
+                                          isReply: false,
+                                          onReply: () {
+                                            setState(() {
+                                              replyingToId = msg.id;
+                                              replyingToName = msg.senderName;
+                                              expandedMessageIds.add(msg.id);
+                                            });
+                                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                                              _messageFocusNode.requestFocus();
+                                            });
+                                          },
+                                        ),
+                                        if (showInlineReply)
+                                          Padding(
+                                            padding: const EdgeInsets.only(top: 8, bottom: 4),
+                                            child: _buildInlineReplyComposer(
+                                              replyingToName: replyingToName ?? '',
+                                              onCancel: () {
+                                                setState(() {
+                                                  replyingToId = null;
+                                                  replyingToName = null;
+                                                });
+                                              },
+                                            ),
+                                          ),
+                                        if (!showInlineReply)
+                                          TextButton(
+                                            onPressed: () {
+                                              setState(() {
+                                                if (expandedMessageIds.contains(msg.id)) {
+                                                  expandedMessageIds.remove(msg.id);
+                                                } else {
+                                                  expandedMessageIds.add(msg.id);
+                                                }
+                                              });
+                                            },
+                                            style: TextButton.styleFrom(
+                                              padding: const EdgeInsets.symmetric(horizontal: 0),
+                                              minimumSize: Size.zero,
+                                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                            ),
+                                            child: Text(
+                                              isExpanded
+                                                  ? 'Hide replies${replies.isEmpty ? "" : " (${replies.length})"}'
+                                                  : 'View replies${replies.isEmpty ? "" : " (${replies.length})"}',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey.shade600,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ),
+                                        if (isExpanded && replies.isNotEmpty)
+                                          Padding(
+                                            padding: const EdgeInsets.only(left: 32.0),
+                                            child: Container(
+                                              decoration: BoxDecoration(
+                                                border: Border(
+                                                  left: BorderSide(
+                                                    color: Colors.grey.shade300,
+                                                    width: 2,
+                                                  ),
+                                                ),
+                                                color: Colors.grey.shade50,
+                                                borderRadius: const BorderRadius.only(
+                                                  bottomLeft: Radius.circular(8),
+                                                  bottomRight: Radius.circular(8),
+                                                ),
+                                              ),
+                                              padding: const EdgeInsets.only(left: 10, top: 4, bottom: 4),
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                                children: replies.map((r) => _MessageBubble(
+                                                  sender: r.senderName,
+                                                  message: r.message,
+                                                  isSeller: r.isSeller,
+                                                  isReply: true,
+                                                )).toList(),
+                                              ),
+                                            ),
+                                          ),
+                                        const SizedBox(height: 8),
+                                      ],
                                     );
                                   }).toList(),
                                 );
@@ -313,10 +419,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         userName,
         _messageController.text.trim(),
         isSeller,
+        parentId: replyingToId,
       );
 
       _messageController.clear();
-      setState(() => _isSending = false);
+      setState(() {
+        _isSending = false;
+        if (replyingToId != null) {
+          expandedMessageIds.add(replyingToId!);
+          replyingToId = null;
+          replyingToName = null;
+        }
+      });
     } catch (e) {
       setState(() => _isSending = false);
       if (mounted) {
@@ -340,6 +454,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             ),
             child: TextField(
               controller: _messageController,
+              focusNode: _messageFocusNode,
               decoration: const InputDecoration(
                 border: InputBorder.none,
                 hintText: 'Drop a message',
@@ -375,17 +490,110 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       ],
     );
   }
+
+  Widget _buildInlineReplyComposer({
+    required String replyingToName,
+    required VoidCallback onCancel,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Replying to $replyingToName',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: onCancel,
+                child: Icon(
+                  Icons.close,
+                  size: 16,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: TextField(
+                    controller: _messageController,
+                    focusNode: _messageFocusNode,
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      hintText: 'Write a reply...',
+                      hintStyle: TextStyle(
+                        color: Color(0xFF9E9E9E),
+                        fontSize: 14,
+                      ),
+                      contentPadding: EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: _isSending ? null : _handleSendMessage,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF20BF6B),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: _isSending
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Reply'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _MessageBubble extends StatelessWidget {
   final String sender;
   final String message;
   final bool isSeller;
+  final bool isReply;
+  final VoidCallback? onReply;
 
   const _MessageBubble({
     required this.sender,
     required this.message,
     required this.isSeller,
+    this.isReply = false,
+    this.onReply,
   });
 
   @override
@@ -393,35 +601,65 @@ class _MessageBubble extends StatelessWidget {
     return Container(
       width: double.infinity,
       margin: EdgeInsets.only(
-        bottom: 10,
+        bottom: isReply ? 6 : 10,
         left: isSeller ? 12 : 0,
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEDEDED),
-        borderRadius: BorderRadius.circular(16),
+      padding: EdgeInsets.symmetric(
+        horizontal: isReply ? 10 : 14,
+        vertical: isReply ? 8 : 10,
       ),
-      child: Column(
+      decoration: BoxDecoration(
+        color: isReply ? Colors.grey.shade100 : const Color(0xFFEDEDED),
+        borderRadius: BorderRadius.circular(isReply ? 12 : 16),
+      ),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            sender,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: isSeller
-                  ? const Color(0xFF20BF6B)
-                  : Colors.grey.shade800,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  sender,
+                  style: TextStyle(
+                    fontSize: isReply ? 12 : 13,
+                    fontWeight: FontWeight.w600,
+                    color: isSeller
+                        ? const Color(0xFF20BF6B)
+                        : Colors.grey.shade800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  message,
+                  style: TextStyle(
+                    fontSize: isReply ? 12 : 13,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            message,
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.grey.shade800,
+          if (onReply != null) ...[
+            const SizedBox(width: 8),
+            SizedBox(
+              height: 28,
+              child: ElevatedButton(
+                onPressed: onReply,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF20BF6B),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  minimumSize: Size.zero,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text('Reply', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );

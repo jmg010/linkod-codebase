@@ -168,6 +168,7 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
     final title = _announcement!['title'] as String? ?? '';
     final content = _announcement!['content'] as String? ?? '';
     final postedBy = _announcement!['postedBy'] as String? ?? 'Barangay Official';
+    final postedByPosition = _announcement!['postedByPosition'] as String?;
     final category = _announcement!['category'] as String?;
     final createdAt = _announcement!['createdAt'];
 
@@ -190,6 +191,7 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
             title: title,
             content: content,
             postedBy: postedBy,
+            postedByPosition: postedByPosition,
             category: category,
             createdAt: createdAt,
           ),
@@ -202,6 +204,7 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
     required String title,
     required String content,
     required String postedBy,
+    String? postedByPosition,
     String? category,
     dynamic createdAt,
   }) {
@@ -266,7 +269,9 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      postedBy,
+                      postedByPosition != null && postedByPosition.isNotEmpty
+                          ? '$postedBy ($postedByPosition)'
+                          : postedBy,
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,

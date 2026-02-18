@@ -15,6 +15,8 @@ class ProductModel {
   final String location;
   final String contactNumber;
   final int messagesCount;
+  /// Gatekeeper: Pending (awaiting admin approval) or Approved (visible on feed/market).
+  final String status;
 
   ProductModel({
     required this.id,
@@ -31,6 +33,7 @@ class ProductModel {
     this.location = 'Location not specified',
     this.contactNumber = '',
     this.messagesCount = 0,
+    this.status = 'Pending',
   });
 
   Map<String, dynamic> toJson() {
@@ -49,6 +52,7 @@ class ProductModel {
       'location': location,
       'contactNumber': contactNumber,
       'messagesCount': messagesCount,
+      'status': status,
     };
   }
 
@@ -71,6 +75,7 @@ class ProductModel {
       location: json['location'] as String? ?? 'Location not specified',
       contactNumber: json['contactNumber'] as String? ?? '',
       messagesCount: (json['messagesCount'] as num?)?.toInt() ?? 0,
+      status: json['status'] as String? ?? 'Approved',
     );
   }
 
@@ -89,12 +94,13 @@ class ProductModel {
     return DateTime.now();
   }
 
-  // Factory method for Firestore documents
+  // Factory method for Firestore documents (missing status => Approved for backward compatibility)
   factory ProductModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return ProductModel.fromJson({
       ...data,
       'id': doc.id,
+      'status': data['status'] as String? ?? 'Approved',
     });
   }
 }

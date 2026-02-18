@@ -7,6 +7,8 @@ import '../models/user_role.dart';
 import '../services/fcm_token_service.dart';
 import 'create_account_screen.dart';
 import 'home_screen.dart';
+import 'declined_status_screen.dart';
+import 'suspended_status_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -47,6 +49,13 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    if (password.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password must be at least 6 characters.')),
+      );
+      return;
+    }
+
     setState(() => isLoading = true);
 
     try {
@@ -68,16 +77,41 @@ class _LoginScreenState extends State<LoginScreen> {
       UserRole role = UserRole.resident;
       if (doc.exists) {
         final data = doc.data();
+        final accountStatus = (data?['accountStatus'] as String?)?.toLowerCase();
         final isApproved = data?['isApproved'] as bool? ?? false;
-        if (!isApproved) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Your account is pending approval. Please wait for admin approval.'),
+
+        // Persistence & governance: route by accountStatus
+        if (accountStatus == 'declined') {
+          if (!mounted) return;
+          final adminNote = (data?['adminNote'] as String?) ?? '';
+          final reapplyType = (data?['reapplyType'] as String?) ?? 'full';
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => DeclinedStatusScreen(
+                adminNote: adminNote,
+                reapplyType: reapplyType,
+              ),
             ),
           );
           return;
         }
-        
+        if (accountStatus == 'suspended') {
+          if (!mounted) return;
+          final adminNote = data?['adminNote'] as String?;
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => SuspendedStatusScreen(adminNote: adminNote),
+            ),
+          );
+          return;
+        }
+        if (accountStatus == 'pending' || (!isApproved && accountStatus != 'active')) {
+          await FirebaseAuth.instance.signOut();
+          if (!mounted) return;
+          _showPendingApprovalDialog(context);
+          return;
+        }
+
         final roleString = (data?['role'] as String?) ?? 'resident';
         final lower = roleString.toLowerCase();
         if (lower == 'official' || lower == 'admin') {
@@ -88,12 +122,10 @@ class _LoginScreenState extends State<LoginScreen> {
           role = UserRole.resident;
         }
       } else {
-        // User exists in Auth but not in Firestore (pending approval)
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Your account is pending approval. Please wait for admin approval.'),
-          ),
-        );
+        // User exists in Auth but not in Firestore — still awaiting admin/kapitan approval
+        await FirebaseAuth.instance.signOut();
+        if (!mounted) return;
+        _showPendingApprovalDialog(context);
         return;
       }
 
@@ -131,6 +163,27 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() => isLoading = false);
       }
     }
+  }
+
+  /// Shows a dialog when the resident has no users doc or status is pending (admin/kapitan has not approved yet).
+  void _showPendingApprovalDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Account pending approval'),
+        content: const Text(
+          'Your account is still not approved. It needs to be reviewed by the admin or kapitan first. '
+          'You will be able to sign in once your account has been approved.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -187,12 +240,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 18),
-                      const _RequiredLabel(text: "Password"),
+                      const _RequiredLabel(text: "Password (min 6 characters)"),
                       const SizedBox(height: 6),
                       TextField(
                         controller: passwordController,
                         obscureText: obscurePassword,
                         decoration: InputDecoration(
+                          hintText: 'At least 6 characters',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
