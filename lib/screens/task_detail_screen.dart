@@ -3,7 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/task_model.dart';
 import '../services/tasks_service.dart';
 import '../services/firestore_service.dart';
+import '../services/task_chat_service.dart';
 import 'task_edit_screen.dart';
+import 'task_chat_screen.dart';
 
 class TaskDetailScreen extends StatefulWidget {
   final TaskModel task;
@@ -21,7 +23,7 @@ class TaskDetailScreen extends StatefulWidget {
 
 class _TaskDetailScreenState extends State<TaskDetailScreen> {
   bool _isVolunteering = false;
-  bool _hasVolunteered = false;
+  bool _isCancelling = false;
   bool _isOwner = false;
 
   @override
@@ -29,27 +31,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     super.initState();
     final uid = FirestoreService.auth.currentUser?.uid;
     _isOwner = uid != null && uid == widget.task.requesterId;
-    _checkVolunteerStatus();
-  }
-
-  Future<void> _checkVolunteerStatus() async {
-    final currentUser = FirestoreService.auth.currentUser;
-    if (currentUser == null) return;
-
-    try {
-      final volunteers = await FirestoreService.instance
-          .collection('tasks')
-          .doc(widget.task.id)
-          .collection('volunteers')
-          .where('volunteerId', isEqualTo: currentUser.uid)
-          .get();
-      
-      setState(() {
-        _hasVolunteered = volunteers.docs.isNotEmpty;
-      });
-    } catch (e) {
-      debugPrint('Error checking volunteer status: $e');
-    }
   }
 
   Future<void> _handleVolunteer() async {
@@ -61,22 +42,13 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       return;
     }
 
-    if (_hasVolunteered) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You have already volunteered for this task')),
-      );
-      return;
-    }
-
     setState(() => _isVolunteering = true);
 
     try {
-      // Get user name
       final userDoc = await FirestoreService.instance
           .collection('users')
           .doc(currentUser.uid)
           .get();
-      
       final userName = userDoc.data()?['fullName'] as String? ?? 'User';
 
       await TasksService.volunteerForTask(
@@ -85,11 +57,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         userName,
       );
 
-      setState(() {
-        _hasVolunteered = true;
-        _isVolunteering = false;
-      });
-
+      setState(() => _isVolunteering = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -106,6 +74,50 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         );
       }
     }
+  }
+
+  Future<void> _handleCancelVolunteer() async {
+    final currentUser = FirestoreService.auth.currentUser;
+    if (currentUser == null) return;
+    if (_isCancelling) return;
+
+    setState(() => _isCancelling = true);
+    try {
+      await TasksService.cancelVolunteer(widget.task.id, currentUser.uid);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Volunteer request cancelled')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isCancelling = false);
+    }
+  }
+
+  void _openTaskChat() {
+    final currentUser = FirestoreService.auth.currentUser;
+    if (currentUser == null) return;
+    final isOwner = currentUser.uid == widget.task.requesterId;
+    final otherName = isOwner ? (widget.task.assignedByName ?? 'Volunteer') : widget.task.requesterName;
+    final otherId = isOwner ? widget.task.assignedTo : widget.task.requesterId;
+    if (otherId == null || otherId.isEmpty) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TaskChatScreen(
+          taskId: widget.task.id,
+          taskTitle: widget.task.title,
+          otherPartyName: otherName,
+          otherPartyId: otherId,
+          currentUserId: currentUser.uid,
+        ),
+      ),
+    );
   }
 
   @override
@@ -201,107 +213,200 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             ],
           ),
           const SizedBox(height: 20),
-          // Volunteer / Edit Button
-          if (_isOwner)
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => TaskEditScreen(
-                        task: widget.task,
-                        contactNumber: widget.contactNumber,
-                      ),
-                    ),
-                  );
-                },
-                icon: const Icon(
-                  Icons.edit_outlined,
-                  size: 18,
-                  color: Color(0xFF4C4C4C),
-                ),
-                label: const Text(
-                  'Edit',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF4C4C4C),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  minimumSize: const Size(0, 48),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  side: BorderSide(color: Colors.grey.shade300, width: 1),
-                  backgroundColor: Colors.white,
+          // Volunteer / Edit / Cancel / Message Button
+          _buildActionButton(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton() {
+    final currentUser = FirestoreService.auth.currentUser;
+    if (_isOwner) {
+      return SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => TaskEditScreen(
+                  task: widget.task,
+                  contactNumber: widget.contactNumber,
                 ),
               ),
-            )
-          else if (widget.task.status == TaskStatus.open && !_hasVolunteered)
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _isVolunteering ? null : _handleVolunteer,
-                icon: _isVolunteering
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(
-                        Icons.favorite_border,
-                        size: 18,
+            );
+          },
+          icon: const Icon(
+            Icons.edit_outlined,
+            size: 18,
+            color: Color(0xFF4C4C4C),
+          ),
+          label: const Text(
+            'Edit',
+            style: TextStyle(
+              fontSize: 14,
+              color: Color(0xFF4C4C4C),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            minimumSize: const Size(0, 48),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            side: BorderSide(color: Colors.grey.shade300, width: 1),
+            backgroundColor: Colors.white,
+          ),
+        ),
+      );
+    }
+    if (currentUser == null) return const SizedBox.shrink();
+    return StreamBuilder<Map<String, dynamic>?>(
+      stream: TasksService.getMyVolunteerStatusStream(widget.task.id, currentUser.uid),
+      builder: (context, statusSnap) {
+        final myStatus = statusSnap.data;
+        final status = myStatus?['status'] as String?;
+        // Default: Volunteer button (only when task open and not volunteered/rejected)
+        if (status == null || status == 'rejected') {
+          if (widget.task.status != TaskStatus.open) return const SizedBox.shrink();
+          return SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _isVolunteering ? null : _handleVolunteer,
+              icon: _isVolunteering
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(
+                      Icons.favorite_border,
+                      size: 18,
+                      color: Color(0xFF4C4C4C),
+                    ),
+              label: Text(
+                _isVolunteering ? 'Volunteering...' : 'Volunteer',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF4C4C4C),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                minimumSize: const Size(0, 48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                side: BorderSide(color: Colors.grey.shade300, width: 1),
+                backgroundColor: Colors.white,
+              ),
+            ),
+          );
+        }
+        // Pending: Cancel button
+        if (status == 'pending') {
+          return SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _isCancelling ? null : _handleCancelVolunteer,
+              icon: _isCancelling
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(
+                      Icons.close,
+                      size: 18,
+                      color: Color(0xFF4C4C4C),
+                    ),
+              label: Text(
+                _isCancelling ? 'Cancelling...' : 'Cancel',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF4C4C4C),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                minimumSize: const Size(0, 48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                side: BorderSide(color: Colors.grey.shade300, width: 1),
+                backgroundColor: Colors.white,
+              ),
+            ),
+          );
+        }
+        // Approved: Message icon with optional unread badge
+        if (status == 'accepted') {
+          return StreamBuilder<int>(
+            stream: TaskChatService.getUnreadCountStream(widget.task.id, currentUser.uid),
+            builder: (context, unreadSnap) {
+              final unreadCount = unreadSnap.data ?? 0;
+              return SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _openTaskChat,
+                  icon: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      const Icon(
+                        Icons.message_outlined,
+                        size: 20,
                         color: Color(0xFF4C4C4C),
                       ),
-                label: Text(
-                  _isVolunteering ? 'Volunteering...' : 'Volunteer',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF4C4C4C),
-                    fontWeight: FontWeight.w600,
+                      if (unreadCount > 0)
+                        Positioned(
+                          right: -6,
+                          top: -6,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                            child: Text(
+                              unreadCount > 99 ? '99+' : '$unreadCount',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
-                ),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  minimumSize: const Size(0, 48),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  side: BorderSide(color: Colors.grey.shade300, width: 1),
-                  backgroundColor: Colors.white,
-                ),
-              ),
-            )
-          else if (_hasVolunteered)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.green.shade200),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.check_circle, size: 18, color: Colors.green.shade700),
-                  const SizedBox(width: 8),
-                  Text(
-                    'You have volunteered',
+                  label: const Text(
+                    'Message',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.green.shade700,
+                      color: Color(0xFF4C4C4C),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                ],
-              ),
-            ),
-        ],
-      ),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    minimumSize: const Size(0, 48),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    side: BorderSide(color: Colors.grey.shade300, width: 1),
+                    backgroundColor: Colors.white,
+                  ),
+                ),
+              );
+            },
+          );
+        }
+        return const SizedBox.shrink();
+      },
     );
   }
 

@@ -104,6 +104,27 @@ class TasksService {
     });
   }
 
+  /// Stream of current user's volunteer record for a task (if any). Map keys: volunteerDocId, status (pending|accepted|rejected).
+  static Stream<Map<String, dynamic>?> getMyVolunteerStatusStream(String taskId, String userId) {
+    return _tasksCollection
+        .doc(taskId)
+        .collection('volunteers')
+        .where('volunteerId', isEqualTo: userId)
+        .limit(1)
+        .snapshots()
+        .map((snapshot) {
+          if (snapshot.docs.isEmpty) return null;
+          final doc = snapshot.docs.first;
+          final data = doc.data();
+          return <String, dynamic>{
+            'volunteerDocId': doc.id,
+            'status': data['status'] as String? ?? 'pending',
+            'volunteerId': data['volunteerId'],
+            'volunteerName': data['volunteerName'],
+          };
+        });
+  }
+
   /// Get volunteers for a task
   static Stream<List<Map<String, dynamic>>> getVolunteersStream(String taskId) {
     return _tasksCollection
@@ -159,14 +180,50 @@ class TasksService {
     });
   }
 
-  /// Reject a volunteer
+  /// Cancel own volunteer application (only while pending)
+  static Future<void> cancelVolunteer(String taskId, String volunteerId) async {
+    final volunteersRef = _tasksCollection.doc(taskId).collection('volunteers');
+    final query = await volunteersRef
+        .where('volunteerId', isEqualTo: volunteerId)
+        .limit(1)
+        .get();
+    if (query.docs.isEmpty) {
+      throw Exception('No volunteer application found');
+    }
+    final doc = query.docs.first;
+    final status = doc.data()['status'] as String? ?? 'pending';
+    if (status != 'pending') {
+      throw Exception('Only pending applications can be cancelled');
+    }
+    await volunteersRef.doc(doc.id).delete();
+    await _tasksCollection.doc(taskId).update({
+      'volunteersCount': FieldValue.increment(-1),
+    });
+  }
+
+  /// Reject a volunteer (owner only). If they were the accepted one, revert task.
   static Future<void> rejectVolunteer(String taskId, String volunteerDocId) async {
-    await _tasksCollection
-        .doc(taskId)
-        .collection('volunteers')
-        .doc(volunteerDocId)
-        .update({
+    final taskRef = _tasksCollection.doc(taskId);
+    final volunteerDoc = await taskRef.collection('volunteers').doc(volunteerDocId).get();
+    if (!volunteerDoc.exists) {
+      throw Exception('Volunteer not found');
+    }
+    final volunteerId = volunteerDoc.data()?['volunteerId'] as String?;
+    final taskSnap = await taskRef.get();
+    final taskData = taskSnap.data() as Map<String, dynamic>?;
+    final assignedTo = taskData?['assignedTo'] as String?;
+
+    await taskRef.collection('volunteers').doc(volunteerDocId).update({
       'status': 'rejected',
     });
+
+    if (volunteerId != null && assignedTo == volunteerId) {
+      await taskRef.update({
+        'assignedTo': null,
+        'assignedByName': null,
+        'status': 'open',
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    }
   }
 }

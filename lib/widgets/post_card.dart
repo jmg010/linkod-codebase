@@ -108,8 +108,10 @@ class _PostCardState extends State<PostCard> {
   Widget build(BuildContext context) {
     final post = widget.post;
     final textTheme = Theme.of(context).textTheme;
+    final currentUserId = FirestoreService.auth.currentUser?.uid;
+    final isOwner = currentUserId != null && post.userId == currentUserId;
 
-    return InkWell(
+    final cardContent = InkWell(
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(
@@ -198,6 +200,34 @@ class _PostCardState extends State<PostCard> {
         ],
       ),
       ),
+    );
+
+    if (!isOwner) return cardContent;
+
+    return StreamBuilder<int>(
+      stream: PostsService.getUnreadCommentsCountForPostStream(post.id, post.userId),
+      builder: (context, snap) {
+        final hasUnread = (snap.data ?? 0) > 0;
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            cardContent,
+            if (hasUnread)
+              Positioned(
+                right: 12,
+                top: 12,
+                child: Container(
+                  width: 10,
+                  height: 10,
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 

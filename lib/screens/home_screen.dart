@@ -5,6 +5,9 @@ import '../models/post_model.dart';
 import '../models/product_model.dart';
 import '../models/task_model.dart';
 import '../widgets/linkod_navbar.dart';
+import '../services/tasks_service.dart';
+import '../services/posts_service.dart';
+import '../services/firestore_service.dart';
 import 'home_feed_screen.dart';
 import 'announcements_screen.dart';
 import 'marketplace_screen.dart';
@@ -34,6 +37,10 @@ class _HomeScreenState extends State<HomeScreen> {
       GlobalKey<MarketplaceScreenState>();
   final GlobalKey<TasksScreenState> _tasksKey = GlobalKey<TasksScreenState>();
   bool _hasUnreadAnnouncements = false;
+  String? _cachedErrandUid;
+  Stream<int>? _cachedErrandStream;
+  String? _cachedPostCommentsUid;
+  Stream<int>? _cachedPostCommentsStream;
   late final bool _isResident = widget.userRole == UserRole.resident;
   late final int _feedIndex = 0; // HomeFeedScreen (mixed feed)
   late final int _announcementsIndex = 1; // AnnouncementsScreen
@@ -208,16 +215,67 @@ class _HomeScreenState extends State<HomeScreen> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
+  Stream<int> _getErrandNotificationCountStream() {
+    final uid = FirestoreService.currentUserId;
+    if (uid == null) return Stream<int>.value(0);
+    return TasksService.getRequesterTasksStream(uid).asyncMap((tasks) async {
+      try {
+        int total = 0;
+        for (final t in tasks) {
+          final list = await TasksService.getVolunteersStream(t.id).first;
+          total += list.where((v) => (v['status'] as String? ?? 'pending') == 'pending').length;
+        }
+        return total;
+      } catch (_) {
+        return 0;
+      }
+    });
+  }
+
+  Stream<int> _getPostCommentsNotificationCountStream() {
+    final uid = FirestoreService.currentUserId;
+    if (uid == null) return Stream<int>.value(0);
+    return PostsService.getTotalUnreadCommentsOnMyPostsStream(uid);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final uid = FirestoreService.currentUserId;
+    if (_cachedErrandUid != uid) {
+      _cachedErrandUid = uid;
+      _cachedErrandStream = _getErrandNotificationCountStream();
+    }
+    final errandStream = _cachedErrandStream ?? Stream<int>.value(0);
+
+    if (_cachedPostCommentsUid != uid) {
+      _cachedPostCommentsUid = uid;
+      _cachedPostCommentsStream = _getPostCommentsNotificationCountStream();
+    }
+    final postCommentsStream = _cachedPostCommentsStream ?? Stream<int>.value(0);
+
     return Scaffold(
       body: Column(
         children: [
-          // New green navbar at the top
-          LinkodNavbar(
-            currentDestination: _currentNavDestination,
-            onDestinationChanged: _handleNavDestinationChange,
-            hasUnreadAnnouncements: _hasUnreadAnnouncements,
+          StreamBuilder<int>(
+            stream: errandStream,
+            initialData: 0,
+            builder: (context, errandSnap) {
+              final errandCount = errandSnap.data ?? 0;
+              return StreamBuilder<int>(
+                stream: postCommentsStream,
+                initialData: 0,
+                builder: (context, postSnap) {
+                  final postCommentsCount = postSnap.data ?? 0;
+                  return LinkodNavbar(
+                    currentDestination: _currentNavDestination,
+                    onDestinationChanged: _handleNavDestinationChange,
+                    hasUnreadAnnouncements: _hasUnreadAnnouncements,
+                    errandNotificationCount: errandCount,
+                    postCommentsNotificationCount: postCommentsCount,
+                  );
+                },
+              );
+            },
           ),
           // Content area with swipe support
           Expanded(

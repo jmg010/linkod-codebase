@@ -185,6 +185,10 @@ service cloud.firestore {
       match /comments/{commentId} {
         allow read, write: if isSignedIn();
       }
+
+      match /comment_read/{userId} {
+        allow read, write: if isSignedIn() && request.auth.uid == userId;
+      }
     }
 
     // ========= products (marketplace) =========
@@ -232,8 +236,27 @@ service cloud.firestore {
         && (resource.data.requesterId == request.auth.uid
             || resource.data.assignedTo == request.auth.uid);
 
-      match /volunteers/{volunteerId} {
-        allow read, write: if isSignedIn();
+      match /volunteers/{volunteerDocId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update: if isSignedIn()
+          && get(/databases/$(database)/documents/tasks/$(taskId)).data.requesterId == request.auth.uid;
+        allow delete: if isSignedIn()
+          && resource.data.volunteerId == request.auth.uid
+          && resource.data.status == 'pending';
+      }
+
+      match /chat_messages/{messageId} {
+        allow read, write: if isSignedIn()
+          && (get(/databases/$(database)/documents/tasks/$(taskId)).data.requesterId == request.auth.uid
+              || get(/databases/$(database)/documents/tasks/$(taskId)).data.assignedTo == request.auth.uid);
+      }
+
+      match /chat_read/{userId} {
+        allow read, write: if isSignedIn()
+          && request.auth.uid == userId
+          && (get(/databases/$(database)/documents/tasks/$(taskId)).data.requesterId == request.auth.uid
+              || get(/databases/$(database)/documents/tasks/$(taskId)).data.assignedTo == request.auth.uid);
       }
     }
 

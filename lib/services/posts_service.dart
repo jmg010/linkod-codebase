@@ -147,4 +147,56 @@ class PostsService {
                 })
             .toList());
   }
+
+  /// Mark post comments as read by this user (e.g. when post owner opens the post).
+  static Future<void> markPostCommentsAsRead(String postId, String userId) async {
+    await _postsCollection
+        .doc(postId)
+        .collection('comment_read')
+        .doc(userId)
+        .set({'lastReadAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+  }
+
+  /// Unread = comments by others (userId != ownerUserId) after lastReadAt.
+  static Stream<int> getUnreadCommentsCountForPostStream(String postId, String ownerUserId) {
+    return getCommentsStream(postId).asyncMap((comments) async {
+      try {
+        final readDoc = await _postsCollection
+            .doc(postId)
+            .collection('comment_read')
+            .doc(ownerUserId)
+            .get();
+        final data = readDoc.data() as Map<String, dynamic>?;
+        final lastReadAt = data?['lastReadAt'] != null
+            ? (data!['lastReadAt'] is Timestamp)
+                ? (data['lastReadAt'] as Timestamp).toDate()
+                : DateTime(1970)
+            : DateTime(1970);
+        return comments
+            .where((c) {
+              final commentUserId = c['userId'] as String? ?? '';
+              final createdAt = c['createdAt'] as DateTime? ?? DateTime(1970);
+              return commentUserId != ownerUserId && createdAt.isAfter(lastReadAt);
+            })
+            .length;
+      } catch (_) {
+        return 0;
+      }
+    });
+  }
+
+  /// Total unread comment count across all posts owned by this user.
+  static Stream<int> getTotalUnreadCommentsOnMyPostsStream(String ownerUserId) {
+    return getUserPostsStream(ownerUserId).asyncMap((posts) async {
+      try {
+        int total = 0;
+        for (final p in posts) {
+          total += await getUnreadCommentsCountForPostStream(p.id, ownerUserId).first;
+        }
+        return total;
+      } catch (_) {
+        return 0;
+      }
+    });
+  }
 }

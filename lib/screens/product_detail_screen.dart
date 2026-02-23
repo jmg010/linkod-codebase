@@ -240,33 +240,40 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                               },
                                             ),
                                           ),
-                                        if (!showInlineReply)
-                                          TextButton(
-                                            onPressed: () {
-                                              setState(() {
-                                                if (expandedMessageIds.contains(msg.id)) {
-                                                  expandedMessageIds.remove(msg.id);
-                                                } else {
-                                                  expandedMessageIds.add(msg.id);
-                                                }
-                                              });
-                                            },
-                                            style: TextButton.styleFrom(
-                                              padding: const EdgeInsets.symmetric(horizontal: 0),
-                                              minimumSize: Size.zero,
-                                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                            ),
-                                            child: Text(
-                                              isExpanded
-                                                  ? 'Hide replies${replies.isEmpty ? "" : " (${replies.length})"}'
-                                                  : 'View replies${replies.isEmpty ? "" : " (${replies.length})"}',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.grey.shade600,
-                                                fontWeight: FontWeight.w500,
+                                        if (!showInlineReply && replies.isNotEmpty)
+                                          Transform.translate(
+                                            offset: const Offset(0, -10),
+                                            child: Padding(
+                                              padding: const EdgeInsets.only(left: 14),
+                                              child: TextButton(
+                                              onPressed: () {
+                                                setState(() {
+                                                  if (expandedMessageIds.contains(msg.id)) {
+                                                    expandedMessageIds.remove(msg.id);
+                                                  } else {
+                                                    expandedMessageIds.add(msg.id);
+                                                  }
+                                                });
+                                              },
+                                              style: TextButton.styleFrom(
+                                                padding: const EdgeInsets.symmetric(horizontal: 0),
+                                                minimumSize: Size.zero,
+                                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                                alignment: Alignment.centerLeft,
+                                              ),
+                                              child: Text(
+                                                isExpanded
+                                                    ? 'Hide replies (${replies.length})'
+                                                    : 'View replies (${replies.length})',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey.shade600,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
                                               ),
                                             ),
                                           ),
+                                        ),
                                         if (isExpanded && replies.isNotEmpty)
                                           Padding(
                                             padding: const EdgeInsets.only(left: 32.0),

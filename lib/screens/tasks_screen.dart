@@ -34,6 +34,8 @@ class TasksScreenState extends State<TasksScreen> {
   int _displayCount = _initialPageSize;
   int _totalTaskCount = 0;
   final ScrollController _scrollController = ScrollController();
+  String? _cachedMyPostUid;
+  Stream<int>? _cachedMyPostStream;
 
   List<TaskModel> _filterByCategory(List<TaskModel> tasks) {
     if (_selectedFilter == _filterAll) return tasks;
@@ -162,9 +164,31 @@ class TasksScreenState extends State<TasksScreen> {
     );
   }
 
+  static Stream<int> _ownerPendingVolunteersCountStream(String? uid) {
+    if (uid == null) return Stream<int>.value(0);
+    return TasksService.getRequesterTasksStream(uid).asyncMap((tasks) async {
+      try {
+        int total = 0;
+        for (final t in tasks) {
+          final list = await TasksService.getVolunteersStream(t.id).first;
+          total += list.where((v) => (v['status'] as String? ?? 'pending') == 'pending').length;
+        }
+        return total;
+      } catch (_) {
+        return 0;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentUserId = FirestoreService.currentUserId;
+    if (_cachedMyPostUid != currentUserId) {
+      _cachedMyPostUid = currentUserId;
+      _cachedMyPostStream = _ownerPendingVolunteersCountStream(currentUserId);
+    }
+    final myPostStream = _cachedMyPostStream ?? Stream<int>.value(0);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF4F4F4),
       body: Column(
@@ -206,20 +230,47 @@ class TasksScreenState extends State<TasksScreen> {
                   onPressed: _handlePostTask,
                 ),
                 const SizedBox(width: 12),
-                _ActionPill(
-                  label: 'My post',
-                  icon: Icons.inventory_2_outlined,
-                  backgroundColor: const Color(0xFFE9E9E9),
-                  foregroundColor: const Color(0xFF4A4A4A),
-                  onPressed: _handleMyPosts,
+                StreamBuilder<int>(
+                  stream: myPostStream,
+                  initialData: 0,
+                  builder: (context, snap) {
+                    final hasNotification = (snap.data ?? 0) > 0;
+                    return Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        _ActionPill(
+                          label: 'My post',
+                          icon: Icons.inventory_2_outlined,
+                          backgroundColor: const Color(0xFFE9E9E9),
+                          foregroundColor: const Color(0xFF4A4A4A),
+                          onPressed: _handleMyPosts,
+                        ),
+                        if (hasNotification)
+                          Positioned(
+                            right: -2,
+                            top: -2,
+                            child: Container(
+                              width: 10,
+                              height: 10,
+                              decoration: const BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(width: 12),
-                _ActionPill(
-                  label: _selectedFilter == _filterAll ? 'Categories' : _selectedFilter,
-                  icon: Icons.category_outlined,
-                  backgroundColor: const Color(0xFFE9E9E9),
-                  foregroundColor: const Color(0xFF4A4A4A),
-                  onPressed: _showCategoryPicker,
+                Flexible(
+                  child: _ActionPill(
+                    label: _selectedFilter == _filterAll ? 'Categories' : _selectedFilter,
+                    icon: Icons.category_outlined,
+                    backgroundColor: const Color(0xFFE9E9E9),
+                    foregroundColor: const Color(0xFF4A4A4A),
+                    onPressed: _showCategoryPicker,
+                  ),
                 ),
               ],
             ),
@@ -248,8 +299,13 @@ class TasksScreenState extends State<TasksScreen> {
                     );
                   }
 
-                  final nonCompleted = (snapshot.data ?? []).where((t) => t.status != TaskStatus.completed).toList();
-                  final allTasks = _filterByCategory(nonCompleted);
+                  final allFromStream = snapshot.data ?? [];
+                  final nonCompleted = allFromStream.where((t) => t.status != TaskStatus.completed).toList();
+                  // Exclude owner's posts from feed; owner sees their tasks only in My Post
+                  final feedTasks = currentUserId != null
+                      ? nonCompleted.where((t) => t.requesterId != currentUserId).toList()
+                      : nonCompleted;
+                  final allTasks = _filterByCategory(feedTasks);
                   final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
                   final todayTasks = allTasks.where((t) {
                     final d = t.createdAt;
@@ -461,6 +517,7 @@ class _ActionPill extends StatelessWidget {
       icon: Icon(icon, size: 16),
       label: Text(
         label,
+        overflow: TextOverflow.ellipsis,
         style: const TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,

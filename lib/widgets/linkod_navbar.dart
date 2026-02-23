@@ -12,12 +12,18 @@ class LinkodNavbar extends StatelessWidget {
   final NavDestination currentDestination;
   final ValueChanged<NavDestination>? onDestinationChanged;
   final bool hasUnreadAnnouncements;
+  /// Number of notifications for owner's errand/task posts (e.g. pending volunteers).
+  final int errandNotificationCount;
+  /// Number of unread comments on owner's feed posts.
+  final int postCommentsNotificationCount;
 
   const LinkodNavbar({
     super.key,
     required this.currentDestination,
     this.onDestinationChanged,
     this.hasUnreadAnnouncements = false,
+    this.errandNotificationCount = 0,
+    this.postCommentsNotificationCount = 0,
   });
 
   @override
@@ -66,7 +72,8 @@ class LinkodNavbar extends StatelessWidget {
                 icon: Icons.campaign,
                 isActive: currentDestination == NavDestination.announcements,
                 onTap: () => onDestinationChanged?.call(NavDestination.announcements),
-                showAlert: hasUnreadAnnouncements,
+                showAlert: hasUnreadAnnouncements && postCommentsNotificationCount == 0,
+                notificationCount: postCommentsNotificationCount,
               ),
               _NavIcon(
                 icon: Icons.storefront,
@@ -77,6 +84,7 @@ class LinkodNavbar extends StatelessWidget {
                 icon: Icons.handshake,
                 isActive: currentDestination == NavDestination.errandJobPost,
                 onTap: () => onDestinationChanged?.call(NavDestination.errandJobPost),
+                notificationCount: errandNotificationCount,
               ),
               _NavIcon(
                 icon: Icons.menu,
@@ -97,16 +105,19 @@ class _NavIcon extends StatelessWidget {
   final bool isActive;
   final VoidCallback onTap;
   final bool showAlert;
+  final int notificationCount;
 
   const _NavIcon({
     required this.icon,
     required this.isActive,
     required this.onTap,
     this.showAlert = false,
+    this.notificationCount = 0,
   });
 
   @override
   Widget build(BuildContext context) {
+    final showCount = notificationCount > 0;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -127,7 +138,7 @@ class _NavIcon extends StatelessWidget {
               size: 28,
               color: isActive ? const Color(0xFF20BF6B) : Colors.grey.shade600,
             ),
-            if (showAlert)
+            if (showAlert && !showCount)
               Positioned(
                 right: -2,
                 top: -2,
@@ -143,6 +154,29 @@ class _NavIcon extends StatelessWidget {
                     '!',
                     style: TextStyle(
                       fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            if (showCount)
+              Positioned(
+                right: -4,
+                top: -4,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.rectangle,
+                    borderRadius: BorderRadius.all(Radius.circular(9)),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    notificationCount > 99 ? '99+' : '$notificationCount',
+                    style: const TextStyle(
+                      fontSize: 10,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),

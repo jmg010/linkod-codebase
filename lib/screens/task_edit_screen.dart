@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../models/task_model.dart';
 import '../services/tasks_service.dart';
 import '../services/firestore_service.dart';
+import '../services/task_chat_service.dart';
+import 'task_chat_screen.dart';
 
 class TaskEditScreen extends StatefulWidget {
   final TaskModel task;
@@ -67,6 +69,49 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
     }
   }
 
+  Future<void> _handleRejectVolunteer(String volunteerDocId) async {
+    final currentUser = FirestoreService.auth.currentUser;
+    if (currentUser == null) return;
+
+    try {
+      await TasksService.rejectVolunteer(widget.task.id, volunteerDocId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Volunteer rejected'),
+          duration: Duration(seconds: 2),
+          backgroundColor: Color(0xFF4C4C4C),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Error rejecting volunteer: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          duration: const Duration(seconds: 2),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _openChatWithVolunteer(String volunteerId, String volunteerName) {
+    final currentUser = FirestoreService.auth.currentUser;
+    if (currentUser == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TaskChatScreen(
+          taskId: widget.task.id,
+          taskTitle: widget.task.title,
+          otherPartyName: volunteerName,
+          otherPartyId: volunteerId,
+          currentUserId: currentUser.uid,
+        ),
+      ),
+    );
+  }
+
   Future<void> _handleAcceptVolunteer(String volunteerDocId, String volunteerName) async {
     if (_isAcceptingVolunteer) return;
 
@@ -119,6 +164,153 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
     }
   }
 
+  void _showVolunteersDropdown(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.5,
+        minChildSize: 0.3,
+        maxChildSize: 0.85,
+        builder: (_, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'Volunteers',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: StreamBuilder<List<Map<String, dynamic>>>(
+                  stream: TasksService.getVolunteersStream(widget.task.id),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.hasError) {
+                      return Center(
+                        child: Text(
+                          'Error: ${snapshot.error}',
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      );
+                    }
+                    final volunteers = snapshot.data ?? [];
+                    final pending = volunteers
+                        .where((v) => (v['status'] as String? ?? 'pending') == 'pending')
+                        .toList();
+                    if (pending.isEmpty) {
+                      return Center(
+                        child: Text(
+                          'No pending volunteers',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      );
+                    }
+                    return ListView(
+                      controller: scrollController,
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                      children: pending.map((v) => _dropdownPendingItem(v)).toList(),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _dropdownSectionHeader(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: Colors.grey.shade600,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+  Widget _dropdownPendingItem(Map<String, dynamic> volunteer) {
+    final volunteerDocId = volunteer['volunteerDocId'] as String;
+    final volunteerName = volunteer['volunteerName'] as String? ?? 'Unknown';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                volunteerName,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+            IconButton(
+              onPressed: _isAcceptingVolunteer
+                  ? null
+                  : () {
+                      Navigator.pop(context);
+                      _handleAcceptVolunteer(volunteerDocId, volunteerName);
+                    },
+              icon: Icon(Icons.check_circle, color: Colors.green.shade700, size: 26),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+            ),
+            IconButton(
+              onPressed: _isAcceptingVolunteer
+                  ? null
+                  : () {
+                      Navigator.pop(context);
+                      _handleRejectVolunteer(volunteerDocId);
+                    },
+              icon: Icon(Icons.cancel, color: Colors.red.shade700, size: 26),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -129,19 +321,80 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Back button
-              IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-                onPressed: () => Navigator.of(context).pop(),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                color: Colors.black87,
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+                    onPressed: () => Navigator.of(context).pop(),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    color: Colors.black87,
+                  ),
+                  const Spacer(),
+                  StreamBuilder<List<Map<String, dynamic>>>(
+                    stream: TasksService.getVolunteersStream(widget.task.id),
+                    builder: (context, volSnap) {
+                      final volunteers = volSnap.data ?? [];
+                      final pendingCount = volunteers
+                          .where((v) => (v['status'] as String? ?? 'pending') == 'pending')
+                          .length;
+                      return Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Material(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            child: InkWell(
+                              onTap: () => _showVolunteersDropdown(context),
+                              borderRadius: BorderRadius.circular(14),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: Colors.grey.shade300),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Text(
+                                      'Volunteers',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF4C4C4C),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Icon(Icons.keyboard_arrow_down, size: 20, color: Colors.grey.shade600),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (pendingCount > 0)
+                            Positioned(
+                              right: -2,
+                              top: -2,
+                              child: Container(
+                                width: 10,
+                                height: 10,
+                                decoration: const BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ),
+                        ],
+                      );
+                    },
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
               // Request Details Card
               _buildRequestDetailsCard(),
               const SizedBox(height: 16),
-              // List of Volunteers Card
+              // List of Volunteers Card (pending + confirmed with Message)
               _buildVolunteersCard(),
             ],
           ),
@@ -324,7 +577,6 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Section Title
           const Text(
             'List of volunteers',
             style: TextStyle(
@@ -334,7 +586,6 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          // Volunteer List from Firestore
           StreamBuilder<List<Map<String, dynamic>>>(
             stream: TasksService.getVolunteersStream(widget.task.id),
             builder: (context, snapshot) {
@@ -346,7 +597,6 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                   ),
                 );
               }
-
               if (snapshot.hasError) {
                 return Padding(
                   padding: const EdgeInsets.all(20.0),
@@ -356,20 +606,16 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                   ),
                 );
               }
-
               final volunteers = snapshot.data ?? [];
-              
-              // Filter to show only pending volunteers (not accepted/rejected)
-              final pendingVolunteers = volunteers.where((v) {
-                final status = v['status'] as String? ?? 'pending';
-                return status == 'pending';
-              }).toList();
+              final confirmed = volunteers
+                  .where((v) => (v['status'] as String?) == 'accepted')
+                  .toList();
 
-              if (pendingVolunteers.isEmpty) {
+              if (confirmed.isEmpty) {
                 return Padding(
                   padding: const EdgeInsets.all(20.0),
                   child: Text(
-                    'No pending volunteers',
+                    'No approved volunteers yet',
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey.shade600,
@@ -379,14 +625,14 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
               }
 
               return Column(
-                children: pendingVolunteers.asMap().entries.map((entry) {
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: confirmed.asMap().entries.map((entry) {
                   final index = entry.key;
-                  final volunteer = entry.value;
                   return Padding(
                     padding: EdgeInsets.only(
-                      bottom: index < pendingVolunteers.length - 1 ? 14 : 0,
+                      bottom: index < confirmed.length - 1 ? 12 : 0,
                     ),
-                    child: _buildVolunteerItem(volunteer),
+                    child: _buildConfirmedVolunteerItem(entry.value),
                   );
                 }).toList(),
               );
@@ -397,92 +643,169 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
     );
   }
 
-  Widget _buildVolunteerItem(Map<String, dynamic> volunteer) {
+  Widget _cardSectionLabel(String label) {
+    return Text(
+      label,
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        color: Colors.grey.shade600,
+        letterSpacing: 0.5,
+      ),
+    );
+  }
+
+  Widget _buildPendingVolunteerItem(Map<String, dynamic> volunteer) {
     final volunteerDocId = volunteer['volunteerDocId'] as String;
     final volunteerName = volunteer['volunteerName'] as String? ?? 'Unknown';
     final volunteerId = volunteer['volunteerId'] as String?;
-    return Row(
-      children: [
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: Colors.grey.shade100,
-            shape: BoxShape.circle,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.person_outline,
+              size: 22,
+              color: Color(0xFF6E6E6E),
+            ),
           ),
-          child: const Icon(
-            Icons.person_outline,
-            size: 22,
-            color: Color(0xFF6E6E6E),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                volunteerName,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.black87,
-                  fontWeight: FontWeight.w500,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  volunteerName,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.black87,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
+                if (volunteerId != null && volunteerId.isNotEmpty)
+                  FutureBuilder<String?>(
+                    future: _getVolunteerPhone(volunteerId),
+                    builder: (context, snap) {
+                      final phone = snap.data;
+                      if (phone == null || phone.isEmpty) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          phone,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blue.shade700,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: _isAcceptingVolunteer
+                ? null
+                : () => _handleAcceptVolunteer(volunteerDocId, volunteerName),
+            icon: Icon(Icons.check_circle, color: Colors.green.shade700, size: 28),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+          ),
+          IconButton(
+            onPressed: _isAcceptingVolunteer
+                ? null
+                : () => _handleRejectVolunteer(volunteerDocId),
+            icon: Icon(Icons.cancel, color: Colors.red.shade700, size: 28),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConfirmedVolunteerItem(Map<String, dynamic> volunteer) {
+    final volunteerId = volunteer['volunteerId'] as String?;
+    final volunteerName = volunteer['volunteerName'] as String? ?? 'Unknown';
+    if (volunteerId == null || volunteerId.isEmpty) return const SizedBox.shrink();
+    final ownerId = FirestoreService.auth.currentUser?.uid ?? '';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.green.shade200),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.green.shade200,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.check_circle,
+              size: 22,
+              color: Colors.green.shade700,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              volunteerName,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.green.shade800,
               ),
-              if (volunteerId != null && volunteerId.isNotEmpty)
-                FutureBuilder<String?>(
-                  future: _getVolunteerPhone(volunteerId),
-                  builder: (context, snap) {
-                    final phone = snap.data;
-                    if (phone == null || phone.isEmpty) return const SizedBox.shrink();
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Text(
-                        phone,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.blue.shade700,
+            ),
+          ),
+          StreamBuilder<int>(
+            stream: TaskChatService.getUnreadCountStream(widget.task.id, ownerId),
+            builder: (context, unreadSnap) {
+              final unreadCount = unreadSnap.data ?? 0;
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  IconButton(
+                    onPressed: () => _openChatWithVolunteer(volunteerId, volunteerName),
+                    icon: const Icon(Icons.message_outlined, size: 22, color: Color(0xFF4C4C4C)),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                  ),
+                  if (unreadCount > 0)
+                    Positioned(
+                      right: 4,
+                      top: 4,
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
                         ),
                       ),
-                    );
-                  },
-                ),
-            ],
+                    ),
+                ],
+              );
+            },
           ),
-        ),
-        OutlinedButton(
-          onPressed: _isAcceptingVolunteer
-              ? null
-              : () => _handleAcceptVolunteer(volunteerDocId, volunteerName),
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-            minimumSize: const Size(80, 40),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-            side: BorderSide(color: Colors.grey.shade300, width: 1),
-            backgroundColor: Colors.white,
-          ),
-          child: _isAcceptingVolunteer
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4C4C4C)),
-                  ),
-                )
-              : const Text(
-                  'Accept',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF4C4C4C),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

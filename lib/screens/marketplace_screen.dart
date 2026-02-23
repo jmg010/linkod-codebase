@@ -3,6 +3,7 @@ import '../constants/marketplace_categories.dart';
 import '../models/product_model.dart';
 import '../widgets/product_card.dart';
 import '../services/products_service.dart';
+import '../services/firestore_service.dart';
 import 'product_detail_screen.dart';
 import 'sell_product_screen.dart';
 import 'my_products_screen.dart';
@@ -201,10 +202,12 @@ class MarketplaceScreenState extends State<MarketplaceScreen> {
                     },
                   ),
                   const SizedBox(width: 12),
-                  _SecondaryPillButton(
-                    label: _categoryButtonLabel,
-                    icon: Icons.category_outlined,
-                    onPressed: _showCategoryPicker,
+                  Flexible(
+                    child: _SecondaryPillButton(
+                      label: _categoryButtonLabel,
+                      icon: Icons.category_outlined,
+                      onPressed: _showCategoryPicker,
+                    ),
                   ),
                 ],
               ),
@@ -233,7 +236,12 @@ class MarketplaceScreenState extends State<MarketplaceScreen> {
                     );
                   }
 
-                  final filtered = _filterByCategory(snapshot.data ?? []);
+                  final allProducts = snapshot.data ?? [];
+                  final currentUserId = FirestoreService.currentUserId;
+                  final feedProducts = currentUserId != null
+                      ? allProducts.where((p) => p.sellerId != currentUserId).toList()
+                      : allProducts;
+                  final filtered = _filterByCategory(feedProducts);
                   final now = DateTime.now();
                   final today = DateTime(now.year, now.month, now.day);
                   final todayProducts = filtered.where((p) {
@@ -445,6 +453,7 @@ class _SecondaryPillButton extends StatelessWidget {
       icon: Icon(icon, size: 16, color: const Color(0xFF30383F)),
       label: Text(
         label,
+        overflow: TextOverflow.ellipsis,
         style: const TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,

@@ -179,22 +179,55 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
                     itemBuilder: (context, index) {
                       final task = tasks[index];
                       final status = _mapStatus(task.status);
-                      return _MyPostCard(
-                        title: task.title,
-                        description: task.description,
-                        postedBy: task.requesterName,
-                        date: task.createdAt,
-                        status: status,
-                        statusLabel: task.status.displayName,
-                        volunteerName: task.assignedByName,
-                        onViewPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => TaskEditScreen(
-                                task: task,
-                                contactNumber: task.contactNumber ?? '',
-                              ),
-                            ),
+                      return StreamBuilder<List<Map<String, dynamic>>>(
+                        stream: TasksService.getVolunteersStream(task.id),
+                        builder: (context, volSnap) {
+                          if (volSnap.hasError) {
+                            return _MyPostCard(
+                              title: task.title,
+                              description: task.description,
+                              postedBy: task.requesterName,
+                              date: task.createdAt,
+                              status: status,
+                              statusLabel: task.status.displayName,
+                              volunteerName: task.assignedByName,
+                              hasNotification: false,
+                              onViewPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => TaskEditScreen(
+                                      task: task,
+                                      contactNumber: task.contactNumber ?? '',
+                                    ),
+                                  ),
+                                );
+                              },
+                            );
+                          }
+                          final volunteers = volSnap.data ?? [];
+                          final pendingCount = volunteers
+                              .where((v) => (v['status'] as String? ?? 'pending') == 'pending')
+                              .length;
+                          final hasNotification = pendingCount > 0;
+                          return _MyPostCard(
+                            title: task.title,
+                            description: task.description,
+                            postedBy: task.requesterName,
+                            date: task.createdAt,
+                            status: status,
+                            statusLabel: task.status.displayName,
+                            volunteerName: task.assignedByName,
+                            hasNotification: hasNotification,
+                            onViewPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => TaskEditScreen(
+                                    task: task,
+                                    contactNumber: task.contactNumber ?? '',
+                                  ),
+                                ),
+                              );
+                            },
                           );
                         },
                       );
@@ -229,6 +262,7 @@ class _MyPostCard extends StatelessWidget {
   final ErrandJobStatus? status;
   final String? statusLabel;
   final String? volunteerName;
+  final bool hasNotification;
   final VoidCallback? onViewPressed;
 
   const _MyPostCard({
@@ -239,33 +273,37 @@ class _MyPostCard extends StatelessWidget {
     this.status,
     this.statusLabel,
     this.volunteerName,
+    this.hasNotification = false,
     this.onViewPressed,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: EdgeInsets.zero,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          margin: EdgeInsets.zero,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Date and status in top right (for Ongoing/Completed) or just date (for Open)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Date and status in top right (for Ongoing/Completed) or just date (for Open)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
                 Text(
                   _formatDate(date),
                   style: const TextStyle(
@@ -331,23 +369,22 @@ class _MyPostCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
-            // Action button or volunteer status
+            // Action button: Edit (owner's post - has volunteer) or View
             if (volunteerName != null)
-              // Volunteer button (full width, centered)
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: null,
+                  onPressed: onViewPressed,
                   icon: const Icon(
-                    Icons.check_circle_outline,
+                    Icons.edit_outlined,
                     size: 16,
-                    color: Color(0xFF20BF6B),
+                    color: Color(0xFF4C4C4C),
                   ),
-                  label: Text(
-                    'Volunteered by: $volunteerName',
-                    style: const TextStyle(
+                  label: const Text(
+                    'Edit',
+                    style: TextStyle(
                       fontSize: 13,
-                      color: Color(0xFF20BF6B),
+                      color: Color(0xFF4C4C4C),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -358,9 +395,6 @@ class _MyPostCard extends StatelessWidget {
                     ),
                     side: const BorderSide(color: Color(0xFFD0D0D0)),
                     backgroundColor: Colors.white,
-                    foregroundColor: const Color(0xFF20BF6B),
-                    disabledBackgroundColor: Colors.white,
-                    disabledForegroundColor: const Color(0xFF20BF6B),
                   ),
                 ),
               )
@@ -395,6 +429,21 @@ class _MyPostCard extends StatelessWidget {
           ],
         ),
       ),
+    ),
+        if (hasNotification)
+          Positioned(
+            right: 12,
+            top: 12,
+            child: Container(
+              width: 10,
+              height: 10,
+              decoration: const BoxDecoration(
+                color: Colors.red,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+      ],
     );
   }
 

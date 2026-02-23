@@ -77,11 +77,15 @@ class ErrandJobCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  Text(
-                    _formatDate(date),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF6E6E6E),
+                  Flexible(
+                    child: Text(
+                      _formatDate(date),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF6E6E6E),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                   ),
                 ],
@@ -101,6 +105,8 @@ class ErrandJobCard extends StatelessWidget {
                       color: Colors.black87,
                       height: 1.25,
                     ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
                   ),
                 ),
                 if (status != null) ...[
@@ -115,28 +121,39 @@ class ErrandJobCard extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.person_outline,
-                        size: 14,
-                        color: Color(0xFF6E6E6E),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Posted by: $postedBy',
-                        style: const TextStyle(
-                          fontSize: 12.5,
+                  Expanded(
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.person_outline,
+                          size: 14,
                           color: Color(0xFF6E6E6E),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            'Posted by: $postedBy',
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              color: Color(0xFF6E6E6E),
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  Text(
-                    _formatDate(date),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF6E6E6E),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      _formatDate(date),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF6E6E6E),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                   ),
                 ],
@@ -150,11 +167,15 @@ class ErrandJobCard extends StatelessWidget {
                     color: Color(0xFF6E6E6E),
                   ),
                   const SizedBox(width: 4),
-                  Text(
-                    'Posted by: $postedBy',
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      color: Color(0xFF6E6E6E),
+                  Expanded(
+                    child: Text(
+                      'Posted by: $postedBy',
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: Color(0xFF6E6E6E),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                   ),
                 ],
@@ -170,22 +191,22 @@ class ErrandJobCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
-            // Action button or volunteer status
+            // Action button: View / Edit (or Volunteer when open and no assignee)
             if (volunteerName != null)
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: null,
-                  icon: const Icon(
-                    Icons.check_circle_outline,
+                  onPressed: onViewPressed,
+                  icon: Icon(
+                    viewButtonIcon,
                     size: 16,
-                    color: Color(0xFF20BF6B),
+                    color: const Color(0xFF4C4C4C),
                   ),
                   label: Text(
-                    'Volunteered by: $volunteerName',
+                    viewButtonLabel,
                     style: const TextStyle(
                       fontSize: 13,
-                      color: Color(0xFF20BF6B),
+                      color: Color(0xFF4C4C4C),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -196,9 +217,6 @@ class ErrandJobCard extends StatelessWidget {
                     ),
                     side: const BorderSide(color: Color(0xFFD0D0D0)),
                     backgroundColor: Colors.white,
-                    foregroundColor: const Color(0xFF20BF6B),
-                    disabledBackgroundColor: Colors.white,
-                    disabledForegroundColor: const Color(0xFF20BF6B),
                   ),
                 ),
               )

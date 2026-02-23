@@ -40,6 +40,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         _loading = false;
         _error = p == null ? 'Post not found' : null;
       });
+      if (p != null) {
+        final uid = FirestoreService.auth.currentUser?.uid;
+        if (uid != null && p.userId == uid) {
+          PostsService.markPostCommentsAsRead(widget.postId, uid);
+        }
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
