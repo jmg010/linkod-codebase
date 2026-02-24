@@ -15,6 +15,7 @@ import '../services/announcements_service.dart';
 import '../services/firestore_service.dart';
 import 'product_detail_screen.dart';
 import 'task_detail_screen.dart';
+import 'search_screen.dart';
 
 class HomeFeedScreen extends StatefulWidget {
   final ValueChanged<bool>? onUnreadAnnouncementsChanged;
@@ -162,7 +163,11 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                   IconButton(
                     icon: const Icon(Icons.search, color: Color(0xFF6E6E6E), size: 26),
                     onPressed: () {
-                      debugPrint('Search pressed');
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const SearchScreen(mode: SearchMode.home),
+                        ),
+                      );
                     },
                   ),
                 ],

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/post_model.dart';
 import 'firestore_service.dart';
@@ -186,17 +187,54 @@ class PostsService {
   }
 
   /// Total unread comment count across all posts owned by this user.
+  /// Reactive: updates when comments or read state change on any of the user's posts.
   static Stream<int> getTotalUnreadCommentsOnMyPostsStream(String ownerUserId) {
-    return getUserPostsStream(ownerUserId).asyncMap((posts) async {
-      try {
-        int total = 0;
-        for (final p in posts) {
-          total += await getUnreadCommentsCountForPostStream(p.id, ownerUserId).first;
-        }
-        return total;
-      } catch (_) {
-        return 0;
+    final controller = StreamController<int>.broadcast();
+    final Map<String, int> unreadByPost = {};
+    final Map<String, StreamSubscription<int>> postSubs = {};
+    List<PostModel> _currentPosts = [];
+
+    void emitSum() {
+      if (!controller.isClosed) {
+        final sum = _currentPosts.fold<int>(0, (s, p) => s + (unreadByPost[p.id] ?? 0));
+        controller.add(sum);
       }
+    }
+
+    void setPosts(List<PostModel> posts) {
+      final newIds = posts.map((p) => p.id).toSet();
+      for (final id in postSubs.keys.toList()) {
+        if (!newIds.contains(id)) {
+          postSubs[id]?.cancel();
+          postSubs.remove(id);
+          unreadByPost.remove(id);
+        }
+      }
+      _currentPosts = posts;
+      for (final p in posts) {
+        if (postSubs.containsKey(p.id)) continue;
+        final sub = getUnreadCommentsCountForPostStream(p.id, ownerUserId).listen((count) {
+          unreadByPost[p.id] = count;
+          emitSum();
+        });
+        postSubs[p.id] = sub;
+      }
+      emitSum();
+    }
+
+    final sub = getUserPostsStream(ownerUserId).listen((posts) {
+      setPosts(posts);
     });
+
+    controller.onCancel = () {
+      sub.cancel();
+      for (final s in postSubs.values) {
+        s.cancel();
+      }
+      postSubs.clear();
+      unreadByPost.clear();
+    };
+
+    return controller.stream;
   }
 }

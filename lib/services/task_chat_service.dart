@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/task_chat_message_model.dart';
 import 'firestore_service.dart';
+import 'tasks_service.dart';
 
 /// Chat between task owner and approved volunteer only.
 /// Paths: tasks/{taskId}/chat_messages/{messageId}, tasks/{taskId}/chat_read/{userId}.
@@ -67,5 +69,70 @@ class TaskChatService {
             .length;
       });
     });
+  }
+
+  /// Total unread task chat count for this user (across all tasks where they are requester or assigned).
+  /// Reactive: updates when any task's unread count changes (e.g. after markChatRead).
+  static Stream<int> getTotalUnreadForUserStream(String uid) {
+    final controller = StreamController<int>.broadcast();
+    final Map<String, int> unreadByTask = {};
+    final Map<String, StreamSubscription<int>> taskSubs = {};
+    List<String> _currentTaskIds = [];
+
+    void emitSum() {
+      if (!controller.isClosed) {
+        final sum = _currentTaskIds.fold<int>(0, (s, id) => s + (unreadByTask[id] ?? 0));
+        controller.add(sum);
+      }
+    }
+
+    void setTaskIds(List<String> ids) {
+      final newSet = ids.toSet();
+      for (final id in taskSubs.keys.toList()) {
+        if (!newSet.contains(id)) {
+          taskSubs[id]?.cancel();
+          taskSubs.remove(id);
+          unreadByTask.remove(id);
+        }
+      }
+      _currentTaskIds = newSet.toList();
+      for (final id in newSet) {
+        if (taskSubs.containsKey(id)) continue;
+        final sub = getUnreadCountStream(id, uid).listen((count) {
+          unreadByTask[id] = count;
+          emitSum();
+        });
+        taskSubs[id] = sub;
+      }
+      emitSum();
+    }
+
+    StreamSubscription? reqSub;
+    StreamSubscription? assSub;
+
+    reqSub = TasksService.getRequesterTasksStream(uid).listen((rList) {
+      TasksService.getAssignedTasksStream(uid).first.then((aList) {
+        final ids = [...rList.map((t) => t.id), ...aList.map((t) => t.id)];
+        setTaskIds(ids);
+      });
+    });
+    assSub = TasksService.getAssignedTasksStream(uid).listen((aList) {
+      TasksService.getRequesterTasksStream(uid).first.then((rList) {
+        final ids = [...rList.map((t) => t.id), ...aList.map((t) => t.id)];
+        setTaskIds(ids);
+      });
+    });
+
+    controller.onCancel = () {
+      reqSub?.cancel();
+      assSub?.cancel();
+      for (final sub in taskSubs.values) {
+        sub.cancel();
+      }
+      taskSubs.clear();
+      unreadByTask.clear();
+    };
+
+    return controller.stream;
   }
 }

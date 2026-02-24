@@ -28,16 +28,144 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   /// Sender name of the message we're replying to (for the indicator).
   String? replyingToName;
 
+  /// Current product (updated after owner edits).
+  late ProductModel _currentProduct;
+  bool _isEditing = false;
+  bool _hasMarkedMessagesRead = false;
+  bool _didAddMessageFocusListener = false;
+  final TextEditingController _editTitleController = TextEditingController();
+  final TextEditingController _editPriceController = TextEditingController();
+  final TextEditingController _editDescriptionController = TextEditingController();
+  final TextEditingController _editLocationController = TextEditingController();
+  final TextEditingController _editContactController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _currentProduct = widget.product;
+    // Do NOT mark product messages as read here; mark only when user focuses message input or sends (see below).
+    final uid = FirestoreService.auth.currentUser?.uid;
+    if (uid != null && widget.product.sellerId == uid) {
+      _didAddMessageFocusListener = true;
+      _messageFocusNode.addListener(_onMessageFocusChanged);
+    }
+  }
+
+  void _onMessageFocusChanged() {
+    if (!_messageFocusNode.hasFocus) return;
+    final uid = FirestoreService.auth.currentUser?.uid;
+    if (uid != null && _currentProduct.sellerId == uid && !_hasMarkedMessagesRead) {
+      _hasMarkedMessagesRead = true;
+      ProductsService.markProductMessagesAsRead(_currentProduct.id, uid);
+    }
+  }
+
   @override
   void dispose() {
     _messageController.dispose();
+    if (_didAddMessageFocusListener) {
+      _messageFocusNode.removeListener(_onMessageFocusChanged);
+    }
     _messageFocusNode.dispose();
+    _editTitleController.dispose();
+    _editPriceController.dispose();
+    _editDescriptionController.dispose();
+    _editLocationController.dispose();
+    _editContactController.dispose();
     super.dispose();
+  }
+
+  bool get _isOwner {
+    final uid = FirestoreService.auth.currentUser?.uid;
+    return uid != null && _currentProduct.sellerId == uid;
+  }
+
+  /// Price string without trailing slash when there is no unit (e.g. /kg for Food).
+  String _priceDisplay(ProductModel product) {
+    final hasUnit = product.category.toLowerCase().contains('food');
+    if (hasUnit) {
+      return '₱${product.price.toStringAsFixed(0)}/kg';
+    }
+    return '₱${product.price.toStringAsFixed(0)}';
+  }
+
+  void _startEditing() {
+    _editTitleController.text = _currentProduct.title;
+    _editPriceController.text = _currentProduct.price.toStringAsFixed(0);
+    _editDescriptionController.text = _currentProduct.description;
+    _editLocationController.text = _currentProduct.location;
+    _editContactController.text = _currentProduct.contactNumber;
+    setState(() => _isEditing = true);
+  }
+
+  void _cancelEditing() {
+    setState(() => _isEditing = false);
+  }
+
+  Future<void> _saveEditing() async {
+    final title = _editTitleController.text.trim();
+    final description = _editDescriptionController.text.trim();
+    final location = _editLocationController.text.trim();
+    final contact = _editContactController.text.trim();
+    if (title.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Title is required')),
+      );
+      return;
+    }
+    final price = double.tryParse(_editPriceController.text.trim());
+    if (price == null || price < 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid price')),
+      );
+      return;
+    }
+
+    try {
+      await ProductsService.updateProduct(_currentProduct.id, {
+        'title': title,
+        'description': description,
+        'price': price,
+        'location': location.isEmpty ? 'Location not specified' : location,
+        'contactNumber': contact,
+      });
+      setState(() {
+        _currentProduct = ProductModel(
+          id: _currentProduct.id,
+          sellerId: _currentProduct.sellerId,
+          sellerName: _currentProduct.sellerName,
+          title: title,
+          description: description,
+          price: price,
+          imageUrls: _currentProduct.imageUrls,
+          category: _currentProduct.category,
+          createdAt: _currentProduct.createdAt,
+          updatedAt: DateTime.now(),
+          isAvailable: _currentProduct.isAvailable,
+          location: location.isEmpty ? 'Location not specified' : location,
+          contactNumber: contact,
+          messagesCount: _currentProduct.messagesCount,
+          status: _currentProduct.status,
+        );
+        _isEditing = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Product updated')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final product = widget.product;
+    final product = _currentProduct;
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
       body: SafeArea(
@@ -69,54 +197,163 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              product.title,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.black,
-                              ),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: _isEditing
+                                      ? TextField(
+                                          controller: _editTitleController,
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.black,
+                                          ),
+                                          decoration: const InputDecoration(
+                                            isDense: true,
+                                            contentPadding: EdgeInsets.symmetric(vertical: 4),
+                                            border: UnderlineInputBorder(),
+                                          ),
+                                        )
+                                      : Text(
+                                          product.title,
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.black,
+                                          ),
+                                        ),
+                                ),
+                                if (_isOwner && !_isEditing)
+                                  TextButton.icon(
+                                    onPressed: _startEditing,
+                                    icon: const Icon(Icons.edit_outlined, size: 18),
+                                    label: const Text('Edit'),
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: const Color(0xFF20BF6B),
+                                    ),
+                                  )
+                                else if (_isEditing) ...[
+                                  TextButton(
+                                    onPressed: _cancelEditing,
+                                    child: Text(
+                                      'Cancel',
+                                      style: TextStyle(color: Colors.grey.shade700),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  TextButton(
+                                    onPressed: _saveEditing,
+                                    child: const Text(
+                                      'Save',
+                                      style: TextStyle(
+                                        color: Color(0xFF20BF6B),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                             const SizedBox(height: 4),
-                            Text(
-                              '₱${product.price.toStringAsFixed(0)}/${product.category == 'Food' ? 'kg' : ''}'
-                                  .trim(),
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black,
-                              ),
-                            ),
+                            _isEditing
+                                ? TextField(
+                                    controller: _editPriceController,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black,
+                                    ),
+                                    decoration: const InputDecoration(
+                                      prefixText: '₱ ',
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.symmetric(vertical: 4),
+                                      border: UnderlineInputBorder(),
+                                    ),
+                                  )
+                                : Text(
+                                    _priceDisplay(product),
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black,
+                                    ),
+                                  ),
                             const SizedBox(height: 16),
                             _buildSectionTitle('Description'),
-                            Text(
-                              product.description,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey.shade700,
-                                height: 1.4,
-                              ),
-                            ),
+                            _isEditing
+                                ? TextField(
+                                    controller: _editDescriptionController,
+                                    maxLines: 4,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey.shade700,
+                                      height: 1.4,
+                                    ),
+                                    decoration: InputDecoration(
+                                      isDense: true,
+                                      contentPadding: const EdgeInsets.all(8),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                  )
+                                : Text(
+                                    product.description,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey.shade700,
+                                      height: 1.4,
+                                    ),
+                                  ),
                             const SizedBox(height: 16),
                             _buildSectionTitle('Location'),
-                            Text(
-                              product.location,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey.shade700,
-                              ),
-                            ),
+                            _isEditing
+                                ? TextField(
+                                    controller: _editLocationController,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                    decoration: InputDecoration(
+                                      isDense: true,
+                                      contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                                      border: const UnderlineInputBorder(),
+                                    ),
+                                  )
+                                : Text(
+                                    product.location,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
                             const SizedBox(height: 16),
                             _buildSectionTitle('Contact'),
-                            Text(
-                              product.contactNumber.isEmpty
-                                  ? 'Not provided'
-                                  : product.contactNumber,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey.shade700,
-                              ),
-                            ),
+                            _isEditing
+                                ? TextField(
+                                    controller: _editContactController,
+                                    keyboardType: TextInputType.phone,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                    decoration: const InputDecoration(
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.symmetric(vertical: 4),
+                                      border: UnderlineInputBorder(),
+                                    ),
+                                  )
+                                : Text(
+                                    product.contactNumber.isEmpty
+                                        ? 'Not provided'
+                                        : product.contactNumber,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
                             const SizedBox(height: 16),
                             Row(
                               children: [
@@ -135,8 +372,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 16),
-                            if (replyingToId == null) _buildMessageComposer(),
+                            if (!_isEditing && replyingToId == null) ...[
+                              const SizedBox(height: 16),
+                              _buildMessageComposer(),
+                            ],
                           ],
                         ),
                       ),
@@ -428,6 +667,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         isSeller,
         parentId: replyingToId,
       );
+
+      if (isSeller) {
+        ProductsService.markProductMessagesAsRead(widget.product.id, currentUser.uid);
+      }
 
       _messageController.clear();
       setState(() {

@@ -29,6 +29,27 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isSending = false;
+  int _previousMessageCount = 0;
+
+  static String _formatDateHeader(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final d = DateTime(date.year, date.month, date.day);
+    if (d == today) return 'Today';
+    if (d == yesterday) return 'Yesterday';
+    const months = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec';
+    final month = months.split(' ')[date.month - 1];
+    return '$month ${date.day}, ${date.year}';
+  }
+
+  static String _formatTime(DateTime date) {
+    final h = date.hour;
+    final m = date.minute;
+    final hour = h == 0 ? 12 : (h > 12 ? h - 12 : h);
+    final ampm = h >= 12 ? 'PM' : 'AM';
+    return '${hour}:${m.toString().padLeft(2, '0')} $ampm';
+  }
 
   @override
   void initState() {
@@ -127,6 +148,7 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
                 }
                 final messages = snapshot.data ?? [];
                 if (messages.isEmpty) {
+                  _previousMessageCount = 0;
                   return Center(
                     child: Text(
                       'No messages yet. Say hello!',
@@ -137,12 +159,56 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
                     ),
                   );
                 }
+                // Flatten: date headers + messages for ListView.builder
+                final items = <Object>[];
+                DateTime? lastDate;
+                for (final msg in messages) {
+                  final d = DateTime(msg.createdAt.year, msg.createdAt.month, msg.createdAt.day);
+                  if (lastDate != d) {
+                    items.add(_formatDateHeader(d));
+                    lastDate = d;
+                  }
+                  items.add(msg);
+                }
+                final itemCount = items.length;
+                // Auto-scroll to bottom when new message arrives (new messages are at the end)
+                if (messages.length > _previousMessageCount) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (!_scrollController.hasClients) return;
+                      final position = _scrollController.position;
+                      _scrollController.animateTo(
+                        position.maxScrollExtent,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOut,
+                      );
+                    });
+                  });
+                }
+                _previousMessageCount = messages.length;
+
                 return ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  itemCount: messages.length,
+                  itemCount: itemCount,
                   itemBuilder: (context, index) {
-                    final msg = messages[index];
+                    final item = items[index];
+                    if (item is String) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Center(
+                          child: Text(
+                            item,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+                    final msg = item as TaskChatMessageModel;
                     final isMe = msg.senderId == widget.currentUserId;
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 10),
@@ -191,6 +257,16 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
                                       ? Colors.white
                                       : Colors.black87,
                                   height: 1.4,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _formatTime(msg.createdAt),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: isMe
+                                      ? Colors.white.withOpacity(0.85)
+                                      : Colors.grey.shade600,
                                 ),
                               ),
                             ],

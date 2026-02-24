@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/task_model.dart';
 import '../services/tasks_service.dart';
+import '../services/task_chat_service.dart';
 import '../services/firestore_service.dart';
 import '../widgets/errand_job_card.dart';
 import 'task_edit_screen.dart';
+import 'search_screen.dart';
 
 class MyPostsScreen extends StatefulWidget {
   const MyPostsScreen({super.key});
@@ -124,7 +126,15 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
                   IconButton(
                     icon: const Icon(Icons.search, color: Color(0xFF6E6E6E)),
                     splashRadius: 22,
-                    onPressed: () {},
+                    onPressed: () {
+                      final uid = FirestoreService.currentUserId;
+                      if (uid == null) return;
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const SearchScreen(mode: SearchMode.myTasks),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -208,24 +218,53 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
                           final pendingCount = volunteers
                               .where((v) => (v['status'] as String? ?? 'pending') == 'pending')
                               .length;
-                          final hasNotification = pendingCount > 0;
-                          return _MyPostCard(
-                            title: task.title,
-                            description: task.description,
-                            postedBy: task.requesterName,
-                            date: task.createdAt,
-                            status: status,
-                            statusLabel: task.status.displayName,
-                            volunteerName: task.assignedByName,
-                            hasNotification: hasNotification,
-                            onViewPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => TaskEditScreen(
-                                    task: task,
-                                    contactNumber: task.contactNumber ?? '',
+                          if (currentUserId == null) {
+                            return _MyPostCard(
+                              title: task.title,
+                              description: task.description,
+                              postedBy: task.requesterName,
+                              date: task.createdAt,
+                              status: status,
+                              statusLabel: task.status.displayName,
+                              volunteerName: task.assignedByName,
+                              hasNotification: pendingCount > 0,
+                              onViewPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => TaskEditScreen(
+                                      task: task,
+                                      contactNumber: task.contactNumber ?? '',
+                                    ),
                                   ),
-                                ),
+                                );
+                              },
+                            );
+                          }
+                          return StreamBuilder<int>(
+                            stream: TaskChatService.getUnreadCountStream(task.id, currentUserId!),
+                            initialData: 0,
+                            builder: (context, chatSnap) {
+                              final unreadChat = chatSnap.data ?? 0;
+                              final hasNotification = pendingCount > 0 || unreadChat > 0;
+                              return _MyPostCard(
+                                title: task.title,
+                                description: task.description,
+                                postedBy: task.requesterName,
+                                date: task.createdAt,
+                                status: status,
+                                statusLabel: task.status.displayName,
+                                volunteerName: task.assignedByName,
+                                hasNotification: hasNotification,
+                                onViewPressed: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => TaskEditScreen(
+                                        task: task,
+                                        contactNumber: task.contactNumber ?? '',
+                                      ),
+                                    ),
+                                  );
+                                },
                               );
                             },
                           );

@@ -4,6 +4,7 @@ import '../models/product_model.dart';
 import '../services/products_service.dart';
 import '../services/firestore_service.dart';
 import 'product_detail_screen.dart';
+import 'search_screen.dart';
 
 class MyProductsScreen extends StatelessWidget {
   const MyProductsScreen({super.key});
@@ -62,14 +63,20 @@ class MyProductsScreen extends StatelessWidget {
                   IconButton(
                     icon: const Icon(Icons.search, color: Color(0xFF5F5F5F)),
                     splashRadius: 22,
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const SearchScreen(mode: SearchMode.myProducts),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
             ),
             Expanded(
-              child: StreamBuilder<List<ProductModel>>(
-                stream: ProductsService.getSellerProductsStream(currentUserId),
+              child: StreamBuilder<List<MapEntry<ProductModel, int>>>(
+                stream: ProductsService.getSellerProductsWithUnreadStream(currentUserId),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
@@ -89,18 +96,21 @@ class MyProductsScreen extends StatelessWidget {
                       ),
                     );
                   }
-                  final products = snapshot.data ?? [];
-                  if (products.isEmpty) {
+                  final list = snapshot.data ?? [];
+                  if (list.isEmpty) {
                     return _buildEmptyState(context);
                   }
                   return ListView.separated(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                    itemCount: products.length,
+                    itemCount: list.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 16),
                     itemBuilder: (context, index) {
-                      final product = products[index];
+                      final entry = list[index];
+                      final product = entry.key;
+                      final unreadCount = entry.value;
                       return _MyProductCard(
                         product: product,
+                        hasUnread: unreadCount > 0,
                         onTap: () {
                           Navigator.of(context).push(
                             MaterialPageRoute(
@@ -147,14 +157,16 @@ class _MyProductCard extends StatelessWidget {
   const _MyProductCard({
     required this.product,
     required this.onTap,
+    this.hasUnread = false,
   });
 
   final ProductModel product;
   final VoidCallback onTap;
+  final bool hasUnread;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final card = Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
@@ -246,6 +258,25 @@ class _MyProductCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+    if (!hasUnread) return card;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        card,
+        Positioned(
+          right: 12,
+          top: 12,
+          child: Container(
+            width: 10,
+            height: 10,
+            decoration: const BoxDecoration(
+              color: Colors.red,
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
+      ],
     );
   }
 

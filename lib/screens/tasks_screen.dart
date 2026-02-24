@@ -8,6 +8,7 @@ import 'create_task_screen.dart';
 import 'my_posts_screen.dart';
 import 'task_detail_screen.dart';
 import 'task_edit_screen.dart';
+import 'search_screen.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -213,7 +214,13 @@ class TasksScreenState extends State<TasksScreen> {
                   icon: const Icon(Icons.search,
                       color: Color(0xFF6E6E6E), size: 26),
                   splashRadius: 22,
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const SearchScreen(mode: SearchMode.tasks),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),

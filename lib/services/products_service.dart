@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/message_model.dart';
 import '../models/product_model.dart';
@@ -110,5 +111,143 @@ class ProductsService {
             );
           }).toList();
         });
+  }
+
+  static DocumentReference<Map<String, dynamic>> _messageReadDoc(String productId, String userId) =>
+      _productsCollection.doc(productId).collection('message_read').doc(userId);
+
+  /// Mark product messages as read by this user (e.g. when seller opens product detail).
+  static Future<void> markProductMessagesAsRead(String productId, String userId) async {
+    await _messageReadDoc(productId, userId).set(
+      {'lastReadAt': FieldValue.serverTimestamp()},
+      SetOptions(merge: true),
+    );
+  }
+
+  /// Unread = messages from non-seller after lastReadAt for the given viewer (typically the seller).
+  static Stream<int> getUnreadProductMessagesCountStream(String productId, String viewerUserId) {
+    return getMessagesStream(productId).asyncMap((messages) async {
+      try {
+        final readSnap = await _messageReadDoc(productId, viewerUserId).get();
+        final data = readSnap.data() as Map<String, dynamic>?;
+        final lastReadAt = data?['lastReadAt'] != null
+            ? (data!['lastReadAt'] is Timestamp)
+                ? (data['lastReadAt'] as Timestamp).toDate()
+                : DateTime(1970)
+            : DateTime(1970);
+        return messages
+            .where((m) => m.senderId != viewerUserId && m.createdAt.isAfter(lastReadAt))
+            .length;
+      } catch (_) {
+        return 0;
+      }
+    });
+  }
+
+  /// Total unread product message count for a seller (across all their products).
+  /// Reactive: updates when messages or read state change on any of the seller's products.
+  static Stream<int> getTotalUnreadProductMessagesForSellerStream(String sellerId) {
+    final controller = StreamController<int>.broadcast();
+    final Map<String, int> unreadByProduct = {};
+    final Map<String, StreamSubscription<int>> productSubs = {};
+    List<ProductModel> _currentProducts = [];
+
+    void emitSum() {
+      if (!controller.isClosed) {
+        final sum = _currentProducts.fold<int>(0, (s, p) => s + (unreadByProduct[p.id] ?? 0));
+        controller.add(sum);
+      }
+    }
+
+    void setProducts(List<ProductModel> products) {
+      final newIds = products.map((p) => p.id).toSet();
+      for (final id in productSubs.keys.toList()) {
+        if (!newIds.contains(id)) {
+          productSubs[id]?.cancel();
+          productSubs.remove(id);
+          unreadByProduct.remove(id);
+        }
+      }
+      _currentProducts = products;
+      for (final p in products) {
+        if (productSubs.containsKey(p.id)) continue;
+        final sub = getUnreadProductMessagesCountStream(p.id, sellerId).listen((count) {
+          unreadByProduct[p.id] = count;
+          emitSum();
+        });
+        productSubs[p.id] = sub;
+      }
+      emitSum();
+    }
+
+    final sub = getSellerProductsStream(sellerId).listen((products) {
+      setProducts(products);
+    });
+
+    controller.onCancel = () {
+      sub.cancel();
+      for (final s in productSubs.values) {
+        s.cancel();
+      }
+      productSubs.clear();
+      unreadByProduct.clear();
+    };
+
+    return controller.stream;
+  }
+
+  /// Stream of seller's products with unread message count per product (for My Products red dots).
+  /// Reactive: updates when messages or read state change on any product.
+  static Stream<List<MapEntry<ProductModel, int>>> getSellerProductsWithUnreadStream(String sellerId) {
+    final controller = StreamController<List<MapEntry<ProductModel, int>>>.broadcast();
+    final Map<String, int> unreadByProduct = {};
+    final Map<String, StreamSubscription<int>> productSubs = {};
+    List<ProductModel> _currentProducts = [];
+
+    void emitList() {
+      if (!controller.isClosed) {
+        final list = _currentProducts
+            .map((p) => MapEntry(p, unreadByProduct[p.id] ?? 0))
+            .toList();
+        controller.add(list);
+      }
+    }
+
+    void setProducts(List<ProductModel> products) {
+      final newIds = products.map((p) => p.id).toSet();
+      for (final id in productSubs.keys.toList()) {
+        if (!newIds.contains(id)) {
+          productSubs[id]?.cancel();
+          productSubs.remove(id);
+          unreadByProduct.remove(id);
+        }
+      }
+      _currentProducts = products;
+      for (final p in products) {
+        if (productSubs.containsKey(p.id)) continue;
+        unreadByProduct[p.id] = 0;
+        final sub = getUnreadProductMessagesCountStream(p.id, sellerId).listen((count) {
+          unreadByProduct[p.id] = count;
+          emitList();
+        });
+        productSubs[p.id] = sub;
+      }
+      emitList();
+    }
+
+    final sub = getSellerProductsStream(sellerId).listen((products) {
+      setProducts(products);
+    });
+
+    controller.onCancel = () {
+      sub.cancel();
+      for (final s in productSubs.values) {
+        s.cancel();
+      }
+      productSubs.clear();
+      unreadByProduct.clear();
+    };
+
+    return controller.stream;
   }
 }

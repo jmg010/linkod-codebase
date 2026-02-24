@@ -93,6 +93,11 @@ class _PostCardState extends State<PostCard> {
       return;
     }
 
+    // Mark comments as read only when owner opens the comment sheet (not when just opening the post).
+    if (widget.post.userId == currentUser.uid) {
+      PostsService.markPostCommentsAsRead(widget.post.id, currentUser.uid);
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,

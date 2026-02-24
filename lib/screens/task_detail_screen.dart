@@ -31,6 +31,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     super.initState();
     final uid = FirestoreService.auth.currentUser?.uid;
     _isOwner = uid != null && uid == widget.task.requesterId;
+    // Do NOT mark chat read here; mark only when user opens TaskChatScreen.
   }
 
   Future<void> _handleVolunteer() async {

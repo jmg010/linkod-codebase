@@ -6,7 +6,6 @@ import '../services/fcm_token_service.dart';
 import '../services/firestore_service.dart';
 import 'edit_profile_screen.dart';
 import 'login_screen.dart';
-import 'notifications_screen.dart';
 
 class MenuScreen extends StatefulWidget {
   final UserRole userRole;
@@ -203,24 +202,6 @@ class _MenuScreenState extends State<MenuScreen> {
                             ),
                           );
                           _loadUserProfile();
-                        },
-                      ),
-                      Divider(
-                        height: 1,
-                        thickness: 1,
-                        color: Colors.grey.shade200,
-                        indent: 20,
-                        endIndent: 20,
-                      ),
-                      _MenuItem(
-                        icon: Icons.notifications_outlined,
-                        title: 'Notifications',
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => const NotificationsScreen(),
-                            ),
-                          );
                         },
                       ),
                       Divider(

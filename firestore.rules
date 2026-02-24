@@ -24,36 +24,29 @@ service cloud.firestore {
       return hasUserDoc() ? userDoc().data.role : null;
     }
 
-    // Role helpers (treat legacy 'admin' as super_admin)
+    // Role helpers. Only two roles: super_admin and admin. Positions (e.g. official, staff) are labels only.
     function role() {
       return getUserRole();
     }
 
+    // Only Super Admin has full access (Approvals, User Management, adminSettings, etc.)
     function isSuperAdmin() {
       return hasUserDoc() &&
-        getUserRole() in ['super_admin', 'admin'];
+        getUserRole() == 'super_admin';
     }
-
-    function isOfficial() {
-      return hasUserDoc() &&
-        getUserRole() == 'official';
+	
+  	// ========= adminSettings =========
+    // Stores panel-wide flags such as auto-approve settings.
+    match /adminSettings/{docId} {
+      // Only Super Admin can read/write these settings.
+      allow read, write: if isSuperAdmin();
     }
-
-    function isStaff() {
-      return hasUserDoc() &&
-        getUserRole() == 'staff';
-    }
-
-    // Any admin-panel account (can log into Windows app)
-    // Optimized: check hasUserDoc once, then check role directly
+    
+    
+    // Any admin-panel account (can log into Windows app). Only two roles: super_admin and admin.
     function isAdminPanelUser() {
       return hasUserDoc() &&
-        getUserRole() in ['super_admin', 'admin', 'official', 'staff'];
-    }
-
-    // Legacy helper for backward compatibility (maps to admin panel users)
-    function isOfficialLegacy() {
-      return isAdminPanelUser();
+        getUserRole() in ['super_admin', 'admin'];
     }
 
     // ========= users collection =========
@@ -65,19 +58,10 @@ service cloud.firestore {
       // Owner: can read and update own profile (includes declined users re-applying: accountStatus, proofOfResidenceUrl, etc.)
       allow read, update: if isSignedIn() && request.auth.uid == userId;
 
-      // Admin panel users (SUPER ADMIN / OFFICIAL / STAFF) can read users
-      // Note: Client-side UI filters what OFFICIAL/STAFF can see (e.g., hide phone numbers, restrict to residents)
-      allow read: if isAdminPanelUser();
+      // Only Super Admin can read other users (User Management). Admin is limited to Dashboard and Announcements.
+      allow read: if isSuperAdmin();
 
-      // OFFICIAL / STAFF:
-      // - OFFICIAL: can read residents/vendors (handled on client UI),
-      //   but we keep server-side simple and rely on UI restrictions.
-      // - STAFF: typically read-limited via queries; we don't grant extra write power here.
-      // (No extra write for them beyond owner + super_admin.)
-
-      // Create user docs:
-      // - SUPER ADMIN: can create any (official/staff/resident/vendor)
-      // - Others: no direct creates (residents are usually created via backend or approval flow)
+      // Create user docs: only Super Admin
       allow create: if isSuperAdmin();
 
       // Devices subcollection: FCM tokens
@@ -91,25 +75,22 @@ service cloud.firestore {
     }
 
     // ========= awaitingApproval =========
-    // Sign-up / verification requests (mobile creates without Auth; admin approves later)
+    // Sign-up / verification requests (mobile creates without Auth; Super Admin approves later)
 
     match /awaitingApproval/{docId} {
-      // Admin panel lists all; signed-in users can read (e.g. own request if we add requestedByUid)
-      allow read: if isSignedIn();
+      // Only Super Admin can list/read all. Applicant can read their own doc.
+      allow read: if isSuperAdmin()
+        || (isSignedIn() && resource.data.requestedByUid == request.auth.uid);
 
       // Mobile create-account does NOT sign in first — allow unauthenticated create so registration works
       allow create: if true;
 
-      // Update:
-      // - Admin panel (SUPER ADMIN / OFFICIAL / STAFF) can update
-      // - Applicant can update their own doc (e.g., add fcmTokens)
-      allow update: if isAdminPanelUser()
+      // Update: only Super Admin or the applicant (e.g. add fcmTokens)
+      allow update: if isSuperAdmin()
         || (isSignedIn() && resource.data.requestedByUid == request.auth.uid);
 
-      // Delete:
-      // - Admin panel can delete (e.g., after approval/decline)
-      allow delete: if isAdminPanelUser()
-        // Applicant can delete using original email-style mapping
+      // Delete: Super Admin (approve/decline flow) or applicant (original email-style mapping)
+      allow delete: if isSuperAdmin()
         || (isSignedIn()
           && request.auth.token.email == (resource.data.phoneNumber + '@linkod.com'));
     }
@@ -120,9 +101,7 @@ service cloud.firestore {
       // Any signed-in user can read announcements
       allow read: if isSignedIn();
 
-      // Create:
-      // - SUPER ADMIN / OFFICIAL / STAFF can create announcements
-      //   (status + approval flow handled by app logic)
+      // Create: Super Admin and Admin can create (Admin submissions need approval; app logic)
       allow create: if isAdminPanelUser();
 
       // Update:
@@ -144,8 +123,8 @@ service cloud.firestore {
         // Any signed-in user can mark as read
         allow create: if isSignedIn();
 
-        // SUPER ADMIN + OFFICIAL can read reader list
-        allow read: if isSuperAdmin() || isOfficial();
+        // Only Super Admin can read reader list
+        allow read: if isSuperAdmin();
 
         // No client updates/deletes
         allow update, delete: if false;
@@ -153,11 +132,11 @@ service cloud.firestore {
     }
 
     // ========= announcementDrafts =========
-    // Drafts in admin app; staff can be allowed if you want them to prep drafts.
+    // Drafts in admin app.
 
     match /announcementDrafts/{docId} {
-      // SUPER ADMIN + OFFICIAL (optionally STAFF if you want)
-      allow read, write: if isSuperAdmin() || isOfficial();
+      // Super Admin and Admin can read/write drafts (Admin limited to own drafts by app)
+      allow read, write: if isAdminPanelUser();
     }
 
     // ========= adminActivities =========
@@ -185,7 +164,7 @@ service cloud.firestore {
       match /comments/{commentId} {
         allow read, write: if isSignedIn();
       }
-
+      
       match /comment_read/{userId} {
         allow read, write: if isSignedIn() && request.auth.uid == userId;
       }
@@ -214,6 +193,10 @@ service cloud.firestore {
       match /messages/{messageId} {
         allow read, write: if isSignedIn();
       }
+
+      match /message_read/{userId} {
+        allow read, write: if isSignedIn() && request.auth.uid == userId;
+      }
     }
 
     // ========= tasks (errands) =========
@@ -230,6 +213,11 @@ service cloud.firestore {
         && (resource.data.requesterId == request.auth.uid
             || resource.data.assignedTo == request.auth.uid)
         && request.resource.data.approvalStatus == resource.data.approvalStatus;
+
+      // Volunteer flow: any signed-in user may update only volunteersCount and updatedAt (increment on volunteer, decrement on cancel)
+      allow update: if isSignedIn()
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['volunteersCount', 'updatedAt']);
 
       // Participants can delete their own tasks? (Keep legacy behavior)
       allow delete: if isSignedIn()
@@ -271,9 +259,8 @@ service cloud.firestore {
       allow create: if isSignedIn()
         && request.resource.data.userId == request.auth.uid;
 
-      // SUPER ADMIN / OFFICIAL can create notifications for any user
-      // (e.g., account approval, important system messages)
-      allow create: if isSuperAdmin() || isOfficial();
+      // Only Super Admin can create notifications for any user (e.g. account approval)
+      allow create: if isSuperAdmin();
     }
 
     // ========= userAnnouncementReads =========

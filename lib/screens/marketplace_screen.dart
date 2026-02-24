@@ -7,6 +7,7 @@ import '../services/firestore_service.dart';
 import 'product_detail_screen.dart';
 import 'sell_product_screen.dart';
 import 'my_products_screen.dart';
+import 'search_screen.dart';
 
 class MarketplaceScreen extends StatefulWidget {
   const MarketplaceScreen({super.key});
@@ -167,9 +168,13 @@ class MarketplaceScreenState extends State<MarketplaceScreen> {
                       ),
                       IconButton(
                         icon: const Icon(Icons.search, color: Color(0xFF6E6E6E), size: 26),
-                    onPressed: () {
-                      debugPrint('Search marketplace');
-                    },
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const SearchScreen(mode: SearchMode.products),
+                            ),
+                          );
+                        },
                   ),
                 ],
               ),

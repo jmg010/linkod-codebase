@@ -12,10 +12,12 @@ class LinkodNavbar extends StatelessWidget {
   final NavDestination currentDestination;
   final ValueChanged<NavDestination>? onDestinationChanged;
   final bool hasUnreadAnnouncements;
-  /// Number of notifications for owner's errand/task posts (e.g. pending volunteers).
+  /// Number of notifications for owner's errand/task posts (e.g. pending volunteers, unread task chat).
   final int errandNotificationCount;
   /// Number of unread comments on owner's feed posts.
   final int postCommentsNotificationCount;
+  /// Number of unread messages on owner's marketplace products.
+  final int marketplaceNotificationCount;
 
   const LinkodNavbar({
     super.key,
@@ -24,6 +26,7 @@ class LinkodNavbar extends StatelessWidget {
     this.hasUnreadAnnouncements = false,
     this.errandNotificationCount = 0,
     this.postCommentsNotificationCount = 0,
+    this.marketplaceNotificationCount = 0,
   });
 
   @override
@@ -79,6 +82,7 @@ class LinkodNavbar extends StatelessWidget {
                 icon: Icons.storefront,
                 isActive: currentDestination == NavDestination.marketplace,
                 onTap: () => onDestinationChanged?.call(NavDestination.marketplace),
+                notificationCount: marketplaceNotificationCount,
               ),
               _NavIcon(
                 icon: Icons.handshake,

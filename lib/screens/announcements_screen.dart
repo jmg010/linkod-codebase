@@ -4,6 +4,7 @@ import '../models/post_model.dart';
 import '../widgets/announcement_card.dart';
 import '../services/announcements_service.dart';
 import '../services/firestore_service.dart';
+import 'search_screen.dart';
 
 class AnnouncementsScreen extends StatefulWidget {
   const AnnouncementsScreen({super.key});
@@ -126,10 +127,14 @@ class AnnouncementsScreenState extends State<AnnouncementsScreen> with SingleTic
                             ),
                             IconButton(
                               icon: const Icon(Icons.search, color: Color(0xFF6E6E6E), size: 26),
-                    onPressed: () {
-                      debugPrint('Search announcements');
-                    },
-                  ),
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const SearchScreen(mode: SearchMode.announcements),
+                                  ),
+                                );
+                              },
+                            ),
                 ],
               ),
             ),

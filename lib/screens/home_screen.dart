@@ -6,7 +6,9 @@ import '../models/product_model.dart';
 import '../models/task_model.dart';
 import '../widgets/linkod_navbar.dart';
 import '../services/tasks_service.dart';
+import '../services/task_chat_service.dart';
 import '../services/posts_service.dart';
+import '../services/products_service.dart';
 import '../services/firestore_service.dart';
 import 'home_feed_screen.dart';
 import 'announcements_screen.dart';
@@ -39,8 +41,12 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _hasUnreadAnnouncements = false;
   String? _cachedErrandUid;
   Stream<int>? _cachedErrandStream;
+  String? _cachedTaskChatUid;
+  Stream<int>? _cachedTaskChatStream;
   String? _cachedPostCommentsUid;
   Stream<int>? _cachedPostCommentsStream;
+  String? _cachedMarketplaceUid;
+  Stream<int>? _cachedMarketplaceStream;
   late final bool _isResident = widget.userRole == UserRole.resident;
   late final int _feedIndex = 0; // HomeFeedScreen (mixed feed)
   late final int _announcementsIndex = 1; // AnnouncementsScreen
@@ -238,6 +244,18 @@ class _HomeScreenState extends State<HomeScreen> {
     return PostsService.getTotalUnreadCommentsOnMyPostsStream(uid);
   }
 
+  Stream<int> _getMarketplaceNotificationCountStream() {
+    final uid = FirestoreService.currentUserId;
+    if (uid == null) return Stream<int>.value(0);
+    return ProductsService.getTotalUnreadProductMessagesForSellerStream(uid);
+  }
+
+  Stream<int> _getTaskChatUnreadCountStream() {
+    final uid = FirestoreService.currentUserId;
+    if (uid == null) return Stream<int>.value(0);
+    return TaskChatService.getTotalUnreadForUserStream(uid);
+  }
+
   @override
   Widget build(BuildContext context) {
     final uid = FirestoreService.currentUserId;
@@ -247,11 +265,23 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     final errandStream = _cachedErrandStream ?? Stream<int>.value(0);
 
+    if (_cachedTaskChatUid != uid) {
+      _cachedTaskChatUid = uid;
+      _cachedTaskChatStream = _getTaskChatUnreadCountStream();
+    }
+    final taskChatStream = _cachedTaskChatStream ?? Stream<int>.value(0);
+
     if (_cachedPostCommentsUid != uid) {
       _cachedPostCommentsUid = uid;
       _cachedPostCommentsStream = _getPostCommentsNotificationCountStream();
     }
     final postCommentsStream = _cachedPostCommentsStream ?? Stream<int>.value(0);
+
+    if (_cachedMarketplaceUid != uid) {
+      _cachedMarketplaceUid = uid;
+      _cachedMarketplaceStream = _getMarketplaceNotificationCountStream();
+    }
+    final marketplaceStream = _cachedMarketplaceStream ?? Stream<int>.value(0);
 
     return Scaffold(
       body: Column(
@@ -262,16 +292,31 @@ class _HomeScreenState extends State<HomeScreen> {
             builder: (context, errandSnap) {
               final errandCount = errandSnap.data ?? 0;
               return StreamBuilder<int>(
-                stream: postCommentsStream,
+                stream: taskChatStream,
                 initialData: 0,
-                builder: (context, postSnap) {
-                  final postCommentsCount = postSnap.data ?? 0;
-                  return LinkodNavbar(
-                    currentDestination: _currentNavDestination,
-                    onDestinationChanged: _handleNavDestinationChange,
-                    hasUnreadAnnouncements: _hasUnreadAnnouncements,
-                    errandNotificationCount: errandCount,
-                    postCommentsNotificationCount: postCommentsCount,
+                builder: (context, taskChatSnap) {
+                  final taskChatCount = taskChatSnap.data ?? 0;
+                  return StreamBuilder<int>(
+                    stream: postCommentsStream,
+                    initialData: 0,
+                    builder: (context, postSnap) {
+                      final postCommentsCount = postSnap.data ?? 0;
+                      return StreamBuilder<int>(
+                        stream: marketplaceStream,
+                        initialData: 0,
+                        builder: (context, marketplaceSnap) {
+                          final marketplaceCount = marketplaceSnap.data ?? 0;
+                          return LinkodNavbar(
+                            currentDestination: _currentNavDestination,
+                            onDestinationChanged: _handleNavDestinationChange,
+                            hasUnreadAnnouncements: _hasUnreadAnnouncements,
+                            errandNotificationCount: errandCount + taskChatCount,
+                            postCommentsNotificationCount: postCommentsCount,
+                            marketplaceNotificationCount: marketplaceCount,
+                          );
+                        },
+                      );
+                    },
                   );
                 },
               );
