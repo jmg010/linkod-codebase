@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../models/message_model.dart';
 import '../models/product_model.dart';
 import 'firestore_service.dart';
@@ -91,7 +92,47 @@ class ProductsService {
     await _productsCollection.doc(productId).update({
       'messagesCount': FieldValue.increment(1),
     });
-    
+
+    // Create notification for the product owner (client-side, no Cloud Functions).
+    // Only notify the seller when a non-seller sends a message.
+    try {
+      final productSnap = await _productsCollection.doc(productId).get();
+      final productData = productSnap.data() as Map<String, dynamic>?;
+      final sellerId = productData?['sellerId'] as String?;
+      print('Creating product message notification for seller: $sellerId');
+      if (!isSeller && sellerId != null && sellerId != senderId) {
+        final batch = FirestoreService.instance.batch();
+        final notifRef =
+            FirestoreService.instance.collection('notifications').doc();
+        batch.set(notifRef, {
+          'userId': sellerId,
+          'senderId': senderId,
+          'type': 'product_message',
+          'productId': productId,
+          'messageId': docRef.id,
+          'isRead': false,
+          'message': '$senderName sent you a message about your product',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        final userRef =
+            FirestoreService.instance.collection('users').doc(sellerId);
+        batch.set(
+          userRef,
+          {'unreadNotificationCount': FieldValue.increment(1)},
+          SetOptions(merge: true),
+        );
+        await batch.commit();
+        print(
+          'Product message notification created successfully for product: $productId',
+        );
+      }
+    } catch (e) {
+      // Log but do not block sending the message.
+      print(
+        'FAILED to create product message notification for product $productId: $e',
+      );
+    }
+
     return docRef.id;
   }
 

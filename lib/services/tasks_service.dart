@@ -102,6 +102,37 @@ class TasksService {
     await _tasksCollection.doc(taskId).update({
       'volunteersCount': FieldValue.increment(1),
     });
+
+    // Create notification for task requester (client-side, Firestore only).
+    try {
+      final taskSnap = await _tasksCollection.doc(taskId).get();
+      final taskData = taskSnap.data() as Map<String, dynamic>?;
+      final requesterId = taskData?['requesterId'] as String?;
+      if (requesterId != null && requesterId != volunteerId) {
+        final batch = FirestoreService.instance.batch();
+        final notifRef =
+            FirestoreService.instance.collection('notifications').doc();
+        batch.set(notifRef, {
+          'userId': requesterId,
+          'senderId': volunteerId,
+          'type': 'task_volunteer',
+          'taskId': taskId,
+          'isRead': false,
+          'message': '$volunteerName volunteered for your errand',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        final userRef =
+            FirestoreService.instance.collection('users').doc(requesterId);
+        batch.set(
+          userRef,
+          {'unreadNotificationCount': FieldValue.increment(1)},
+          SetOptions(merge: true),
+        );
+        await batch.commit();
+      }
+    } catch (e) {
+      print('FAILED to create task volunteer notification for task $taskId: $e');
+    }
   }
 
   /// Stream of current user's volunteer record for a task (if any). Map keys: volunteerDocId, status (pending|accepted|rejected).

@@ -64,6 +64,14 @@ service cloud.firestore {
       // Create user docs: only Super Admin
       allow create: if isSuperAdmin();
 
+      // Allow other signed-in users to bump unreadNotificationCount for this user
+      // (e.g. when creating a like/comment notification). Only this single field
+      // may change in this rule.
+      allow update: if isSignedIn()
+        && request.auth.uid != userId
+        && request.resource.data.diff(resource.data).changedKeys()
+             .hasOnly(['unreadNotificationCount']);
+
       // Devices subcollection: FCM tokens
       match /devices/{deviceId} {
         // Owner can manage own devices
@@ -249,6 +257,21 @@ service cloud.firestore {
     }
 
     // ========= notifications =========
+    // Schema (typical):
+    // {
+    //   userId: string,          // receiver
+    //   senderId: string,        // actor (creator of the notification)
+    //   type: string,            // e.g. "comment" | "like" | "message" | "task"
+    //   postId: string?,
+    //   productId: string?,
+    //   taskId: string?,
+    //   commentId: string?,
+    //   messageId: string?,
+    //   announcementId: string?,
+    //   message: string?,
+    //   isRead: bool,
+    //   createdAt: timestamp
+    // }
 
     match /notifications/{notificationId} {
       // Owner can read/update/delete their own notifications
@@ -258,6 +281,36 @@ service cloud.firestore {
       // Users can create notifications for themselves
       allow create: if isSignedIn()
         && request.resource.data.userId == request.auth.uid;
+
+      // Mobile app: allow users to create notifications for other users when
+      // they are the sender and the receiver is the owner/requester/seller
+      // of the related resource (post/product/task). This supports likes,
+      // comments, marketplace messages, and task events without Cloud Functions.
+      allow create: if isSignedIn()
+        && request.resource.data.senderId == request.auth.uid
+        && request.resource.data.userId is string
+        && (
+          // Feed posts: receiver is post.userId
+          (
+            request.resource.data.postId is string
+            && get(/databases/$(database)/documents/posts/$(request.resource.data.postId)).data.userId
+                 == request.resource.data.userId
+          )
+          ||
+          // Marketplace: receiver is products.sellerId
+          (
+            request.resource.data.productId is string
+            && get(/databases/$(database)/documents/products/$(request.resource.data.productId)).data.sellerId
+                 == request.resource.data.userId
+          )
+          ||
+          // Tasks/errands: receiver is tasks.requesterId
+          (
+            request.resource.data.taskId is string
+            && get(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)).data.requesterId
+                 == request.resource.data.userId
+          )
+        );
 
       // Only Super Admin can create notifications for any user (e.g. account approval)
       allow create: if isSuperAdmin();

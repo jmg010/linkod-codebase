@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/post_model.dart';
 import '../services/posts_service.dart';
 import '../services/firestore_service.dart';
+import '../services/current_post_tracker.dart';
 import '../widgets/post_card.dart';
 import '../ui_constants.dart';
 
@@ -10,10 +11,14 @@ import '../ui_constants.dart';
 /// notification (data payload postId) or from in-app navigation.
 class PostDetailScreen extends StatefulWidget {
   final String postId;
+  final bool openCommentsOnLoad;
+  final String? initialCommentId;
 
   const PostDetailScreen({
     super.key,
     required this.postId,
+    this.openCommentsOnLoad = false,
+    this.initialCommentId,
   });
 
   @override
@@ -29,6 +34,15 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   void initState() {
     super.initState();
     _load();
+    CurrentPostTracker.currentPostId.value = widget.postId;
+  }
+
+  @override
+  void dispose() {
+    if (CurrentPostTracker.currentPostId.value == widget.postId) {
+      CurrentPostTracker.currentPostId.value = null;
+    }
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -85,7 +99,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               : _post == null
                   ? const SizedBox.shrink()
                   : SingleChildScrollView(
-                      child: PostCard(post: _post!),
+                      child: PostCard(
+                        post: _post!,
+                        openCommentsOnLoad: widget.openCommentsOnLoad,
+                        initialCommentId: widget.initialCommentId,
+                      ),
                     ),
     );
   }

@@ -45,6 +45,40 @@ class TaskChatService {
       'text': text.trim(),
       'createdAt': FieldValue.serverTimestamp(),
     });
+
+    // Notify the task requester about new chat messages (Firestore-only).
+    // This is intentionally requester-focused for now to match the requirement.
+    try {
+      final taskSnap = await _taskRef(taskId).get();
+      final taskData = taskSnap.data();
+      final requesterId = taskData?['requesterId'] as String?;
+      if (requesterId != null && requesterId != senderId) {
+        final batch = FirestoreService.instance.batch();
+        final notifRef =
+            FirestoreService.instance.collection('notifications').doc();
+        batch.set(notifRef, {
+          'userId': requesterId,
+          'senderId': senderId,
+          'type': 'task_chat_message',
+          'taskId': taskId,
+          'messageId': docRef.id,
+          'isRead': false,
+          'message': '$senderName sent you a message in your errand chat',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        final userRef =
+            FirestoreService.instance.collection('users').doc(requesterId);
+        batch.set(
+          userRef,
+          {'unreadNotificationCount': FieldValue.increment(1)},
+          SetOptions(merge: true),
+        );
+        await batch.commit();
+      }
+    } catch (e) {
+      print('FAILED to create task chat notification for task $taskId: $e');
+    }
+
     return docRef.id;
   }
 

@@ -5,6 +5,7 @@ import '../constants/marketplace_categories.dart';
 import '../models/product_model.dart';
 import '../services/products_service.dart';
 import '../services/firestore_service.dart';
+import '../services/admin_settings_service.dart';
 
 class SellProductScreen extends StatefulWidget {
   const SellProductScreen({super.key});
@@ -102,6 +103,11 @@ class _SellProductScreenState extends State<SellProductScreen> {
     final userName = userData['fullName'] as String? ?? 'User';
 
     try {
+      // Read auto-approve settings
+      final autoSettings = await AdminSettingsService.getAutoApproveSettings();
+      final shouldAutoApprove = autoSettings['products'] ?? false;
+      final initialStatus = shouldAutoApprove ? 'Approved' : 'Pending';
+
       final product = ProductModel(
         id: '', // Will be set by Firestore
         sellerId: currentUser.uid,
@@ -119,14 +125,18 @@ class _SellProductScreenState extends State<SellProductScreen> {
         contactNumber: _contactController.text.trim().isNotEmpty
             ? _contactController.text.trim()
             : (userData['phoneNumber'] as String? ?? ''),
-        status: 'Pending', // Admin approves in Activity Approvals; then visible on marketplace
+        status: initialStatus, // Set based on auto-approve flag
       );
 
       await ProductsService.createProduct(product);
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Product posted successfully!')),
+          SnackBar(
+            content: Text(shouldAutoApprove
+                ? 'Your listing has been posted!'
+                : 'Your listing is pending admin approval.'),
+          ),
         );
         Navigator.of(context).pop();
       }

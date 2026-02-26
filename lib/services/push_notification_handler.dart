@@ -2,9 +2,14 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import '../models/product_model.dart';
+import '../models/task_model.dart';
 import '../screens/announcement_detail_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/post_detail_screen.dart';
+import '../screens/product_detail_screen.dart';
+import '../screens/task_detail_screen.dart';
+import 'firestore_service.dart';
 
 /// Handles incoming FCM messages: shows a notification when in foreground and
 /// navigates to announcement detail when user taps (using data payload announcementId).
@@ -190,6 +195,87 @@ class PushNotificationHandler {
         builder: (_) => PostDetailScreen(postId: postId),
       ),
     );
+  }
+
+  /// Shared navigation handler for in-app notifications (Firestore-driven) and
+  /// data payloads (when needed).
+  static Future<void> handleNotificationNavigation(
+    GlobalKey<NavigatorState> navigatorKey,
+    Map<String, dynamic> data,
+  ) async {
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+
+    final String? postId = data['postId'] as String?;
+    final String? commentId = data['commentId'] as String?;
+    final String? announcementId = data['announcementId'] as String?;
+    final String? productId = data['productId'] as String?;
+    final String? taskId = data['taskId'] as String?;
+    final String? type = data['type'] as String?;
+
+    if (type == 'comment' || type == 'reply' || type == 'like') {
+      if (postId == null || postId.isEmpty) return;
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => PostDetailScreen(
+            postId: postId,
+            openCommentsOnLoad: type == 'comment' || type == 'reply',
+            initialCommentId: commentId,
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (taskId != null && taskId.isNotEmpty) {
+      try {
+        final snap =
+            await FirestoreService.instance.collection('tasks').doc(taskId).get();
+        if (!snap.exists) return;
+        final task = TaskModel.fromFirestore(snap);
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => TaskDetailScreen(
+              task: task,
+              contactNumber: task.contactNumber,
+            ),
+          ),
+        );
+      } catch (_) {}
+      return;
+    }
+
+    if (productId != null && productId.isNotEmpty) {
+      try {
+        final snap = await FirestoreService.instance
+            .collection('products')
+            .doc(productId)
+            .get();
+        if (!snap.exists) return;
+        final product = ProductModel.fromFirestore(snap);
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => ProductDetailScreen(product: product),
+          ),
+        );
+      } catch (_) {}
+      return;
+    }
+
+    if (announcementId != null && announcementId.isNotEmpty) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) =>
+              AnnouncementDetailScreen(announcementId: announcementId),
+        ),
+      );
+    } else if (postId != null && postId.isNotEmpty) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => PostDetailScreen(postId: postId),
+        ),
+      );
+    }
   }
 
   /// Call once after first frame so navigator is available. Handles app opened

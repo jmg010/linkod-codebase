@@ -4,6 +4,7 @@ import '../models/product_model.dart';
 import '../widgets/product_card.dart';
 import '../services/products_service.dart';
 import '../services/firestore_service.dart';
+import '../services/notifications_service.dart';
 import 'product_detail_screen.dart';
 import 'sell_product_screen.dart';
 import 'my_products_screen.dart';
@@ -195,9 +196,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen> {
                     },
                   ),
                   const SizedBox(width: 12),
-                  _SecondaryPillButton(
-                    label: 'My product',
-                    icon: Icons.inventory_2_outlined,
+                  _MyProductButtonWithUnreadDot(
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
@@ -401,6 +400,55 @@ class MarketplaceScreenState extends State<MarketplaceScreen> {
         ),
       );
     }
+}
+
+class _MyProductButtonWithUnreadDot extends StatelessWidget {
+  const _MyProductButtonWithUnreadDot({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final uid = FirestoreService.currentUserId;
+    if (uid == null) {
+      return _SecondaryPillButton(
+        label: 'My product',
+        icon: Icons.inventory_2_outlined,
+        onPressed: onPressed,
+      );
+    }
+
+    return StreamBuilder<int>(
+      stream: NotificationsService.getUnreadBadgeStream(uid),
+      initialData: 0,
+      builder: (context, snap) {
+        final showDot = (snap.data ?? 0) > 0;
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            _SecondaryPillButton(
+              label: 'My product',
+              icon: Icons.inventory_2_outlined,
+              onPressed: onPressed,
+            ),
+            if (showDot)
+              Positioned(
+                right: -2,
+                top: -2,
+                child: Container(
+                  width: 10,
+                  height: 10,
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
 }
 
 class _PrimaryPillButton extends StatelessWidget {

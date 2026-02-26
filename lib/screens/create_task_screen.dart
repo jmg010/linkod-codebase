@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/task_model.dart';
 import '../services/tasks_service.dart';
 import '../services/firestore_service.dart';
+import '../services/admin_settings_service.dart';
 
 class CreateTaskScreen extends StatefulWidget {
   final Function(TaskModel)? onTaskCreated;
@@ -91,6 +92,11 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
     final userName = userData['fullName'] as String? ?? 'User';
 
     try {
+      // Read auto-approve settings
+      final autoSettings = await AdminSettingsService.getAutoApproveSettings();
+      final shouldAutoApprove = autoSettings['tasks'] ?? false;
+      final initialApprovalStatus = shouldAutoApprove ? 'Approved' : 'Pending';
+
       final task = TaskModel(
         id: '', // Will be set by Firestore
         title: _titleController.text.trim(),
@@ -103,7 +109,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
         contactNumber: _contactController.text.trim().isNotEmpty
             ? _contactController.text.trim()
             : (userData['phoneNumber'] as String?),
-        approvalStatus: 'Pending', // Admin approves in Errand Approvals
+        approvalStatus: initialApprovalStatus, // Set based on auto-approve flag
         category: _selectedCategory,
       );
 
@@ -114,9 +120,11 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Errand/Job post created successfully!'),
-            duration: Duration(seconds: 2),
+          SnackBar(
+            content: Text(shouldAutoApprove
+                ? 'Your errand has been posted!'
+                : 'Your errand is pending admin approval.'),
+            duration: const Duration(seconds: 2),
           ),
         );
       }

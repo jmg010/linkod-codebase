@@ -8,10 +8,14 @@ import '../screens/post_detail_screen.dart';
 
 class PostCard extends StatefulWidget {
   final PostModel post;
+  final bool openCommentsOnLoad;
+  final String? initialCommentId;
 
   const PostCard({
     super.key,
     required this.post,
+    this.openCommentsOnLoad = false,
+    this.initialCommentId,
   });
 
   @override
@@ -30,6 +34,12 @@ class _PostCardState extends State<PostCard> {
   void initState() {
     super.initState();
     _checkLikeStatus();
+    if (widget.openCommentsOnLoad) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _handleComment(initialCommentId: widget.initialCommentId);
+      });
+    }
   }
 
   @override
@@ -84,7 +94,7 @@ class _PostCardState extends State<PostCard> {
     }
   }
 
-  void _handleComment() {
+  void _handleComment({String? initialCommentId}) {
     final currentUser = FirestoreService.auth.currentUser;
     if (currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -105,6 +115,7 @@ class _PostCardState extends State<PostCard> {
       builder: (context) => _CommentSheet(
         postId: widget.post.id,
         commentController: _commentController,
+        initialCommentId: initialCommentId,
       ),
     );
   }
@@ -187,7 +198,7 @@ class _PostCardState extends State<PostCard> {
                 _ActionButton(
                   icon: Icons.mode_comment_outlined,
                   label: 'Comment',
-                  onTap: _handleComment,
+                  onTap: () => _handleComment(),
                 ),
                 _ActionButton(
                   icon: Icons.share_outlined,
@@ -493,10 +504,12 @@ String _formatDate(DateTime date) {
 class _CommentSheet extends StatefulWidget {
   final String postId;
   final TextEditingController commentController;
+  final String? initialCommentId;
 
   const _CommentSheet({
     required this.postId,
     required this.commentController,
+    this.initialCommentId,
   });
 
   @override
@@ -505,6 +518,14 @@ class _CommentSheet extends StatefulWidget {
 
 class _CommentSheetState extends State<_CommentSheet> {
   bool _isPosting = false;
+  final ScrollController _scrollController = ScrollController();
+  bool _didInitialScroll = false;
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   Future<void> _postComment() async {
     if (widget.commentController.text.trim().isEmpty) return;
@@ -617,49 +638,82 @@ class _CommentSheetState extends State<_CommentSheet> {
                   );
                 }
 
+                if (!_didInitialScroll &&
+                    widget.initialCommentId != null &&
+                    widget.initialCommentId!.isNotEmpty) {
+                  final targetIndex = comments.indexWhere(
+                    (c) => (c['commentId'] as String?) == widget.initialCommentId,
+                  );
+                  if (targetIndex >= 0) {
+                    _didInitialScroll = true;
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (!mounted) return;
+                      // Best-effort: approximate item height so we land near the comment.
+                      _scrollController.animateTo(
+                        (targetIndex * 88).toDouble(),
+                        duration: const Duration(milliseconds: 350),
+                        curve: Curves.easeOut,
+                      );
+                    });
+                  }
+                }
+
                 return ListView.builder(
+                  controller: _scrollController,
                   padding: const EdgeInsets.all(16),
                   itemCount: comments.length,
                   itemBuilder: (context, index) {
                     final comment = comments[index];
+                    final commentId = comment['commentId'] as String?;
+                    final isTarget = widget.initialCommentId != null &&
+                        widget.initialCommentId!.isNotEmpty &&
+                        commentId == widget.initialCommentId;
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 16),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          CircleAvatar(
-                            radius: 16,
-                            backgroundColor: kFacebookBlue,
-                            child: Text(
-                              (comment['userName'] as String? ?? 'U')[0].toUpperCase(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: isTarget ? Colors.yellow.shade100 : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            CircleAvatar(
+                              radius: 16,
+                              backgroundColor: kFacebookBlue,
+                              child: Text(
+                                (comment['userName'] as String? ?? 'U')[0].toUpperCase(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  comment['userName'] as String? ?? 'Unknown',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    comment['userName'] as String? ?? 'Unknown',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  comment['content'] as String? ?? '',
-                                  style: const TextStyle(fontSize: 14),
-                                ),
-                              ],
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    comment['content'] as String? ?? '',
+                                    style: const TextStyle(fontSize: 14),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     );
                   },

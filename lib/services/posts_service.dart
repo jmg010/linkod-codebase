@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import '../models/post_model.dart';
 import 'firestore_service.dart';
 
@@ -82,6 +83,41 @@ class PostsService {
       await _postsCollection.doc(postId).update({
         'likesCount': FieldValue.increment(1),
       });
+
+      // Create notification for post owner (client-side, no Cloud Functions).
+      try {
+        final postSnap = await _postsCollection.doc(postId).get();
+        final postData = postSnap.data() as Map<String, dynamic>?;
+        final ownerUserId = postData?['userId'] as String?;
+        debugPrint('Creating like notification for post owner: $ownerUserId');
+        if (ownerUserId != null && ownerUserId != userId) {
+          final batch = FirestoreService.instance.batch();
+          final notifRef =
+              FirestoreService.instance.collection('notifications').doc();
+          batch.set(notifRef, {
+            'userId': ownerUserId,
+            'senderId': userId,
+            'type': 'like',
+            'postId': postId,
+            'commentId': null,
+            'isRead': false,
+            'message': '$userName liked your post',
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+          final userRef =
+              FirestoreService.instance.collection('users').doc(ownerUserId);
+          batch.set(
+            userRef,
+            {'unreadNotificationCount': FieldValue.increment(1)},
+            SetOptions(merge: true),
+          );
+          await batch.commit();
+          debugPrint('Like notification created successfully for post: $postId');
+        }
+      } catch (e) {
+        // Log but do not block like operation.
+        debugPrint('FAILED to create like notification for post $postId: $e');
+      }
     }
   }
 
@@ -114,7 +150,42 @@ class PostsService {
     await _postsCollection.doc(postId).update({
       'commentsCount': FieldValue.increment(1),
     });
-    
+
+    // Create notification for post owner (client-side, no Cloud Functions).
+    try {
+      final postSnap = await _postsCollection.doc(postId).get();
+      final postData = postSnap.data() as Map<String, dynamic>?;
+      final ownerUserId = postData?['userId'] as String?;
+      debugPrint('Creating comment notification for post owner: $ownerUserId');
+      if (ownerUserId != null && ownerUserId != userId) {
+        final batch = FirestoreService.instance.batch();
+        final notifRef =
+            FirestoreService.instance.collection('notifications').doc();
+        batch.set(notifRef, {
+          'userId': ownerUserId,
+          'senderId': userId,
+          'type': 'comment',
+          'postId': postId,
+          'commentId': docRef.id,
+          'isRead': false,
+          'message': '$userName commented on your post',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        final userRef =
+            FirestoreService.instance.collection('users').doc(ownerUserId);
+        batch.set(
+          userRef,
+          {'unreadNotificationCount': FieldValue.increment(1)},
+          SetOptions(merge: true),
+        );
+        await batch.commit();
+        debugPrint('Comment notification created successfully for post: $postId');
+      }
+    } catch (e) {
+      // Log but do not block comment operation.
+      debugPrint('FAILED to create comment notification for post $postId: $e');
+    }
+
     return docRef.id;
   }
 

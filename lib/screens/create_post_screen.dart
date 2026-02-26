@@ -10,6 +10,7 @@ import '../services/posts_service.dart';
 import '../services/products_service.dart';
 import '../services/tasks_service.dart';
 import '../services/firestore_service.dart';
+import '../services/admin_settings_service.dart';
 
 enum CreateType {
   announcement('Announcement'),
@@ -126,6 +127,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             return;
           }
 
+          // Read auto-approve settings
+          final autoSettings = await AdminSettingsService.getAutoApproveSettings();
+          final shouldAutoApprove = autoSettings['products'] ?? false;
+          final initialStatus = shouldAutoApprove ? 'Approved' : 'Pending';
+
           final product = ProductModel(
             id: '', // Will be set by Firestore
             sellerId: currentUser.uid,
@@ -139,17 +145,27 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             imageUrls: _selectedImages,
             location: '', // Can be added later
             contactNumber: userData['phoneNumber'] as String? ?? '',
+            status: initialStatus, // Set based on auto-approve flag
           );
           await ProductsService.createProduct(product);
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Product created successfully!')),
+              SnackBar(
+                content: Text(shouldAutoApprove
+                    ? 'Your listing has been posted!'
+                    : 'Your listing is pending admin approval.'),
+              ),
             );
             Navigator.of(context).pop();
           }
           break;
 
         case CreateType.task:
+          // Read auto-approve settings
+          final autoSettings = await AdminSettingsService.getAutoApproveSettings();
+          final shouldAutoApprove = autoSettings['tasks'] ?? false;
+          final initialApprovalStatus = shouldAutoApprove ? 'Approved' : 'Pending';
+
           final task = TaskModel(
             id: '', // Will be set by Firestore
             title: _titleController.text.trim(),
@@ -160,11 +176,16 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             status: TaskStatus.open,
             priority: _selectedPriority,
             contactNumber: userData['phoneNumber'] as String?,
+            approvalStatus: initialApprovalStatus, // Set based on auto-approve flag
           );
           await TasksService.createTask(task);
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Task created successfully!')),
+              SnackBar(
+                content: Text(shouldAutoApprove
+                    ? 'Your errand has been posted!'
+                    : 'Your errand is pending admin approval.'),
+              ),
             );
             Navigator.of(context).pop();
           }
