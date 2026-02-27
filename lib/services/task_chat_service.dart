@@ -46,18 +46,24 @@ class TaskChatService {
       'createdAt': FieldValue.serverTimestamp(),
     });
 
-    // Notify the task requester about new chat messages (Firestore-only).
-    // This is intentionally requester-focused for now to match the requirement.
+    // Notify the other chat participant about new chat messages (Firestore-only).
     try {
       final taskSnap = await _taskRef(taskId).get();
       final taskData = taskSnap.data();
       final requesterId = taskData?['requesterId'] as String?;
-      if (requesterId != null && requesterId != senderId) {
+      final assignedTo = taskData?['assignedTo'] as String?;
+
+      String? receiverId;
+      if (requesterId != null && requesterId.isNotEmpty) {
+        receiverId = senderId == requesterId ? assignedTo : requesterId;
+      }
+
+      if (receiverId != null && receiverId.isNotEmpty && receiverId != senderId) {
         final batch = FirestoreService.instance.batch();
         final notifRef =
             FirestoreService.instance.collection('notifications').doc();
         batch.set(notifRef, {
-          'userId': requesterId,
+          'userId': receiverId,
           'senderId': senderId,
           'type': 'task_chat_message',
           'taskId': taskId,
@@ -67,7 +73,7 @@ class TaskChatService {
           'createdAt': FieldValue.serverTimestamp(),
         });
         final userRef =
-            FirestoreService.instance.collection('users').doc(requesterId);
+            FirestoreService.instance.collection('users').doc(receiverId);
         batch.set(
           userRef,
           {'unreadNotificationCount': FieldValue.increment(1)},

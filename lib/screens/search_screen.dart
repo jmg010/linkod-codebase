@@ -44,6 +44,26 @@ class _SearchScreenState extends State<SearchScreen> {
   String? _searchQuery;
   static const int _maxRecentSearches = 10;
   List<String> _recentSearches = [];
+  
+  // Pagination variables
+  static const int _initialPageSize = 20;
+  static const int _loadMorePageSize = 20;
+  int _productsDisplayCount = _initialPageSize;
+  int _tasksDisplayCount = _initialPageSize;
+  int _postsDisplayCount = _initialPageSize;
+  int _announcementsDisplayCount = _initialPageSize;
+  
+  // Home search pagination
+  int _homeAnnouncementsDisplayCount = _initialPageSize;
+  int _homePostsDisplayCount = _initialPageSize;
+  int _homeTasksDisplayCount = _initialPageSize;
+  int _homeProductsDisplayCount = _initialPageSize;
+  
+  final ScrollController _productsScrollController = ScrollController();
+  final ScrollController _tasksScrollController = ScrollController();
+  final ScrollController _postsScrollController = ScrollController();
+  final ScrollController _announcementsScrollController = ScrollController();
+  final ScrollController _homeScrollController = ScrollController();
 
   String get _recentStorageKey => 'recent_searches_${widget.mode.name}';
 
@@ -52,12 +72,27 @@ class _SearchScreenState extends State<SearchScreen> {
     super.initState();
     _focusNode.requestFocus();
     _loadRecentSearches();
+    _productsScrollController.addListener(_onProductsScroll);
+    _tasksScrollController.addListener(_onTasksScroll);
+    _postsScrollController.addListener(_onPostsScroll);
+    _announcementsScrollController.addListener(_onAnnouncementsScroll);
+    _homeScrollController.addListener(_onHomeScroll);
   }
 
   @override
   void dispose() {
     _queryController.dispose();
     _focusNode.dispose();
+    _productsScrollController.removeListener(_onProductsScroll);
+    _tasksScrollController.removeListener(_onTasksScroll);
+    _postsScrollController.removeListener(_onPostsScroll);
+    _announcementsScrollController.removeListener(_onAnnouncementsScroll);
+    _homeScrollController.removeListener(_onHomeScroll);
+    _productsScrollController.dispose();
+    _tasksScrollController.dispose();
+    _postsScrollController.dispose();
+    _announcementsScrollController.dispose();
+    _homeScrollController.dispose();
     super.dispose();
   }
 
@@ -97,12 +132,92 @@ class _SearchScreenState extends State<SearchScreen> {
     _queryController.text = term;
     setState(() {
       _searchQuery = term;
+      // Reset pagination when new search is applied
+      _productsDisplayCount = _initialPageSize;
+      _tasksDisplayCount = _initialPageSize;
+      _postsDisplayCount = _initialPageSize;
+      _announcementsDisplayCount = _initialPageSize;
+      // Reset home search pagination
+      _homeAnnouncementsDisplayCount = _initialPageSize;
+      _homePostsDisplayCount = _initialPageSize;
+      _homeTasksDisplayCount = _initialPageSize;
+      _homeProductsDisplayCount = _initialPageSize;
     });
     _recentSearches = [term, ..._recentSearches.where((s) => s != term)];
     if (_recentSearches.length > _maxRecentSearches) {
       _recentSearches = _recentSearches.take(_maxRecentSearches).toList();
     }
     _saveRecentSearches();
+  }
+
+  // Scroll listeners for pagination
+  void _onProductsScroll() {
+    if (!_productsScrollController.hasClients) return;
+    final maxScroll = _productsScrollController.position.maxScrollExtent;
+    final currentScroll = _productsScrollController.position.pixels;
+    if (maxScroll - currentScroll < 300) _loadMoreProducts();
+  }
+
+  void _onTasksScroll() {
+    if (!_tasksScrollController.hasClients) return;
+    final maxScroll = _tasksScrollController.position.maxScrollExtent;
+    final currentScroll = _tasksScrollController.position.pixels;
+    if (maxScroll - currentScroll < 300) _loadMoreTasks();
+  }
+
+  void _onPostsScroll() {
+    if (!_postsScrollController.hasClients) return;
+    final maxScroll = _postsScrollController.position.maxScrollExtent;
+    final currentScroll = _postsScrollController.position.pixels;
+    if (maxScroll - currentScroll < 300) _loadMorePosts();
+  }
+
+  void _onAnnouncementsScroll() {
+    if (!_announcementsScrollController.hasClients) return;
+    final maxScroll = _announcementsScrollController.position.maxScrollExtent;
+    final currentScroll = _announcementsScrollController.position.pixels;
+    if (maxScroll - currentScroll < 300) _loadMoreAnnouncements();
+  }
+
+  void _onHomeScroll() {
+    if (!_homeScrollController.hasClients) return;
+    final maxScroll = _homeScrollController.position.maxScrollExtent;
+    final currentScroll = _homeScrollController.position.pixels;
+    if (maxScroll - currentScroll < 300) _loadMoreHomeResults();
+  }
+
+  // Pagination methods
+  void _loadMoreProducts() {
+    setState(() {
+      _productsDisplayCount += _loadMorePageSize;
+    });
+  }
+
+  void _loadMoreTasks() {
+    setState(() {
+      _tasksDisplayCount += _loadMorePageSize;
+    });
+  }
+
+  void _loadMorePosts() {
+    setState(() {
+      _postsDisplayCount += _loadMorePageSize;
+    });
+  }
+
+  void _loadMoreAnnouncements() {
+    setState(() {
+      _announcementsDisplayCount += _loadMorePageSize;
+    });
+  }
+
+  void _loadMoreHomeResults() {
+    setState(() {
+      _homeAnnouncementsDisplayCount += _loadMorePageSize;
+      _homePostsDisplayCount += _loadMorePageSize;
+      _homeTasksDisplayCount += _loadMorePageSize;
+      _homeProductsDisplayCount += _loadMorePageSize;
+    });
   }
 
   String get _hintText {
@@ -337,106 +452,150 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildHomeResults() {
-    final query = _searchQuery!;
+    final query = _searchQuery ?? '';
     final queryLower = query.toLowerCase();
     final currentUserId = FirestoreService.currentUserId;
 
-    return FutureBuilder<Map<String, dynamic>>(
-      future: _fetchHomeSearchResults(queryLower, currentUserId),
+    // If no search query, show recent searches or empty state
+    if (queryLower.isEmpty) {
+      return _buildRecentSearches();
+    }
+
+    return CustomScrollView(
+      controller: _homeScrollController,
+      slivers: [
+        // Announcements Section
+        SliverToBoxAdapter(
+          child: _buildHomeAnnouncementsSection(queryLower, currentUserId),
+        ),
+        // Posts Section
+        SliverToBoxAdapter(
+          child: _buildHomePostsSection(queryLower),
+        ),
+        // Tasks Section
+        SliverToBoxAdapter(
+          child: _buildHomeTasksSection(queryLower, currentUserId),
+        ),
+        // Products Section
+        SliverToBoxAdapter(
+          child: _buildHomeProductsSection(queryLower, currentUserId),
+        ),
+        // Load More Indicator
+        SliverToBoxAdapter(
+          child: _buildHomeLoadMoreIndicator(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHomeAnnouncementsSection(String queryLower, String? currentUserId) {
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: AnnouncementsService.getAnnouncementsStream(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const SizedBox(height: 100, child: Center(child: CircularProgressIndicator()));
         }
-        if (snapshot.hasError) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
-                const SizedBox(height: 16),
-                Text(
-                  'Error loading results',
-                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                ),
-              ],
-            ),
-          );
-        }
+        
+        final announcements = snapshot.data ?? [];
+        final filtered = announcements.where((a) {
+          final title = (a['title'] as String? ?? '').toLowerCase();
+          final content = (a['content'] as String? ?? a['description'] as String? ?? '').toLowerCase();
+          return title.contains(queryLower) || content.contains(queryLower);
+        }).toList();
 
-        if (!snapshot.hasData) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.search_off, size: 64, color: Colors.grey.shade400),
-                const SizedBox(height: 16),
-                Text(
-                  'No results',
-                  style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
-                ),
-              ],
-            ),
-          );
-        }
+        final visibleCount = _homeAnnouncementsDisplayCount.clamp(0, filtered.length);
+        final showLoadMore = visibleCount < filtered.length;
 
-        final data = snapshot.data!;
-        final announcements = data['announcements'] as List<Map<String, dynamic>>? ?? [];
-        final posts = data['posts'] as List<PostModel>? ?? [];
-        final tasks = data['tasks'] as List<TaskModel>? ?? [];
-        final products = data['products'] as List<ProductModel>? ?? [];
+        if (filtered.isEmpty) return const SizedBox.shrink();
 
-        final total = announcements.length + posts.length + tasks.length + products.length;
-        if (total == 0) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.search_off, size: 64, color: Colors.grey.shade400),
-                const SizedBox(height: 16),
-                Text(
-                  queryLower.isEmpty
-                      ? 'No results'
-                      : 'No results for "${query.length > 40 ? "${query.substring(0, 37)}..." : query}"',
-                  style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          );
-        }
-
-        final List<Widget> slivers = [];
-        if (announcements.isNotEmpty) {
-          slivers.add(SliverToBoxAdapter(child: _sectionHeader('Announcements')));
-          for (int i = 0; i < announcements.length; i++) {
-            final a = announcements[i];
-            slivers.add(SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.only(bottom: i < announcements.length - 1 ? 16 : 20),
-                child: _announcementCardFromMap(a),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _sectionHeader('Announcements'),
+            ...filtered.take(visibleCount).map((a) => Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: _announcementCardFromMap(a),
+            )),
+            if (showLoadMore)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Center(child: CircularProgressIndicator()),
               ),
-            ));
-          }
+            const SizedBox(height: 20),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildHomePostsSection(String queryLower) {
+    return StreamBuilder<List<PostModel>>(
+      stream: PostsService.getPostsStream(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox(height: 100, child: Center(child: CircularProgressIndicator()));
         }
-        if (posts.isNotEmpty) {
-          slivers.add(SliverToBoxAdapter(child: _sectionHeader('Posts')));
-          for (int i = 0; i < posts.length; i++) {
-            slivers.add(SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.only(bottom: i < posts.length - 1 ? 12 : 20),
-                child: PostCard(post: posts[i]),
+        
+        final posts = snapshot.data ?? [];
+        final filtered = posts.where((p) =>
+          p.title.toLowerCase().contains(queryLower) ||
+          p.content.toLowerCase().contains(queryLower)).toList();
+
+        final visibleCount = _homePostsDisplayCount.clamp(0, filtered.length);
+        final showLoadMore = visibleCount < filtered.length;
+
+        if (filtered.isEmpty) return const SizedBox.shrink();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _sectionHeader('Posts'),
+            ...filtered.take(visibleCount).map((post) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: PostCard(post: post),
+            )),
+            if (showLoadMore)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Center(child: CircularProgressIndicator()),
               ),
-            ));
-          }
+            const SizedBox(height: 20),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildHomeTasksSection(String queryLower, String? currentUserId) {
+    return StreamBuilder<List<TaskModel>>(
+      stream: TasksService.getTasksStream(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox(height: 100, child: Center(child: CircularProgressIndicator()));
         }
-        if (tasks.isNotEmpty) {
-          slivers.add(SliverToBoxAdapter(child: _sectionHeader('Errands / Jobs')));
-          for (int i = 0; i < tasks.length; i++) {
-            final task = tasks[i];
-            final isOwner = currentUserId != null && task.requesterId == currentUserId;
-            slivers.add(SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.only(bottom: i < tasks.length - 1 ? 16 : 20),
+        
+        final tasks = snapshot.data ?? [];
+        final nonCompleted = tasks.where((t) => t.status != TaskStatus.completed).toList();
+        final feedTasks = currentUserId != null
+            ? nonCompleted.where((t) => t.requesterId != currentUserId).toList()
+            : nonCompleted;
+        final filtered = feedTasks.where((t) =>
+          t.title.toLowerCase().contains(queryLower) ||
+          t.description.toLowerCase().contains(queryLower)).toList();
+
+        final visibleCount = _homeTasksDisplayCount.clamp(0, filtered.length);
+        final showLoadMore = visibleCount < filtered.length;
+
+        if (filtered.isEmpty) return const SizedBox.shrink();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _sectionHeader('Errands / Jobs'),
+            ...filtered.take(visibleCount).map((task) {
+              final isOwner = currentUserId != null && task.requesterId == currentUserId;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
                 child: ErrandJobCard(
                   title: task.title,
                   description: task.description,
@@ -458,45 +617,116 @@ class _SearchScreenState extends State<SearchScreen> {
                     );
                   },
                 ),
+              );
+            }),
+            if (showLoadMore)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Center(child: CircularProgressIndicator()),
               ),
-            ));
-          }
-        }
-        if (products.isNotEmpty) {
-          slivers.add(SliverToBoxAdapter(child: _sectionHeader('Marketplace')));
-          for (int i = 0; i < products.length; i++) {
-            final product = products[i];
-            slivers.add(SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.only(bottom: i < products.length - 1 ? 16 : 24),
-                child: ProductCard(
-                  product: product,
-                  showTag: true,
-                  onInteract: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => ProductDetailScreen(product: product),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ));
-          }
-        }
-
-        return CustomScrollView(
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate(slivers),
-              ),
-            ),
+            const SizedBox(height: 20),
           ],
         );
       },
     );
+  }
+
+  Widget _buildHomeProductsSection(String queryLower, String? currentUserId) {
+    return StreamBuilder<List<ProductModel>>(
+      stream: ProductsService.getProductsStream(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox(height: 100, child: Center(child: CircularProgressIndicator()));
+        }
+        
+        final products = snapshot.data ?? [];
+        final feedProducts = currentUserId != null
+            ? products.where((p) => p.sellerId != currentUserId).toList()
+            : products;
+        final filtered = feedProducts.where((p) =>
+          p.title.toLowerCase().contains(queryLower) ||
+          p.description.toLowerCase().contains(queryLower)).toList();
+
+        final visibleCount = _homeProductsDisplayCount.clamp(0, filtered.length);
+        final showLoadMore = visibleCount < filtered.length;
+
+        if (filtered.isEmpty) return const SizedBox.shrink();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _sectionHeader('Marketplace'),
+            ...filtered.take(visibleCount).map((product) => Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: ProductCard(
+                product: product,
+                showTag: true,
+                onInteract: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ProductDetailScreen(product: product),
+                    ),
+                  );
+                },
+              ),
+            )),
+            if (showLoadMore)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            const SizedBox(height: 24),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildHomeLoadMoreIndicator() {
+    return const SizedBox(height: 20);
+  }
+
+  Widget _buildRecentSearches() {
+    if (_recentSearches.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text(
+              'Search for announcements, products, errands...',
+              style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+      itemCount: _recentSearches.length,
+      itemBuilder: (context, index) {
+        final term = _recentSearches[index];
+        return ListTile(
+          leading: const Icon(Icons.history, color: Colors.grey),
+          title: Text(term),
+          onTap: () => _applyRecentSearch(term),
+          trailing: IconButton(
+            icon: const Icon(Icons.clear, size: 20),
+            onPressed: () => _removeRecentSearch(term),
+          ),
+        );
+      },
+    );
+  }
+
+  void _removeRecentSearch(String term) {
+    setState(() {
+      _recentSearches = _recentSearches.where((s) => s != term).toList();
+    });
+    _saveRecentSearches();
   }
 
   Widget _sectionHeader(String title) {
@@ -538,7 +768,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildPostsResults() {
-    final query = _searchQuery!;
+    final query = _searchQuery ?? '';
     final queryLower = query.toLowerCase();
 
     return StreamBuilder<List<PostModel>>(
@@ -612,7 +842,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _buildProductsResults() {
     final currentUserId = FirestoreService.currentUserId;
-    final query = _searchQuery!;
+    final query = _searchQuery ?? '';
     final queryLower = query.toLowerCase();
 
     return StreamBuilder<List<ProductModel>>(
@@ -667,28 +897,42 @@ class _SearchScreenState extends State<SearchScreen> {
           );
         }
 
+        final visibleCount = _productsDisplayCount.clamp(0, filtered.length);
+        final showLoadMore = visibleCount < filtered.length;
+
         return ListView.builder(
+          controller: _productsScrollController,
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
           physics: const ClampingScrollPhysics(),
-          itemCount: filtered.length,
+          itemCount: visibleCount + (showLoadMore ? 1 : 0),
           itemBuilder: (context, index) {
-            final product = filtered[index];
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: index < filtered.length - 1 ? 16 : 0,
-              ),
-              child: ProductCard(
-                product: product,
-                showTag: true,
-                onInteract: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => ProductDetailScreen(product: product),
-                    ),
-                  );
-                },
-              ),
-            );
+            if (index < visibleCount) {
+              final product = filtered[index];
+              return Padding(
+                padding: EdgeInsets.only(
+                  bottom: index < visibleCount - 1 ? 16 : 0,
+                ),
+                child: ProductCard(
+                  product: product,
+                  showTag: true,
+                  onInteract: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ProductDetailScreen(product: product),
+                      ),
+                    );
+                  },
+                ),
+              );
+            } else {
+              // Load more indicator
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Center(
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
           },
         );
       },
@@ -697,7 +941,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _buildTasksResults() {
     final currentUserId = FirestoreService.currentUserId;
-    final query = _searchQuery!;
+    final query = _searchQuery ?? '';
     final queryLower = query.toLowerCase();
 
     return StreamBuilder<List<TaskModel>>(
@@ -753,39 +997,53 @@ class _SearchScreenState extends State<SearchScreen> {
           );
         }
 
+        final visibleCount = _tasksDisplayCount.clamp(0, filtered.length);
+        final showLoadMore = visibleCount < filtered.length;
+
         return ListView.builder(
+          controller: _tasksScrollController,
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
           physics: const ClampingScrollPhysics(),
-          itemCount: filtered.length,
+          itemCount: visibleCount + (showLoadMore ? 1 : 0),
           itemBuilder: (context, index) {
-            final task = filtered[index];
-            final isOwner = currentUserId != null && task.requesterId == currentUserId;
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: index < filtered.length - 1 ? 16 : 0,
-              ),
-              child: ErrandJobCard(
-                title: task.title,
-                description: task.description,
-                postedBy: task.requesterName,
-                date: task.createdAt,
-                status: _mapTaskStatus(task.status),
-                statusLabel: task.status.displayName,
-                volunteerName: task.assignedByName,
-                showTag: true,
-                viewButtonLabel: isOwner ? 'Edit' : 'View',
-                viewButtonIcon: isOwner ? Icons.edit_outlined : Icons.visibility_outlined,
-                onViewPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => isOwner
-                          ? TaskEditScreen(task: task)
-                          : TaskDetailScreen(task: task),
-                    ),
-                  );
-                },
-              ),
-            );
+            if (index < visibleCount) {
+              final task = filtered[index];
+              final isOwner = currentUserId != null && task.requesterId == currentUserId;
+              return Padding(
+                padding: EdgeInsets.only(
+                  bottom: index < visibleCount - 1 ? 16 : 0,
+                ),
+                child: ErrandJobCard(
+                  title: task.title,
+                  description: task.description,
+                  postedBy: task.requesterName,
+                  date: task.createdAt,
+                  status: _mapTaskStatus(task.status),
+                  statusLabel: task.status.displayName,
+                  volunteerName: task.assignedByName,
+                  showTag: true,
+                  viewButtonLabel: isOwner ? 'Edit' : 'View',
+                  viewButtonIcon: isOwner ? Icons.edit_outlined : Icons.visibility_outlined,
+                  onViewPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => isOwner
+                            ? TaskEditScreen(task: task)
+                            : TaskDetailScreen(task: task),
+                      ),
+                    );
+                  },
+                ),
+              );
+            } else {
+              // Load more indicator
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Center(
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
           },
         );
       },
@@ -793,7 +1051,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildAnnouncementsResults() {
-    final query = _searchQuery!;
+    final query = _searchQuery ?? '';
     final queryLower = query.toLowerCase();
 
     return StreamBuilder<List<Map<String, dynamic>>>(
@@ -846,38 +1104,52 @@ class _SearchScreenState extends State<SearchScreen> {
           );
         }
 
+        final visibleCount = _announcementsDisplayCount.clamp(0, filtered.length);
+        final showLoadMore = visibleCount < filtered.length;
+
         return ListView.builder(
+          controller: _announcementsScrollController,
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
           physics: const ClampingScrollPhysics(),
-          itemCount: filtered.length,
+          itemCount: visibleCount + (showLoadMore ? 1 : 0),
           itemBuilder: (context, index) {
-            final a = filtered[index];
-            final id = a['id'] as String? ?? '';
-            final title = a['title'] as String? ?? '';
-            final description = a['content'] as String? ?? a['description'] as String? ?? '';
-            final postedBy = a['postedBy'] as String? ?? 'Barangay Official';
-            final postedByPosition = a['postedByPosition'] as String?;
-            final date = a['date'] as DateTime? ?? a['createdAt'] as DateTime? ?? DateTime.now();
-            final category = a['category'] as String?;
-            final viewCount = a['viewCount'] as int? ?? 0;
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: index < filtered.length - 1 ? 16 : 0,
-              ),
-              child: AnnouncementCard(
-                title: title,
-                description: description,
-                postedBy: postedBy,
-                postedByPosition: postedByPosition,
-                date: date,
-                category: category,
-                unreadCount: viewCount,
-                isRead: false,
-                showTag: true,
-                announcementId: id,
-                onMarkAsReadPressed: () {},
-              ),
-            );
+            if (index < visibleCount) {
+              final a = filtered[index];
+              final id = a['id'] as String? ?? '';
+              final title = a['title'] as String? ?? '';
+              final description = a['content'] as String? ?? a['description'] as String? ?? '';
+              final postedBy = a['postedBy'] as String? ?? 'Barangay Official';
+              final postedByPosition = a['postedByPosition'] as String?;
+              final date = a['date'] as DateTime? ?? a['createdAt'] as DateTime? ?? DateTime.now();
+              final category = a['category'] as String?;
+              final viewCount = a['viewCount'] as int? ?? 0;
+              return Padding(
+                padding: EdgeInsets.only(
+                  bottom: index < visibleCount - 1 ? 16 : 0,
+                ),
+                child: AnnouncementCard(
+                  title: title,
+                  description: description,
+                  postedBy: postedBy,
+                  postedByPosition: postedByPosition,
+                  date: date,
+                  category: category,
+                  unreadCount: viewCount,
+                  isRead: false,
+                  showTag: true,
+                  announcementId: id,
+                  onMarkAsReadPressed: () {},
+                ),
+              );
+            } else {
+              // Load more indicator
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Center(
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
           },
         );
       },
@@ -886,7 +1158,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _buildMyProductsResults() {
     final currentUserId = FirestoreService.currentUserId;
-    final query = _searchQuery!;
+    final query = _searchQuery ?? '';
     final queryLower = query.toLowerCase();
     if (currentUserId == null) {
       return Center(
@@ -975,7 +1247,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _buildMyTasksResults() {
     final currentUserId = FirestoreService.currentUserId;
-    final query = _searchQuery!;
+    final query = _searchQuery ?? '';
     final queryLower = query.toLowerCase();
     if (currentUserId == null) {
       return Center(

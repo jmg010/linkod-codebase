@@ -41,6 +41,14 @@ service cloud.firestore {
       // Only Super Admin can read/write these settings.
       allow read, write: if isSuperAdmin();
     }
+
+    // ========= publicSettings =========
+    // Auto-approve flags for residents (products/tasks). Read by mobile app so
+    // new listings can be created as Approved when enabled. Write by Super Admin only.
+    match /publicSettings/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isSuperAdmin();
+    }
     
     
     // Any admin-panel account (can log into Windows app). Only two roles: super_admin and admin.
@@ -308,6 +316,38 @@ service cloud.firestore {
           (
             request.resource.data.taskId is string
             && get(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)).data.requesterId
+                 == request.resource.data.userId
+          )
+          ||
+          // Tasks chat: allow notifying the other participant (requester <-> assigned volunteer)
+          (
+            request.resource.data.taskId is string
+            && request.resource.data.type == 'task_chat_message'
+            && (
+              get(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)).data.requesterId
+                == request.auth.uid
+              || get(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)).data.assignedTo
+                == request.auth.uid
+            )
+            && request.resource.data.userId != request.auth.uid
+            && (
+              request.resource.data.userId
+                == get(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)).data.requesterId
+              || (
+                get(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)).data.assignedTo is string
+                && request.resource.data.userId
+                  == get(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)).data.assignedTo
+              )
+            )
+          )
+          ||
+          // Tasks: volunteer accepted — receiver is the assigned volunteer
+          (
+            request.resource.data.taskId is string
+            && request.resource.data.type == 'volunteer_accepted'
+            && get(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)).data.requesterId
+                 == request.auth.uid
+            && get(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)).data.assignedTo
                  == request.resource.data.userId
           )
         );

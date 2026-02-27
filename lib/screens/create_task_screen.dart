@@ -8,10 +8,14 @@ import '../services/admin_settings_service.dart';
 
 class CreateTaskScreen extends StatefulWidget {
   final Function(TaskModel)? onTaskCreated;
+  final TaskModel? existingTask;
+  final bool isEdit;
 
   const CreateTaskScreen({
     super.key,
     this.onTaskCreated,
+    this.existingTask,
+    this.isEdit = false,
   });
 
   @override
@@ -34,10 +38,20 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
     'Other',
   ];
 
+  bool get _isEdit => widget.isEdit && widget.existingTask != null;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadUserPhone());
+    if (widget.existingTask != null) {
+      _titleController.text = widget.existingTask!.title;
+      _descriptionController.text = widget.existingTask!.description;
+      _contactController.text = widget.existingTask!.contactNumber ?? '';
+      _selectedCategory = widget.existingTask!.category;
+    }
+    if (!_isEdit) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadUserPhone());
+    }
   }
 
   Future<void> _loadUserPhone() async {
@@ -66,6 +80,33 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
 
   Future<void> _handlePost() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (_isEdit) {
+      try {
+        await TasksService.updateTask(widget.existingTask!.id, {
+          'title': _titleController.text.trim(),
+          'description': _descriptionController.text.trim(),
+          'contactNumber': _contactController.text.trim(),
+          'category': _selectedCategory,
+        });
+        if (mounted) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Your errand has been updated!'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: ${e.toString()}')),
+          );
+        }
+      }
+      return;
+    }
 
     final currentUser = FirestoreService.auth.currentUser;
     if (currentUser == null) {
@@ -156,9 +197,9 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                     constraints: const BoxConstraints(),
                   ),
                   const SizedBox(width: 8),
-                  const Text(
-                    'Create Errand/Job Post',
-                    style: TextStyle(
+                  Text(
+                    _isEdit ? 'Edit Errand/Job Post' : 'Create Errand/Job Post',
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
                       color: Colors.black87,
@@ -189,9 +230,11 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        const Text('Title ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                        const SizedBox(height: 6),
                         _buildInputField(
                           controller: _titleController,
-                          hint: 'Title',
+                          hint: 'Enter task title',
                           validator: (value) {
                             if (value == null || value.trim().isEmpty) {
                               return 'Please enter a title';
@@ -200,11 +243,15 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                           },
                         ),
                         const SizedBox(height: 16),
+                        const Text('Category ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                        const SizedBox(height: 6),
                         _buildCategoryDropdown(),
                         const SizedBox(height: 16),
+                        const Text('Description ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                        const SizedBox(height: 6),
                         _buildInputField(
                           controller: _descriptionController,
-                          hint: 'Description',
+                          hint: 'Describe your task',
                           maxLines: 4,
                           validator: (value) {
                             if (value == null || value.trim().isEmpty) {
@@ -214,9 +261,11 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                           },
                         ),
                         const SizedBox(height: 16),
+                        const Text('Contact Information ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                        const SizedBox(height: 6),
                         _buildInputField(
                           controller: _contactController,
-                          hint: 'Contact Information',
+                          hint: 'Enter contact number',
                           keyboardType: TextInputType.phone,
                           validator: (value) {
                             if (value == null || value.trim().isEmpty) {

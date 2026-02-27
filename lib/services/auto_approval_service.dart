@@ -34,7 +34,7 @@ class AutoApprovalService {
       _hasRunThisSession = true;
 
       final settingsSnap = await _firestore
-          .collection('adminSettings')
+          .collection('publicSettings')
           .doc('approvals')
           .get();
 

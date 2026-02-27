@@ -25,6 +25,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   bool _isVolunteering = false;
   bool _isCancelling = false;
   bool _isOwner = false;
+  bool _isEditingConfirmedVolunteer = false;
 
   @override
   void initState() {
@@ -32,6 +33,40 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     final uid = FirestoreService.auth.currentUser?.uid;
     _isOwner = uid != null && uid == widget.task.requesterId;
     // Do NOT mark chat read here; mark only when user opens TaskChatScreen.
+  }
+
+  Future<void> _confirmRemoveAcceptedVolunteer(String volunteerDocId, String volunteerName) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove volunteer?'),
+        content: Text('Remove $volunteerName from this errand? This will unassign them.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey.shade700)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Remove', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+    try {
+      await TasksService.rejectVolunteer(widget.task.id, volunteerDocId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Volunteer removed')),
+      );
+      setState(() => _isEditingConfirmedVolunteer = false);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
+      );
+    }
   }
 
   Future<void> _handleVolunteer() async {
@@ -477,14 +512,31 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Section Title
-          const Text(
-            'List of volunteers',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: Colors.black87,
-            ),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'List of volunteers',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+              if (_isOwner)
+                IconButton(
+                  onPressed: () => setState(() => _isEditingConfirmedVolunteer = !_isEditingConfirmedVolunteer),
+                  icon: Icon(
+                    _isEditingConfirmedVolunteer ? Icons.close : Icons.edit_outlined,
+                    color: const Color(0xFF4C4C4C),
+                    size: 20,
+                  ),
+                  tooltip: _isEditingConfirmedVolunteer ? 'Done' : 'Edit',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                ),
+            ],
           ),
           const SizedBox(height: 16),
           // Volunteer List from Firebase
@@ -535,6 +587,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     final volunteerName = volunteer['volunteerName'] as String? ?? 'Unknown';
     final volunteerId = volunteer['volunteerId'] as String?;
     final status = volunteer['status'] as String? ?? 'pending';
+    final volunteerDocId = volunteer['volunteerDocId'] as String? ?? '';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
@@ -602,6 +655,16 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               ],
             ),
           ),
+          if (_isOwner && _isEditingConfirmedVolunteer && status == 'accepted')
+            IconButton(
+              onPressed: volunteerDocId.isEmpty
+                  ? null
+                  : () => _confirmRemoveAcceptedVolunteer(volunteerDocId, volunteerName),
+              icon: Icon(Icons.close, color: Colors.red.shade700, size: 20),
+              tooltip: 'Remove volunteer',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+            ),
         ],
       ),
     );

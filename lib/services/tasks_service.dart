@@ -209,6 +209,32 @@ class TasksService {
       'status': 'ongoing',
       'updatedAt': FieldValue.serverTimestamp(),
     });
+
+    // Notify the volunteer that they were accepted (Firestore-only).
+    try {
+      final batch = FirestoreService.instance.batch();
+      final notifRef =
+          FirestoreService.instance.collection('notifications').doc();
+      batch.set(notifRef, {
+        'userId': volunteerId,
+        'senderId': requesterId,
+        'type': 'volunteer_accepted',
+        'taskId': taskId,
+        'isRead': false,
+        'message': 'You were accepted as volunteer for an errand',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      final userRef =
+          FirestoreService.instance.collection('users').doc(volunteerId);
+      batch.set(
+        userRef,
+        {'unreadNotificationCount': FieldValue.increment(1)},
+        SetOptions(merge: true),
+      );
+      await batch.commit();
+    } catch (e) {
+      print('FAILED to create volunteer_accepted notification for task $taskId: $e');
+    }
   }
 
   /// Cancel own volunteer application (only while pending)
@@ -239,10 +265,26 @@ class TasksService {
     if (!volunteerDoc.exists) {
       throw Exception('Volunteer not found');
     }
-    final volunteerId = volunteerDoc.data()?['volunteerId'] as String?;
+    final data = volunteerDoc.data() as Map<String, dynamic>?;
+    final volunteerId = data?['volunteerId'] as String?;
+    final status = data?['status'] as String? ?? 'pending';
     final taskSnap = await taskRef.get();
     final taskData = taskSnap.data() as Map<String, dynamic>?;
     final assignedTo = taskData?['assignedTo'] as String?;
+
+    // If this volunteer was the accepted one, fully unassign and remove their record
+    // so they can volunteer again in the future.
+    if (status == 'accepted') {
+      await taskRef.collection('volunteers').doc(volunteerDocId).delete();
+      await taskRef.update({
+        'assignedTo': null,
+        'assignedByName': null,
+        'status': 'open',
+        'volunteersCount': FieldValue.increment(-1),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      return;
+    }
 
     await taskRef.collection('volunteers').doc(volunteerDocId).update({
       'status': 'rejected',

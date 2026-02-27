@@ -198,32 +198,33 @@ class PushNotificationHandler {
   }
 
   /// Shared navigation handler for in-app notifications (Firestore-driven) and
-  /// data payloads (when needed).
+  /// data payloads (when needed). Ensures id fields are strings for reliability.
   static Future<void> handleNotificationNavigation(
     GlobalKey<NavigatorState> navigatorKey,
     Map<String, dynamic> data,
   ) async {
+    final String? postId = _str(data['postId']);
+    final String? commentId = _str(data['commentId']);
+    final String? announcementId = _str(data['announcementId']);
+    final String? productId = _str(data['productId']);
+    final String? taskId = _str(data['taskId']);
+    final String? type = _str(data['type']);
+
     final context = navigatorKey.currentContext;
     if (context == null) return;
 
-    final String? postId = data['postId'] as String?;
-    final String? commentId = data['commentId'] as String?;
-    final String? announcementId = data['announcementId'] as String?;
-    final String? productId = data['productId'] as String?;
-    final String? taskId = data['taskId'] as String?;
-    final String? type = data['type'] as String?;
-
     if (type == 'comment' || type == 'reply' || type == 'like') {
-      if (postId == null || postId.isEmpty) return;
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => PostDetailScreen(
-            postId: postId,
-            openCommentsOnLoad: type == 'comment' || type == 'reply',
-            initialCommentId: commentId,
+      if (postId != null && postId.isNotEmpty) {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => PostDetailScreen(
+              postId: postId,
+              openCommentsOnLoad: type == 'comment' || type == 'reply',
+              initialCommentId: commentId,
+            ),
           ),
-        ),
-      );
+        );
+      }
       return;
     }
 
@@ -231,16 +232,17 @@ class PushNotificationHandler {
       try {
         final snap =
             await FirestoreService.instance.collection('tasks').doc(taskId).get();
-        if (!snap.exists) return;
-        final task = TaskModel.fromFirestore(snap);
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => TaskDetailScreen(
-              task: task,
-              contactNumber: task.contactNumber,
+        if (snap.exists) {
+          final task = TaskModel.fromFirestore(snap);
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => TaskDetailScreen(
+                task: task,
+                contactNumber: task.contactNumber,
+              ),
             ),
-          ),
-        );
+          );
+        }
       } catch (_) {}
       return;
     }
@@ -251,13 +253,14 @@ class PushNotificationHandler {
             .collection('products')
             .doc(productId)
             .get();
-        if (!snap.exists) return;
-        final product = ProductModel.fromFirestore(snap);
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => ProductDetailScreen(product: product),
-          ),
-        );
+        if (snap.exists) {
+          final product = ProductModel.fromFirestore(snap);
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => ProductDetailScreen(product: product),
+            ),
+          );
+        }
       } catch (_) {}
       return;
     }
@@ -269,13 +272,23 @@ class PushNotificationHandler {
               AnnouncementDetailScreen(announcementId: announcementId),
         ),
       );
-    } else if (postId != null && postId.isNotEmpty) {
+      return;
+    }
+
+    if (postId != null && postId.isNotEmpty) {
       Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder: (_) => PostDetailScreen(postId: postId),
         ),
       );
     }
+  }
+
+  static String? _str(dynamic v) {
+    if (v == null) return null;
+    final s = v is String ? v : v.toString();
+    if (s.isEmpty || s == 'null') return null;
+    return s;
   }
 
   /// Call once after first frame so navigator is available. Handles app opened

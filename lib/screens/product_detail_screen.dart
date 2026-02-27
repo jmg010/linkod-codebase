@@ -4,6 +4,7 @@ import '../models/message_model.dart';
 import '../models/product_model.dart';
 import '../services/products_service.dart';
 import '../services/firestore_service.dart';
+import 'sell_product_screen.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final ProductModel product;
@@ -98,8 +99,57 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     setState(() => _isEditing = true);
   }
 
+  Future<void> _openEditProductScreen() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => SellProductScreen(
+          existingProduct: _currentProduct,
+          isEdit: true,
+        ),
+      ),
+    );
+  }
+
   void _cancelEditing() {
     setState(() => _isEditing = false);
+  }
+
+  Future<void> _confirmDelete() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete product?'),
+        content: const Text(
+          'This will remove the product listing. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey.shade700)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+    try {
+      await ProductsService.deleteProduct(_currentProduct.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Product deleted')),
+        );
+        Navigator.of(context).pop(true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _saveEditing() async {
@@ -209,10 +259,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                             fontWeight: FontWeight.w700,
                                             color: Colors.black,
                                           ),
-                                          decoration: const InputDecoration(
+                                          decoration: InputDecoration(
                                             isDense: true,
-                                            contentPadding: EdgeInsets.symmetric(vertical: 4),
-                                            border: UnderlineInputBorder(),
+                                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                            border: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
                                           ),
                                         )
                                       : Text(
@@ -225,13 +277,43 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                         ),
                                 ),
                                 if (_isOwner && !_isEditing)
-                                  TextButton.icon(
-                                    onPressed: _startEditing,
-                                    icon: const Icon(Icons.edit_outlined, size: 18),
-                                    label: const Text('Edit'),
-                                    style: TextButton.styleFrom(
-                                      foregroundColor: const Color(0xFF20BF6B),
+                                  PopupMenuButton<String>(
+                                    color: Colors.white,
+                                    padding: EdgeInsets.zero,
+                                    icon: Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(color: Colors.grey.shade300),
+                                      ),
+                                      child: const Icon(Icons.more_vert, color: Color(0xFF4C4C4C), size: 20),
                                     ),
+                                    tooltip: 'Options',
+                                    onSelected: (value) {
+                                      if (value == 'edit') _openEditProductScreen();
+                                      if (value == 'delete') _confirmDelete();
+                                    },
+                                    itemBuilder: (context) => [
+                                      const PopupMenuItem(
+                                        value: 'edit',
+                                        child: ListTile(
+                                          leading: Icon(Icons.edit_outlined, size: 22, color: Color(0xFF20BF6B)),
+                                          title: Text('Edit'),
+                                          contentPadding: EdgeInsets.zero,
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                      ),
+                                      PopupMenuItem(
+                                        value: 'delete',
+                                        child: ListTile(
+                                          leading: Icon(Icons.delete_outline, size: 22, color: Colors.red.shade700),
+                                          title: Text('Delete', style: TextStyle(color: Colors.red.shade700)),
+                                          contentPadding: EdgeInsets.zero,
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                      ),
+                                    ],
                                   )
                                 else if (_isEditing) ...[
                                   TextButton(
@@ -265,11 +347,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                       fontWeight: FontWeight.w600,
                                       color: Colors.black,
                                     ),
-                                    decoration: const InputDecoration(
+                                    decoration: InputDecoration(
                                       prefixText: '₱ ',
                                       isDense: true,
-                                      contentPadding: EdgeInsets.symmetric(vertical: 4),
-                                      border: UnderlineInputBorder(),
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
                                     ),
                                   )
                                 : Text(
@@ -318,8 +402,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                     ),
                                     decoration: InputDecoration(
                                       isDense: true,
-                                      contentPadding: const EdgeInsets.symmetric(vertical: 4),
-                                      border: const UnderlineInputBorder(),
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
                                     ),
                                   )
                                 : Text(
@@ -339,10 +425,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                       fontSize: 14,
                                       color: Colors.grey.shade700,
                                     ),
-                                    decoration: const InputDecoration(
+                                    decoration: InputDecoration(
                                       isDense: true,
-                                      contentPadding: EdgeInsets.symmetric(vertical: 4),
-                                      border: UnderlineInputBorder(),
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
                                     ),
                                   )
                                 : Text(

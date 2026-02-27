@@ -8,7 +8,14 @@ import '../services/firestore_service.dart';
 import '../services/admin_settings_service.dart';
 
 class SellProductScreen extends StatefulWidget {
-  const SellProductScreen({super.key});
+  final ProductModel? existingProduct;
+  final bool isEdit;
+
+  const SellProductScreen({
+    super.key,
+    this.existingProduct,
+    this.isEdit = false,
+  });
 
   @override
   State<SellProductScreen> createState() => _SellProductScreenState();
@@ -22,10 +29,23 @@ class _SellProductScreenState extends State<SellProductScreen> {
   final _contactController = TextEditingController();
   String? _selectedCategory;
 
+  bool get _isEdit => widget.isEdit && widget.existingProduct != null;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadUserPhone());
+    if (widget.existingProduct != null) {
+      final p = widget.existingProduct!;
+      _titleController.text = p.title;
+      _priceController.text = p.price.toStringAsFixed(0);
+      _descriptionController.text = p.description;
+      _locationController.text = p.location;
+      _contactController.text = p.contactNumber;
+      _selectedCategory = p.category;
+    }
+    if (!_isEdit) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadUserPhone());
+    }
   }
 
   Future<void> _loadUserPhone() async {
@@ -103,42 +123,64 @@ class _SellProductScreenState extends State<SellProductScreen> {
     final userName = userData['fullName'] as String? ?? 'User';
 
     try {
-      // Read auto-approve settings
-      final autoSettings = await AdminSettingsService.getAutoApproveSettings();
-      final shouldAutoApprove = autoSettings['products'] ?? false;
-      final initialStatus = shouldAutoApprove ? 'Approved' : 'Pending';
+      if (_isEdit) {
+        final existing = widget.existingProduct!;
+        await ProductsService.updateProduct(existing.id, {
+          'title': _titleController.text.trim(),
+          'description': _descriptionController.text.trim(),
+          'price': price,
+          'category': _selectedCategory!,
+          'location': _locationController.text.trim().isNotEmpty
+              ? _locationController.text.trim()
+              : 'Location not specified',
+          'contactNumber': _contactController.text.trim().isNotEmpty
+              ? _contactController.text.trim()
+              : (userData['phoneNumber'] as String? ?? ''),
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Product updated')),
+          );
+          Navigator.of(context).pop();
+        }
+      } else {
+        // Read auto-approve settings
+        final autoSettings = await AdminSettingsService.getAutoApproveSettings();
+        final shouldAutoApprove = autoSettings['products'] ?? false;
+        final initialStatus = shouldAutoApprove ? 'Approved' : 'Pending';
 
-      final product = ProductModel(
-        id: '', // Will be set by Firestore
-        sellerId: currentUser.uid,
-        sellerName: userName,
-        title: _titleController.text.trim(),
-        description: _descriptionController.text.trim(),
-        price: price,
-        category: _selectedCategory!,
-        createdAt: DateTime.now(),
-        isAvailable: true,
-        imageUrls: [], // Can be added later with image picker
-        location: _locationController.text.trim().isNotEmpty
-            ? _locationController.text.trim()
-            : 'Location not specified',
-        contactNumber: _contactController.text.trim().isNotEmpty
-            ? _contactController.text.trim()
-            : (userData['phoneNumber'] as String? ?? ''),
-        status: initialStatus, // Set based on auto-approve flag
-      );
-
-      await ProductsService.createProduct(product);
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(shouldAutoApprove
-                ? 'Your listing has been posted!'
-                : 'Your listing is pending admin approval.'),
-          ),
+        final product = ProductModel(
+          id: '', // Will be set by Firestore
+          sellerId: currentUser.uid,
+          sellerName: userName,
+          title: _titleController.text.trim(),
+          description: _descriptionController.text.trim(),
+          price: price,
+          category: _selectedCategory!,
+          createdAt: DateTime.now(),
+          isAvailable: true,
+          imageUrls: [], // Can be added later with image picker
+          location: _locationController.text.trim().isNotEmpty
+              ? _locationController.text.trim()
+              : 'Location not specified',
+          contactNumber: _contactController.text.trim().isNotEmpty
+              ? _contactController.text.trim()
+              : (userData['phoneNumber'] as String? ?? ''),
+          status: initialStatus, // Set based on auto-approve flag
         );
-        Navigator.of(context).pop();
+
+        await ProductsService.createProduct(product);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(shouldAutoApprove
+                  ? 'Your listing has been posted!'
+                  : 'Your listing is pending admin approval.'),
+            ),
+          );
+          Navigator.of(context).pop();
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -168,9 +210,9 @@ class _SellProductScreenState extends State<SellProductScreen> {
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                   const SizedBox(width: 6),
-                  const Text(
-                    'Post a product',
-                    style: TextStyle(
+                  Text(
+                    _isEdit ? 'Edit product' : 'Post a product',
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                       color: Colors.black,
@@ -239,17 +281,23 @@ class _SellProductScreenState extends State<SellProductScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              _buildInputField(controller: _titleController, hint: 'Title'),
+              const Text('Title ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+              const SizedBox(height: 6),
+              _buildInputField(controller: _titleController, hint: 'Enter product title'),
               const SizedBox(height: 14),
+              const Text('Price ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+              const SizedBox(height: 6),
               _buildInputField(
                 controller: _priceController,
-                hint: 'Price',
+                hint: 'Enter price',
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 14),
+              const Text('Description ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+              const SizedBox(height: 6),
               _buildInputField(
                 controller: _descriptionController,
-                hint: 'Description',
+                hint: 'Describe your product',
                 maxLines: 3,
               ),
               const SizedBox(height: 14),
@@ -279,14 +327,18 @@ class _SellProductScreenState extends State<SellProductScreen> {
                 ),
               ),
               const SizedBox(height: 14),
+              const Text('Location', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+              const SizedBox(height: 6),
               _buildInputField(
                 controller: _locationController,
-                hint: 'Location',
+                hint: 'Enter location',
               ),
               const SizedBox(height: 14),
+              const Text('Contact Number', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+              const SizedBox(height: 6),
               _buildInputField(
                 controller: _contactController,
-                hint: 'Contact',
+                hint: 'Enter contact number',
                 keyboardType: TextInputType.phone,
               ),
               const SizedBox(height: 28),

@@ -67,9 +67,11 @@ class TasksScreenState extends State<TasksScreen> {
   }
 
   void _onScroll() {
+    if (!_scrollController.hasClients) return;
     final maxScroll = _scrollController.position.maxScrollExtent;
     final currentScroll = _scrollController.position.pixels;
-    if (maxScroll - currentScroll < 200) _loadMoreIfNeeded();
+    // Load more when user is within 300px of the bottom for smoother experience
+    if (maxScroll - currentScroll < 300) _loadMoreIfNeeded();
   }
 
   void _loadMoreIfNeeded() {
@@ -254,8 +256,8 @@ class TasksScreenState extends State<TasksScreen> {
                         ),
                         if (hasNotification)
                           Positioned(
-                            right: -2,
-                            top: -2,
+                            right: 4,
+                            top: 2,
                             child: Container(
                               width: 10,
                               height: 10,

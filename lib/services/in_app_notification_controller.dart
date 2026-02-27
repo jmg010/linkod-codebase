@@ -87,15 +87,26 @@ class InAppNotificationController {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final content = GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () async {
+        onTap: () {
           final id = notification['notificationId'] as String?;
           if (id != null) {
-            await NotificationsService.markAsRead(id);
+            NotificationsService.markAsRead(id);
           }
-          await PushNotificationHandler.handleNotificationNavigation(
-            navigatorKey,
-            notification,
-          );
+          // Build a string-only payload so navigation always gets valid ids.
+          final payload = <String, dynamic>{
+            'type': notification['type']?.toString(),
+            'postId': notification['postId']?.toString(),
+            'commentId': notification['commentId']?.toString(),
+            'productId': notification['productId']?.toString(),
+            'taskId': notification['taskId']?.toString(),
+            'announcementId': notification['announcementId']?.toString(),
+          };
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            PushNotificationHandler.handleNotificationNavigation(
+              navigatorKey,
+              payload,
+            );
+          });
         },
         child: _buildRoundedBanner(message),
       );
@@ -113,41 +124,42 @@ class InAppNotificationController {
   }
 
   Widget _buildRoundedBanner(String message) {
+    // Banner height increased by ~30%: more padding and slightly larger text/icon
     return SafeArea(
       bottom: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
         child: Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(18),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.12),
-                blurRadius: 10,
+                color: Colors.black.withOpacity(0.14),
+                blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
             ],
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
           child: Row(
             children: [
-              const Icon(Icons.notifications, color: Colors.green),
-              const SizedBox(width: 10),
+              const Icon(Icons.notifications, color: Colors.green, size: 30),
+              const SizedBox(width: 16),
               Expanded(
                 child: Text(
                   message,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 17,
                     fontWeight: FontWeight.w600,
                     color: Colors.black87,
                   ),
                 ),
               ),
               const SizedBox(width: 8),
-              const Icon(Icons.chevron_right, color: Colors.grey),
+              const Icon(Icons.chevron_right, color: Colors.grey, size: 26),
             ],
           ),
         ),
