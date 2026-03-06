@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:rxdart/rxdart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/post_model.dart';
 import '../models/product_model.dart';
@@ -188,35 +189,48 @@ class _SearchScreenState extends State<SearchScreen> {
 
   // Pagination methods
   void _loadMoreProducts() {
+    if (!mounted) return;
     setState(() {
       _productsDisplayCount += _loadMorePageSize;
     });
   }
 
   void _loadMoreTasks() {
+    if (!mounted) return;
     setState(() {
       _tasksDisplayCount += _loadMorePageSize;
     });
   }
 
   void _loadMorePosts() {
+    if (!mounted) return;
     setState(() {
       _postsDisplayCount += _loadMorePageSize;
     });
   }
 
   void _loadMoreAnnouncements() {
+    if (!mounted) return;
     setState(() {
       _announcementsDisplayCount += _loadMorePageSize;
     });
   }
 
   void _loadMoreHomeResults() {
+    if (!mounted) return;
+    // Save current scroll position before setState
+    final currentOffset = _homeScrollController.offset;
     setState(() {
       _homeAnnouncementsDisplayCount += _loadMorePageSize;
       _homePostsDisplayCount += _loadMorePageSize;
       _homeTasksDisplayCount += _loadMorePageSize;
       _homeProductsDisplayCount += _loadMorePageSize;
+    });
+    // Restore scroll position after frame builds
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_homeScrollController.hasClients && mounted) {
+        _homeScrollController.jumpTo(currentOffset);
+      }
     });
   }
 
@@ -461,31 +475,407 @@ class _SearchScreenState extends State<SearchScreen> {
       return _buildRecentSearches();
     }
 
-    return CustomScrollView(
-      controller: _homeScrollController,
-      slivers: [
-        // Announcements Section
-        SliverToBoxAdapter(
-          child: _buildHomeAnnouncementsSection(queryLower, currentUserId),
+    // Use a single combined stream to avoid rebuilds that reset scroll position
+    return StreamBuilder<Map<String, dynamic>>(
+      stream: _getCombinedHomeSearchStream(queryLower, currentUserId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final data = snapshot.data ?? {};
+        final announcements = data['announcements'] as List<Map<String, dynamic>>? ?? [];
+        final posts = data['posts'] as List<PostModel>? ?? [];
+        final tasks = data['tasks'] as List<TaskModel>? ?? [];
+        final products = data['products'] as List<ProductModel>? ?? [];
+
+        final totalResults = announcements.length + posts.length + tasks.length + products.length;
+
+        // Show unified empty state if no results
+        if (totalResults == 0) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.search_off, size: 64, color: Colors.grey.shade400),
+                const SizedBox(height: 16),
+                Text(
+                  'No results for "$query"',
+                  style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Try searching for announcements, posts,\nproducts, or errands',
+                  style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        }
+
+        return CustomScrollView(
+          controller: _homeScrollController,
+          slivers: [
+            // Announcements Section
+            if (announcements.isNotEmpty)
+              SliverToBoxAdapter(
+                child: _buildHomeAnnouncementsSectionFromData(announcements, queryLower),
+              ),
+            // Posts Section
+            if (posts.isNotEmpty)
+              SliverToBoxAdapter(
+                child: _buildHomePostsSectionFromData(posts, queryLower),
+              ),
+            // Tasks Section
+            if (tasks.isNotEmpty)
+              SliverToBoxAdapter(
+                child: _buildHomeTasksSectionFromData(tasks, queryLower, currentUserId),
+              ),
+            // Products Section
+            if (products.isNotEmpty)
+              SliverToBoxAdapter(
+                child: _buildHomeProductsSectionFromData(products, queryLower),
+              ),
+            // Bottom padding
+            SliverToBoxAdapter(
+              child: _buildHomeLoadMoreIndicator(),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Combined stream that emits all search results at once - preserves scroll position
+  Stream<Map<String, dynamic>> _getCombinedHomeSearchStream(String queryLower, String? currentUserId) {
+    return Rx.combineLatest4(
+      AnnouncementsService.getAnnouncementsStream(),
+      PostsService.getPostsStream(),
+      TasksService.getTasksStream(),
+      ProductsService.getProductsStream(),
+      (List<Map<String, dynamic>> announcements, List<PostModel> posts, 
+       List<TaskModel> tasks, List<ProductModel> products) {
+        // Filter announcements
+        final filteredAnnouncements = announcements.where((a) {
+          final title = (a['title'] as String? ?? '').toLowerCase();
+          final content = (a['content'] as String? ?? a['description'] as String? ?? '').toLowerCase();
+          final postedBy = (a['postedBy'] as String? ?? '').toLowerCase();
+          return title.contains(queryLower) || content.contains(queryLower) || postedBy.contains(queryLower);
+        }).toList();
+
+        // Filter posts
+        final filteredPosts = posts.where((p) =>
+            p.title.toLowerCase().contains(queryLower) ||
+            p.content.toLowerCase().contains(queryLower) ||
+            p.userName.toLowerCase().contains(queryLower)).toList();
+
+        // Filter tasks
+        final nonCompleted = tasks.where((t) => t.status != TaskStatus.completed).toList();
+        final feedTasks = currentUserId != null
+            ? nonCompleted.where((t) => t.requesterId != currentUserId).toList()
+            : nonCompleted;
+        final filteredTasks = feedTasks.where((t) =>
+            t.title.toLowerCase().contains(queryLower) ||
+            t.description.toLowerCase().contains(queryLower) ||
+            t.requesterName.toLowerCase().contains(queryLower)).toList();
+
+        // Filter products
+        final feedProducts = currentUserId != null
+            ? products.where((p) => p.sellerId != currentUserId).toList()
+            : products;
+        final filteredProducts = feedProducts.where((p) =>
+            p.title.toLowerCase().contains(queryLower) ||
+            p.description.toLowerCase().contains(queryLower) ||
+            p.sellerName.toLowerCase().contains(queryLower)).toList();
+
+        return {
+          'announcements': filteredAnnouncements,
+          'posts': filteredPosts,
+          'tasks': filteredTasks,
+          'products': filteredProducts,
+        };
+      },
+    );
+  }
+
+  Widget _buildHomeAnnouncementsSectionFromData(List<Map<String, dynamic>> announcements, String queryLower) {
+    final visibleCount = _homeAnnouncementsDisplayCount.clamp(0, announcements.length);
+    final showLoadMore = visibleCount < announcements.length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: _sectionHeader('Announcements'),
         ),
-        // Posts Section
-        SliverToBoxAdapter(
-          child: _buildHomePostsSection(queryLower),
-        ),
-        // Tasks Section
-        SliverToBoxAdapter(
-          child: _buildHomeTasksSection(queryLower, currentUserId),
-        ),
-        // Products Section
-        SliverToBoxAdapter(
-          child: _buildHomeProductsSection(queryLower, currentUserId),
-        ),
-        // Load More Indicator
-        SliverToBoxAdapter(
-          child: _buildHomeLoadMoreIndicator(),
-        ),
+        ...announcements.take(visibleCount).map((a) => Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: _announcementCardFromMap(a),
+        )),
+        if (showLoadMore)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Center(
+              child: GestureDetector(
+                onTap: () {
+                  if (!mounted) return;
+                  final currentOffset = _homeScrollController.offset;
+                  setState(() {
+                    _homeAnnouncementsDisplayCount += _loadMorePageSize;
+                  });
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (_homeScrollController.hasClients && mounted) {
+                      _homeScrollController.jumpTo(currentOffset);
+                    }
+                  });
+                },
+                child: Text(
+                  'Load more',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: const Color(0xFF00A651),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        const SizedBox(height: 20),
       ],
     );
+  }
+
+  Widget _buildHomePostsSectionFromData(List<PostModel> posts, String queryLower) {
+    final visibleCount = _homePostsDisplayCount.clamp(0, posts.length);
+    final showLoadMore = visibleCount < posts.length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader('Posts'),
+        ...posts.take(visibleCount).map((post) => Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: PostCard(post: post),
+        )),
+        if (showLoadMore)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Center(
+              child: GestureDetector(
+                onTap: () {
+                  if (!mounted) return;
+                  final currentOffset = _homeScrollController.offset;
+                  setState(() {
+                    _homePostsDisplayCount += _loadMorePageSize;
+                  });
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (_homeScrollController.hasClients && mounted) {
+                      _homeScrollController.jumpTo(currentOffset);
+                    }
+                  });
+                },
+                child: Text(
+                  'Load more',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: const Color(0xFF00A651),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        const SizedBox(height: 20),
+      ],
+    );
+  }
+
+  Widget _buildHomeTasksSectionFromData(List<TaskModel> tasks, String queryLower, String? currentUserId) {
+    final visibleCount = _homeTasksDisplayCount.clamp(0, tasks.length);
+    final showLoadMore = visibleCount < tasks.length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader('Errands / Jobs'),
+        ...tasks.take(visibleCount).map((task) {
+          final isOwner = currentUserId != null && task.requesterId == currentUserId;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: ErrandJobCard(
+              title: task.title,
+              description: task.description,
+              postedBy: task.requesterName,
+              date: task.createdAt,
+              imageUrls: task.imageUrls,
+              status: _mapTaskStatus(task.status),
+              statusLabel: task.status.displayName,
+              volunteerName: task.assignedByName,
+              showTag: true,
+              viewButtonLabel: isOwner ? 'Edit' : 'View',
+              viewButtonIcon: isOwner ? Icons.edit_outlined : Icons.visibility_outlined,
+              onViewPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => isOwner
+                        ? TaskEditScreen(task: task)
+                        : TaskDetailScreen(task: task),
+                  ),
+                );
+              },
+            ),
+          );
+        }),
+        if (showLoadMore)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Center(
+              child: GestureDetector(
+                onTap: () {
+                  if (!mounted) return;
+                  final currentOffset = _homeScrollController.offset;
+                  setState(() {
+                    _homeTasksDisplayCount += _loadMorePageSize;
+                  });
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (_homeScrollController.hasClients && mounted) {
+                      _homeScrollController.jumpTo(currentOffset);
+                    }
+                  });
+                },
+                child: Text(
+                  'Load more',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: const Color(0xFF00A651),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        const SizedBox(height: 20),
+      ],
+    );
+  }
+
+  Widget _buildHomeProductsSectionFromData(List<ProductModel> products, String queryLower) {
+    final visibleCount = _homeProductsDisplayCount.clamp(0, products.length);
+    final showLoadMore = visibleCount < products.length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader('Marketplace'),
+        ...products.take(visibleCount).map((product) => Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: ProductCard(
+            product: product,
+            showTag: true,
+            onInteract: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ProductDetailScreen(product: product),
+                ),
+              );
+            },
+          ),
+        )),
+        if (showLoadMore)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Center(
+              child: GestureDetector(
+                onTap: () {
+                  if (!mounted) return;
+                  final currentOffset = _homeScrollController.offset;
+                  setState(() {
+                    _homeProductsDisplayCount += _loadMorePageSize;
+                  });
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (_homeScrollController.hasClients && mounted) {
+                      _homeScrollController.jumpTo(currentOffset);
+                    }
+                  });
+                },
+                child: Text(
+                  'Load more',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: const Color(0xFF00A651),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  /// Count results across all sections to determine if we should show empty state
+  Future<Map<String, int>> _countHomeSearchResults(String queryLower, String? currentUserId) async {
+    try {
+      final results = await Future.wait([
+        AnnouncementsService.getAnnouncementsStream().first,
+        PostsService.getPostsStream().first,
+        TasksService.getTasksStream().first,
+        ProductsService.getProductsStream().first,
+      ]);
+
+      final announcements = results[0] is List<Map<String, dynamic>>
+          ? results[0] as List<Map<String, dynamic>>
+          : <Map<String, dynamic>>[];
+      final posts = results[1] is List<PostModel> ? results[1] as List<PostModel> : <PostModel>[];
+      final tasks = results[2] is List<TaskModel> ? results[2] as List<TaskModel> : <TaskModel>[];
+      final products = results[3] is List<ProductModel> ? results[3] as List<ProductModel> : <ProductModel>[];
+
+      // Count announcements
+      final annCount = announcements.where((a) {
+        final title = (a['title'] as String? ?? '').toLowerCase();
+        final content = (a['content'] as String? ?? a['description'] as String? ?? '').toLowerCase();
+        final postedBy = (a['postedBy'] as String? ?? '').toLowerCase();
+        return title.contains(queryLower) || content.contains(queryLower) || postedBy.contains(queryLower);
+      }).length;
+
+      // Count posts
+      final postsCount = posts.where((p) =>
+          p.title.toLowerCase().contains(queryLower) ||
+          p.content.toLowerCase().contains(queryLower) ||
+          p.userName.toLowerCase().contains(queryLower)).length;
+
+      // Count tasks
+      final nonCompleted = tasks.where((t) => t.status != TaskStatus.completed).toList();
+      final feedTasks = currentUserId != null
+          ? nonCompleted.where((t) => t.requesterId != currentUserId).toList()
+          : nonCompleted;
+      final tasksCount = feedTasks.where((t) =>
+          t.title.toLowerCase().contains(queryLower) ||
+          t.description.toLowerCase().contains(queryLower) ||
+          t.requesterName.toLowerCase().contains(queryLower)).length;
+
+      // Count products
+      final feedProducts = currentUserId != null
+          ? products.where((p) => p.sellerId != currentUserId).toList()
+          : products;
+      final productsCount = feedProducts.where((p) =>
+          p.title.toLowerCase().contains(queryLower) ||
+          p.description.toLowerCase().contains(queryLower) ||
+          p.sellerName.toLowerCase().contains(queryLower)).length;
+
+      return {
+        'announcements': annCount,
+        'posts': postsCount,
+        'tasks': tasksCount,
+        'products': productsCount,
+      };
+    } catch (_) {
+      return {'announcements': 0, 'posts': 0, 'tasks': 0, 'products': 0};
+    }
   }
 
   Widget _buildHomeAnnouncementsSection(String queryLower, String? currentUserId) {
@@ -500,7 +890,8 @@ class _SearchScreenState extends State<SearchScreen> {
         final filtered = announcements.where((a) {
           final title = (a['title'] as String? ?? '').toLowerCase();
           final content = (a['content'] as String? ?? a['description'] as String? ?? '').toLowerCase();
-          return title.contains(queryLower) || content.contains(queryLower);
+          final postedBy = (a['postedBy'] as String? ?? '').toLowerCase();
+          return title.contains(queryLower) || content.contains(queryLower) || postedBy.contains(queryLower);
         }).toList();
 
         final visibleCount = _homeAnnouncementsDisplayCount.clamp(0, filtered.length);
@@ -511,9 +902,12 @@ class _SearchScreenState extends State<SearchScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _sectionHeader('Announcements'),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _sectionHeader('Announcements'),
+            ),
             ...filtered.take(visibleCount).map((a) => Padding(
-              padding: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: _announcementCardFromMap(a),
             )),
             if (showLoadMore)
@@ -539,7 +933,8 @@ class _SearchScreenState extends State<SearchScreen> {
         final posts = snapshot.data ?? [];
         final filtered = posts.where((p) =>
           p.title.toLowerCase().contains(queryLower) ||
-          p.content.toLowerCase().contains(queryLower)).toList();
+          p.content.toLowerCase().contains(queryLower) ||
+          p.userName.toLowerCase().contains(queryLower)).toList();
 
         final visibleCount = _homePostsDisplayCount.clamp(0, filtered.length);
         final showLoadMore = visibleCount < filtered.length;
@@ -581,7 +976,8 @@ class _SearchScreenState extends State<SearchScreen> {
             : nonCompleted;
         final filtered = feedTasks.where((t) =>
           t.title.toLowerCase().contains(queryLower) ||
-          t.description.toLowerCase().contains(queryLower)).toList();
+          t.description.toLowerCase().contains(queryLower) ||
+          t.requesterName.toLowerCase().contains(queryLower)).toList();
 
         final visibleCount = _homeTasksDisplayCount.clamp(0, filtered.length);
         final showLoadMore = visibleCount < filtered.length;
@@ -601,6 +997,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   description: task.description,
                   postedBy: task.requesterName,
                   date: task.createdAt,
+                  imageUrls: task.imageUrls,
                   status: _mapTaskStatus(task.status),
                   statusLabel: task.status.displayName,
                   volunteerName: task.assignedByName,
@@ -645,7 +1042,8 @@ class _SearchScreenState extends State<SearchScreen> {
             : products;
         final filtered = feedProducts.where((p) =>
           p.title.toLowerCase().contains(queryLower) ||
-          p.description.toLowerCase().contains(queryLower)).toList();
+          p.description.toLowerCase().contains(queryLower) ||
+          p.sellerName.toLowerCase().contains(queryLower)).toList();
 
         final visibleCount = _homeProductsDisplayCount.clamp(0, filtered.length);
         final showLoadMore = visibleCount < filtered.length;
@@ -752,6 +1150,8 @@ class _SearchScreenState extends State<SearchScreen> {
     final date = a['date'] as DateTime? ?? a['createdAt'] as DateTime? ?? DateTime.now();
     final category = a['category'] as String?;
     final viewCount = a['viewCount'] as int? ?? 0;
+    final imageUrlsRaw = a['imageUrls'] as List<dynamic>?;
+    final imageUrls = imageUrlsRaw?.whereType<String>().toList();
     return AnnouncementCard(
       title: title,
       description: description,
@@ -763,6 +1163,7 @@ class _SearchScreenState extends State<SearchScreen> {
       isRead: false,
       showTag: true,
       announcementId: id,
+      imageUrls: imageUrls?.isNotEmpty == true ? imageUrls : null,
       onMarkAsReadPressed: () {},
     );
   }
@@ -798,7 +1199,8 @@ class _SearchScreenState extends State<SearchScreen> {
             ? allPosts
             : allPosts.where((p) {
                 return p.title.toLowerCase().contains(queryLower) ||
-                    p.content.toLowerCase().contains(queryLower);
+                    p.content.toLowerCase().contains(queryLower) ||
+                    p.userName.toLowerCase().contains(queryLower);
               }).toList();
 
         if (filtered.isEmpty) {
@@ -875,7 +1277,8 @@ class _SearchScreenState extends State<SearchScreen> {
             ? feedProducts
             : feedProducts.where((p) {
                 return p.title.toLowerCase().contains(queryLower) ||
-                    p.description.toLowerCase().contains(queryLower);
+                    p.description.toLowerCase().contains(queryLower) ||
+                    p.sellerName.toLowerCase().contains(queryLower);
               }).toList();
 
         if (filtered.isEmpty) {
@@ -975,7 +1378,8 @@ class _SearchScreenState extends State<SearchScreen> {
             ? feedTasks
             : feedTasks.where((t) {
                 return t.title.toLowerCase().contains(queryLower) ||
-                    t.description.toLowerCase().contains(queryLower);
+                    t.description.toLowerCase().contains(queryLower) ||
+                    t.requesterName.toLowerCase().contains(queryLower);
               }).toList();
 
         if (filtered.isEmpty) {
@@ -1018,6 +1422,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   description: task.description,
                   postedBy: task.requesterName,
                   date: task.createdAt,
+                  imageUrls: task.imageUrls,
                   status: _mapTaskStatus(task.status),
                   statusLabel: task.status.displayName,
                   volunteerName: task.assignedByName,
@@ -1082,7 +1487,8 @@ class _SearchScreenState extends State<SearchScreen> {
             : all.where((a) {
                 final title = (a['title'] as String? ?? '').toLowerCase();
                 final content = (a['content'] as String? ?? a['description'] as String? ?? '').toLowerCase();
-                return title.contains(queryLower) || content.contains(queryLower);
+                final postedBy = (a['postedBy'] as String? ?? '').toLowerCase();
+                return title.contains(queryLower) || content.contains(queryLower) || postedBy.contains(queryLower);
               }).toList();
 
         if (filtered.isEmpty) {
@@ -1123,6 +1529,8 @@ class _SearchScreenState extends State<SearchScreen> {
               final date = a['date'] as DateTime? ?? a['createdAt'] as DateTime? ?? DateTime.now();
               final category = a['category'] as String?;
               final viewCount = a['viewCount'] as int? ?? 0;
+              final imageUrlsRaw = a['imageUrls'] as List<dynamic>?;
+              final imageUrls = imageUrlsRaw?.whereType<String>().toList();
               return Padding(
                 padding: EdgeInsets.only(
                   bottom: index < visibleCount - 1 ? 16 : 0,
@@ -1138,6 +1546,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   isRead: false,
                   showTag: true,
                   announcementId: id,
+                  imageUrls: imageUrls?.isNotEmpty == true ? imageUrls : null,
                   onMarkAsReadPressed: () {},
                 ),
               );
@@ -1321,6 +1730,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 description: task.description,
                 postedBy: task.requesterName,
                 date: task.createdAt,
+                imageUrls: task.imageUrls,
                 status: _mapTaskStatus(task.status),
                 statusLabel: task.status.displayName,
                 volunteerName: task.assignedByName,

@@ -54,7 +54,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         _loading = false;
         _error = p == null ? 'Post not found' : null;
       });
-      // Do NOT mark comments as read here; mark only when user opens the comment sheet (see PostCard._handleComment).
+      // Mark comments as read when post owner opens the post so the red indicator clears.
+      final uid = FirestoreService.auth.currentUser?.uid;
+      if (uid != null && p != null && p.userId == uid) {
+        PostsService.markPostCommentsAsRead(widget.postId, uid);
+      }
     } catch (e) {
       if (mounted) {
         setState(() {

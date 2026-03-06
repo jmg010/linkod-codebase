@@ -4,7 +4,6 @@ import '../models/product_model.dart';
 import '../widgets/product_card.dart';
 import '../services/products_service.dart';
 import '../services/firestore_service.dart';
-import '../services/notifications_service.dart';
 import 'product_detail_screen.dart';
 import 'sell_product_screen.dart';
 import 'my_products_screen.dart';
@@ -27,6 +26,8 @@ class MarketplaceScreenState extends State<MarketplaceScreen> {
   int _displayCount = _initialPageSize;
   int _totalProductCount = 0;
   final ScrollController _scrollController = ScrollController();
+  String? _cachedMarketplaceBadgeUid;
+  Stream<int>? _cachedMarketplaceBadgeStream;
 
   void addProduct(ProductModel product) {
     // Product will be added to Firestore and stream will update automatically
@@ -198,12 +199,23 @@ class MarketplaceScreenState extends State<MarketplaceScreen> {
                     },
                   ),
                   const SizedBox(width: 12),
-                  _MyProductButtonWithUnreadDot(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => MyProductsScreen(),
-                        ),
+                  Builder(
+                    builder: (context) {
+                      final uid = FirestoreService.currentUserId;
+                      if (uid != null && _cachedMarketplaceBadgeUid != uid) {
+                        _cachedMarketplaceBadgeUid = uid;
+                        // Use combined stream for both seller products and interacted posts
+                        _cachedMarketplaceBadgeStream = ProductsService.getTotalProductActivityUnreadStream(uid);
+                      }
+                      return _MyProductButtonWithUnreadDot(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => MyProductsScreen(),
+                            ),
+                          );
+                        },
+                        unreadCountStream: uid != null ? _cachedMarketplaceBadgeStream : null,
                       );
                     },
                   ),
@@ -405,14 +417,17 @@ class MarketplaceScreenState extends State<MarketplaceScreen> {
 }
 
 class _MyProductButtonWithUnreadDot extends StatelessWidget {
-  const _MyProductButtonWithUnreadDot({required this.onPressed});
+  const _MyProductButtonWithUnreadDot({
+    required this.onPressed,
+    this.unreadCountStream,
+  });
 
   final VoidCallback onPressed;
+  final Stream<int>? unreadCountStream;
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirestoreService.currentUserId;
-    if (uid == null) {
+    if (unreadCountStream == null) {
       return _SecondaryPillButton(
         label: 'My product',
         icon: Icons.inventory_2_outlined,
@@ -421,10 +436,11 @@ class _MyProductButtonWithUnreadDot extends StatelessWidget {
     }
 
     return StreamBuilder<int>(
-      stream: NotificationsService.getUnreadBadgeStream(uid),
+      stream: unreadCountStream,
       initialData: 0,
       builder: (context, snap) {
-        final showDot = (snap.data ?? 0) > 0;
+        final count = snap.data ?? 0;
+        final showBadge = count > 0;
         return Stack(
           clipBehavior: Clip.none,
           children: [
@@ -433,16 +449,29 @@ class _MyProductButtonWithUnreadDot extends StatelessWidget {
               icon: Icons.inventory_2_outlined,
               onPressed: onPressed,
             ),
-            if (showDot)
+            if (showBadge)
               Positioned(
-                right: 4,
-                top: 2,
+                right: 0,
+                top: -2,
                 child: Container(
-                  width: 10,
-                  height: 10,
-                  decoration: const BoxDecoration(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  decoration: BoxDecoration(
                     color: Colors.red,
-                    shape: BoxShape.circle,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 18,
+                    minHeight: 18,
+                  ),
+                  child: Center(
+                    child: Text(
+                      count > 99 ? '99+' : count.toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
               ),

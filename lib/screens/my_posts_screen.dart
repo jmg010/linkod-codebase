@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/task_model.dart';
 import '../services/tasks_service.dart';
 import '../services/task_chat_service.dart';
 import '../services/firestore_service.dart';
 import '../widgets/errand_job_card.dart';
 import 'task_edit_screen.dart';
+import 'task_detail_screen.dart';
 import 'search_screen.dart';
 
 class MyPostsScreen extends StatefulWidget {
@@ -15,56 +15,26 @@ class MyPostsScreen extends StatefulWidget {
   State<MyPostsScreen> createState() => _MyPostsScreenState();
 }
 
-class _MyPostsScreenState extends State<MyPostsScreen> {
-  String? _currentUserName;
-  bool _isLoadingUser = true;
+class _MyPostsScreenState extends State<MyPostsScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _loadCurrentUser();
+    _tabController = TabController(length: 2, vsync: this);
   }
 
-  Future<void> _loadCurrentUser() async {
-    final currentUser = FirestoreService.auth.currentUser;
-    if (currentUser == null) {
-      setState(() {
-        _isLoadingUser = false;
-      });
-      return;
-    }
-
-    try {
-      final userDoc = await FirestoreService.instance
-          .collection('users')
-          .doc(currentUser.uid)
-          .get();
-      
-      if (userDoc.exists) {
-        final data = userDoc.data();
-        setState(() {
-          _currentUserName = data?['fullName'] as String? ?? 'User';
-          _isLoadingUser = false;
-        });
-      } else {
-        setState(() {
-          _currentUserName = 'User';
-          _isLoadingUser = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading user: $e');
-      setState(() {
-        _currentUserName = 'User';
-        _isLoadingUser = false;
-      });
-    }
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final currentUserId = FirestoreService.currentUserId;
-    
+
     if (currentUserId == null) {
       return Scaffold(
         backgroundColor: const Color(0xFFF4F4F4),
@@ -82,15 +52,6 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
               ],
             ),
           ),
-        ),
-      );
-    }
-
-    if (_isLoadingUser) {
-      return Scaffold(
-        backgroundColor: const Color(0xFFF4F4F4),
-        body: const SafeArea(
-          child: Center(child: CircularProgressIndicator()),
         ),
       );
     }
@@ -115,7 +76,7 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
                   const SizedBox(width: 8),
                   const Expanded(
                     child: Text(
-                      'My post',
+                      'Post Activity',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
@@ -139,140 +100,24 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
                 ],
               ),
             ),
-            // Posts list
+            // Tab Bar with badge support
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: _TabBarWithBadge(
+                tabController: _tabController,
+                userId: currentUserId,
+              ),
+            ),
+            // Tab Content
             Expanded(
-              child: StreamBuilder<List<TaskModel>>(
-                stream: TasksService.getRequesterTasksStream(currentUserId),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (snapshot.hasError) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Error: ${snapshot.error}',
-                            style: const TextStyle(fontSize: 16, color: Colors.grey),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-                  final tasks = snapshot.data ?? [];
-                  if (tasks.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.task_alt, size: 62, color: Colors.grey.shade400),
-                          const SizedBox(height: 12),
-                          Text(
-                            'No posts yet',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-                  return ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                    physics: const ClampingScrollPhysics(),
-                    itemCount: tasks.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 16),
-                    itemBuilder: (context, index) {
-                      final task = tasks[index];
-                      final status = _mapStatus(task.status);
-                      return StreamBuilder<List<Map<String, dynamic>>>(
-                        stream: TasksService.getVolunteersStream(task.id),
-                        builder: (context, volSnap) {
-                          if (volSnap.hasError) {
-                            return _MyPostCard(
-                              title: task.title,
-                              description: task.description,
-                              postedBy: task.requesterName,
-                              date: task.createdAt,
-                              status: status,
-                              statusLabel: task.status.displayName,
-                              volunteerName: task.assignedByName,
-                              hasNotification: false,
-                              onViewPressed: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => TaskEditScreen(
-                                      task: task,
-                                      contactNumber: task.contactNumber ?? '',
-                                    ),
-                                  ),
-                                );
-                              },
-                            );
-                          }
-                          final volunteers = volSnap.data ?? [];
-                          final pendingCount = volunteers
-                              .where((v) => (v['status'] as String? ?? 'pending') == 'pending')
-                              .length;
-                          if (currentUserId == null) {
-                            return _MyPostCard(
-                              title: task.title,
-                              description: task.description,
-                              postedBy: task.requesterName,
-                              date: task.createdAt,
-                              status: status,
-                              statusLabel: task.status.displayName,
-                              volunteerName: task.assignedByName,
-                              hasNotification: pendingCount > 0,
-                              onViewPressed: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => TaskEditScreen(
-                                      task: task,
-                                      contactNumber: task.contactNumber ?? '',
-                                    ),
-                                  ),
-                                );
-                              },
-                            );
-                          }
-                          return StreamBuilder<int>(
-                            stream: TaskChatService.getUnreadCountStream(task.id, currentUserId!),
-                            initialData: 0,
-                            builder: (context, chatSnap) {
-                              final unreadChat = chatSnap.data ?? 0;
-                              final hasNotification = pendingCount > 0 || unreadChat > 0;
-                              return _MyPostCard(
-                                title: task.title,
-                                description: task.description,
-                                postedBy: task.requesterName,
-                                date: task.createdAt,
-                                status: status,
-                                statusLabel: task.status.displayName,
-                                volunteerName: task.assignedByName,
-                                hasNotification: hasNotification,
-                                onViewPressed: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => TaskEditScreen(
-                                        task: task,
-                                        contactNumber: task.contactNumber ?? '',
-                                      ),
-                                    ),
-                                  );
-                                },
-                              );
-                            },
-                          );
-                        },
-                      );
-                    },
-                  );
-                },
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  // Tab 1: MY POSTS
+                  _MyPostsTab(userId: currentUserId),
+                  // Tab 2: INTERACTED POSTS (Activity Log)
+                  _InteractedPostsTab(userId: currentUserId),
+                ],
               ),
             ),
           ],
@@ -280,6 +125,152 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
       ),
     );
   }
+}
+
+/// Tab bar with number badges on both tabs
+class _TabBarWithBadge extends StatelessWidget {
+  final TabController tabController;
+  final String userId;
+
+  const _TabBarWithBadge({
+    required this.tabController,
+    required this.userId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<int>(
+      stream: TaskChatService.getTotalUnreadForRequesterStream(userId),
+      initialData: 0,
+      builder: (context, requesterSnapshot) {
+        return StreamBuilder<int>(
+          stream: TaskChatService.getTotalUnreadForAssignedStream(userId),
+          initialData: 0,
+          builder: (context, assignedSnapshot) {
+            final myPostsUnread = requesterSnapshot.data ?? 0;
+            final interactedUnread = assignedSnapshot.data ?? 0;
+
+            return Container(
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: AnimatedBuilder(
+                animation: tabController,
+                builder: (context, child) {
+                  return Row(
+                    children: [
+                      // MY POSTS Tab with badge
+                      Expanded(
+                        child: _TabButton(
+                          label: 'MY POSTS',
+                          isSelected: tabController.index == 0,
+                          badgeCount: myPostsUnread > 0 ? myPostsUnread : null,
+                          onTap: () => tabController.animateTo(0),
+                        ),
+                      ),
+                      // INTERACTED POSTS Tab with badge
+                      Expanded(
+                        child: _TabButton(
+                          label: 'INTERACTED POSTS',
+                          isSelected: tabController.index == 1,
+                          badgeCount: interactedUnread > 0 ? interactedUnread : null,
+                          onTap: () => tabController.animateTo(1),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+/// Individual tab button with optional badge
+class _TabButton extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final int? badgeCount;
+  final VoidCallback onTap;
+
+  const _TabButton({
+    required this.label,
+    required this.isSelected,
+    this.badgeCount,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                color: isSelected ? const Color(0xFF20BF6B) : Colors.grey.shade600,
+              ),
+            ),
+            if (badgeCount != null && badgeCount! > 0) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                constraints: const BoxConstraints(
+                  minWidth: 18,
+                  minHeight: 18,
+                ),
+                child: Center(
+                  child: Text(
+                    badgeCount! > 99 ? '99+' : badgeCount.toString(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Tab 1: MY POSTS (existing functionality)
+class _MyPostsTab extends StatelessWidget {
+  final String userId;
+
+  const _MyPostsTab({required this.userId});
 
   ErrandJobStatus? _mapStatus(TaskStatus status) {
     switch (status) {
@@ -291,6 +282,197 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
         return ErrandJobStatus.completed;
     }
   }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<TaskModel>>(
+      stream: TasksService.getRequesterTasksStream(userId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                const SizedBox(height: 16),
+                Text(
+                  'Error: ${snapshot.error}',
+                  style: const TextStyle(fontSize: 16, color: Colors.grey),
+                ),
+              ],
+            ),
+          );
+        }
+        final tasks = snapshot.data ?? [];
+        if (tasks.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.task_alt, size: 62, color: Colors.grey.shade400),
+                const SizedBox(height: 12),
+                Text(
+                  'No posts yet',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+        return ListView.separated(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+          physics: const ClampingScrollPhysics(),
+          itemCount: tasks.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 16),
+          itemBuilder: (context, index) {
+            final task = tasks[index];
+            final status = _mapStatus(task.status);
+            final pendingCount = task.pendingVolunteersCount;
+            return StreamBuilder<int>(
+              stream: TaskChatService.getUnreadCountStream(task.id, userId),
+              initialData: 0,
+              builder: (context, chatSnap) {
+                final unreadChat = chatSnap.data ?? 0;
+                final totalUnread = pendingCount + unreadChat;
+                return _MyPostCard(
+                  title: task.title,
+                  description: task.description,
+                  postedBy: task.requesterName,
+                  date: task.createdAt,
+                  status: status,
+                  statusLabel: task.status.displayName,
+                  volunteerName: task.assignedByName,
+                  unreadCount: totalUnread,
+                  onViewPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => TaskEditScreen(
+                          task: task,
+                          contactNumber: task.contactNumber ?? '',
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+/// Tab 2: INTERACTED POSTS (Activity Log)
+class _InteractedPostsTab extends StatelessWidget {
+  final String userId;
+
+  const _InteractedPostsTab({required this.userId});
+
+  ErrandJobStatus? _mapStatus(TaskStatus status) {
+    switch (status) {
+      case TaskStatus.open:
+        return ErrandJobStatus.open;
+      case TaskStatus.ongoing:
+        return ErrandJobStatus.ongoing;
+      case TaskStatus.completed:
+        return ErrandJobStatus.completed;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<MapEntry<TaskModel, int>>>(
+      stream: TasksService.getUserInteractedTasksStream(userId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                const SizedBox(height: 16),
+                Text(
+                  'Error: ${snapshot.error}',
+                  style: const TextStyle(fontSize: 16, color: Colors.grey),
+                ),
+              ],
+            ),
+          );
+        }
+        final list = snapshot.data ?? [];
+        if (list.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.history_outlined,
+                    size: 60, color: Colors.grey.shade400),
+                const SizedBox(height: 12),
+                Text(
+                  'No interacted posts yet',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Posts you volunteer for will appear here',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade500,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+        return ListView.separated(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+          physics: const ClampingScrollPhysics(),
+          itemCount: list.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 16),
+          itemBuilder: (context, index) {
+            final entry = list[index];
+            final task = entry.key;
+            final unreadCount = entry.value;
+            final status = _mapStatus(task.status);
+            return _InteractedPostCard(
+              title: task.title,
+              description: task.description,
+              postedBy: task.requesterName,
+              date: task.createdAt,
+              status: status,
+              statusLabel: task.status.displayName,
+              unreadCount: unreadCount,
+              onViewPressed: () {
+                // Mark chat as read when opening
+                TaskChatService.markChatRead(task.id, userId);
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => TaskDetailScreen(
+                      task: task,
+                      contactNumber: task.contactNumber ?? '',
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
 }
 
 class _MyPostCard extends StatelessWidget {
@@ -301,7 +483,7 @@ class _MyPostCard extends StatelessWidget {
   final ErrandJobStatus? status;
   final String? statusLabel;
   final String? volunteerName;
-  final bool hasNotification;
+  final int unreadCount;
   final VoidCallback? onViewPressed;
 
   const _MyPostCard({
@@ -312,37 +494,34 @@ class _MyPostCard extends StatelessWidget {
     this.status,
     this.statusLabel,
     this.volunteerName,
-    this.hasNotification = false,
+    this.unreadCount = 0,
     this.onViewPressed,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          margin: EdgeInsets.zero,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
+    return Container(
+      margin: EdgeInsets.zero,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Date and status in top right (for Ongoing/Completed) or just date (for Open)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                // Date and status in top right (for Ongoing/Completed) or just date (for Open)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
                 Text(
                   _formatDate(date),
                   style: const TextStyle(
@@ -412,21 +591,8 @@ class _MyPostCard extends StatelessWidget {
             if (volunteerName != null)
               SizedBox(
                 width: double.infinity,
-                child: OutlinedButton.icon(
+                child: OutlinedButton(
                   onPressed: onViewPressed,
-                  icon: const Icon(
-                    Icons.edit_outlined,
-                    size: 16,
-                    color: Color(0xFF4C4C4C),
-                  ),
-                  label: const Text(
-                    'Edit',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF4C4C4C),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     shape: RoundedRectangleBorder(
@@ -434,6 +600,56 @@ class _MyPostCard extends StatelessWidget {
                     ),
                     side: const BorderSide(color: Color(0xFFD0D0D0)),
                     backgroundColor: Colors.white,
+                  ),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.edit_outlined,
+                            size: 16,
+                            color: Color(0xFF4C4C4C),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Edit',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Color(0xFF4C4C4C),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (unreadCount > 0)
+                        Positioned(
+                          right: -12,
+                          top: -4,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 16,
+                              minHeight: 16,
+                            ),
+                            child: Center(
+                              child: Text(
+                                unreadCount > 99 ? '99+' : unreadCount.toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               )
@@ -441,20 +657,8 @@ class _MyPostCard extends StatelessWidget {
               // View button for open posts (white with gray border)
               SizedBox(
                 width: double.infinity,
-                child: OutlinedButton.icon(
+                child: OutlinedButton(
                   onPressed: onViewPressed,
-                  icon: const Icon(
-                    Icons.visibility_outlined,
-                    size: 16,
-                    color: Color(0xFF4C4C4C),
-                  ),
-                  label: const Text(
-                    'View',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF4C4C4C),
-                    ),
-                  ),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     shape: RoundedRectangleBorder(
@@ -463,26 +667,307 @@ class _MyPostCard extends StatelessWidget {
                     side: const BorderSide(color: Color(0xFFD0D0D0)),
                     backgroundColor: Colors.white,
                   ),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.visibility_outlined,
+                            size: 16,
+                            color: Color(0xFF4C4C4C),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'View',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Color(0xFF4C4C4C),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (unreadCount > 0)
+                        Positioned(
+                          right: -12,
+                          top: -4,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 16,
+                              minHeight: 16,
+                            ),
+                            child: Center(
+                              child: Text(
+                                unreadCount > 99 ? '99+' : unreadCount.toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
           ],
         ),
       ),
-    ),
-        if (hasNotification)
-          Positioned(
-            right: 12,
-            top: 12,
-            child: Container(
-              width: 10,
-              height: 10,
-              decoration: const BoxDecoration(
-                color: Colors.red,
-                shape: BoxShape.circle,
+    );
+  }
+
+  Widget _buildStatusPill(ErrandJobStatus status, String? label) {
+    late Color bgColor;
+    late Color textColor;
+    final raw = (label ?? status.name);
+    final displayText =
+        raw.isEmpty ? raw : '${raw[0].toUpperCase()}${raw.substring(1)}';
+
+    switch (status) {
+      case ErrandJobStatus.open:
+        bgColor = const Color(0xFFE3F2FD);
+        textColor = const Color(0xFF1976D2);
+        break;
+      case ErrandJobStatus.ongoing:
+        bgColor = const Color(0xFFFFF3E0);
+        textColor = const Color(0xFFF57C00);
+        break;
+      case ErrandJobStatus.completed:
+        bgColor = const Color(0xFFE8F5E9);
+        textColor = const Color(0xFF388E3C);
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Text(
+        displayText,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: textColor,
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    final month = _monthName(date.month);
+    final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
+    final minute = date.minute.toString().padLeft(2, '0');
+    final period = date.hour >= 12 ? 'PM' : 'AM';
+    return '$month ${date.day} at $hour:$minute $period';
+  }
+
+  String _monthName(int month) {
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December'
+    ];
+    return months[month - 1];
+  }
+}
+
+/// Card for INTERACTED POSTS tab
+class _InteractedPostCard extends StatelessWidget {
+  final String title;
+  final String description;
+  final String postedBy;
+  final DateTime date;
+  final ErrandJobStatus? status;
+  final String? statusLabel;
+  final int unreadCount;
+  final VoidCallback? onViewPressed;
+
+  const _InteractedPostCard({
+    required this.title,
+    required this.description,
+    required this.postedBy,
+    required this.date,
+    this.status,
+    this.statusLabel,
+    this.unreadCount = 0,
+    this.onViewPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: EdgeInsets.zero,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Date and status in top right
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text(
+                  _formatDate(date),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF6E6E6E),
+                  ),
+                ),
+                if (status != null && status != ErrandJobStatus.open) ...[
+                  const SizedBox(width: 8),
+                  _buildStatusPill(status!, statusLabel),
+                ],
+              ],
+            ),
+            const SizedBox(height: 10),
+            // Title and status tag in same row (for Open status)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black87,
+                      height: 1.25,
+                    ),
+                  ),
+                ),
+                if (status == ErrandJobStatus.open) ...[
+                  const SizedBox(width: 8),
+                  _buildStatusPill(status!, statusLabel),
+                ],
+              ],
+            ),
+            const SizedBox(height: 8),
+            // Posted by
+            Row(
+              children: [
+                const Icon(
+                  Icons.person_outline,
+                  size: 14,
+                  color: Color(0xFF6E6E6E),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Posted by: $postedBy',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    color: Color(0xFF6E6E6E),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            // Description
+            Text(
+              description,
+              style: const TextStyle(
+                fontSize: 13.5,
+                color: Color(0xFF4C4C4C),
+                height: 1.4,
               ),
             ),
-          ),
-      ],
+            const SizedBox(height: 14),
+            // View button with badge inside
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: onViewPressed,
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(26),
+                  ),
+                  side: const BorderSide(color: Color(0xFFD0D0D0)),
+                  backgroundColor: Colors.white,
+                ),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.visibility_outlined,
+                          size: 16,
+                          color: Color(0xFF4C4C4C),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'View',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF4C4C4C),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (unreadCount > 0)
+                      Positioned(
+                        right: -12,
+                        top: -4,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 16,
+                            minHeight: 16,
+                          ),
+                          child: Center(
+                            child: Text(
+                              unreadCount > 99 ? '99+' : unreadCount.toString(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

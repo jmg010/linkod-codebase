@@ -9,6 +9,7 @@ import '../screens/login_screen.dart';
 import '../screens/post_detail_screen.dart';
 import '../screens/product_detail_screen.dart';
 import '../screens/task_detail_screen.dart';
+import '../screens/task_edit_screen.dart';
 import 'firestore_service.dart';
 
 /// Handles incoming FCM messages: shows a notification when in foreground and
@@ -76,17 +77,47 @@ class PushNotificationHandler {
       _navigateToLoginClearStack();
       return;
     }
+    if (payload.startsWith('product_approved:')) {
+      final id = payload.substring('product_approved:'.length);
+      if (id.isNotEmpty) {
+        PushNotificationHandler.handleNotificationNavigation(
+          _navigatorKey,
+          {'type': 'product_approved', 'productId': id},
+        );
+      }
+      return;
+    }
+    if (payload.startsWith('task_approved:')) {
+      final id = payload.substring('task_approved:'.length);
+      if (id.isNotEmpty) {
+        PushNotificationHandler.handleNotificationNavigation(
+          _navigatorKey,
+          {'type': 'task_approved', 'taskId': id},
+        );
+      }
+      return;
+    }
 
-    // Payload format: "announcement:abc123" or "post:xyz789"
+    // Payload format: "announcement:abc123" or "post:postId" or "post:postId:commentId"
     if (payload.startsWith('announcement:')) {
       final id = payload.substring('announcement:'.length);
       if (id.isNotEmpty) {
         _pushAnnouncementDetail(id);
       }
     } else if (payload.startsWith('post:')) {
-      final id = payload.substring('post:'.length);
+      final rest = payload.substring('post:'.length);
+      final parts = rest.split(':');
+      final id = parts.isNotEmpty ? parts[0] : '';
+      final commentIdPart = parts.length >= 2 ? parts[1] : null;
       if (id.isNotEmpty) {
-        _pushPostDetail(id);
+        if (commentIdPart != null && commentIdPart.isNotEmpty) {
+          PushNotificationHandler.handleNotificationNavigation(
+            _navigatorKey,
+            {'type': 'comment', 'postId': id, 'commentId': commentIdPart},
+          );
+        } else {
+          _pushPostDetail(id);
+        }
       }
     } else {
       // Fallback: try as announcementId (for backward compatibility)
@@ -117,8 +148,49 @@ class PushNotificationHandler {
       return;
     }
 
+    final productId = message.data['productId'] as String?;
+    final taskId = message.data['taskId'] as String?;
+    if (type == 'product_approved' &&
+        productId != null &&
+        productId.isNotEmpty) {
+      _localNotifications.show(
+        message.hashCode % 0x7FFFFFFF,
+        message.notification?.title ?? 'Listing approved',
+        message.notification?.body ??
+            'Your marketplace listing was approved.',
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            _channel.id,
+            _channel.name,
+            channelDescription: _channel.description,
+          ),
+          iOS: const DarwinNotificationDetails(),
+        ),
+        payload: 'product_approved:$productId',
+      );
+      return;
+    }
+    if (type == 'task_approved' && taskId != null && taskId.isNotEmpty) {
+      _localNotifications.show(
+        message.hashCode % 0x7FFFFFFF,
+        message.notification?.title ?? 'Errand approved',
+        message.notification?.body ?? 'Your errand was approved.',
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            _channel.id,
+            _channel.name,
+            channelDescription: _channel.description,
+          ),
+          iOS: const DarwinNotificationDetails(),
+        ),
+        payload: 'task_approved:$taskId',
+      );
+      return;
+    }
+
     final announcementId = message.data['announcementId'] as String?;
     final postId = message.data['postId'] as String?;
+    final commentId = message.data['commentId'] as String?;
     String? payload;
     String? contentType;
 
@@ -126,7 +198,10 @@ class PushNotificationHandler {
       payload = 'announcement:$announcementId';
       contentType = 'announcement';
     } else if (postId != null && postId.isNotEmpty) {
-      payload = 'post:$postId';
+      // Include commentId when present so tap opens post with comments
+      payload = (commentId != null && commentId.isNotEmpty)
+          ? 'post:$postId:$commentId'
+          : 'post:$postId';
       contentType = 'post';
     }
 
@@ -158,12 +233,27 @@ class PushNotificationHandler {
       _navigateToLoginClearStack();
       return;
     }
+    final type = message.data['type'] as String?;
+    if (type == 'product_approved' || type == 'task_approved') {
+      final context = _navigatorKey.currentContext;
+      if (context != null) {
+        PushNotificationHandler.handleNotificationNavigation(
+          _navigatorKey,
+          Map<String, dynamic>.from(message.data),
+        );
+      }
+      return;
+    }
     final announcementId = message.data['announcementId'] as String?;
     final postId = message.data['postId'] as String?;
     if (announcementId != null && announcementId.isNotEmpty) {
       _pushAnnouncementDetail(announcementId);
     } else if (postId != null && postId.isNotEmpty) {
-      _pushPostDetail(postId);
+      // Use handleNotificationNavigation so like/comment open the specific post (and comments if type is comment)
+      PushNotificationHandler.handleNotificationNavigation(
+        _navigatorKey,
+        Map<String, dynamic>.from(message.data),
+      );
     }
   }
 
@@ -234,12 +324,24 @@ class PushNotificationHandler {
             await FirestoreService.instance.collection('tasks').doc(taskId).get();
         if (snap.exists) {
           final task = TaskModel.fromFirestore(snap);
+          final currentUid = FirestoreService.auth.currentUser?.uid;
+          final isOwner = currentUid != null && currentUid == task.requesterId;
           Navigator.of(context).push(
             MaterialPageRoute<void>(
-              builder: (_) => TaskDetailScreen(
-                task: task,
-                contactNumber: task.contactNumber,
-              ),
+              builder: (_) {
+                // If the requester is tapping a "someone volunteered" notification,
+                // deep-link to the owner management screen (accept/reject + messaging).
+                if (isOwner && type == 'task_volunteer') {
+                  return TaskEditScreen(
+                    task: task,
+                    contactNumber: task.contactNumber,
+                  );
+                }
+                return TaskDetailScreen(
+                  task: task,
+                  contactNumber: task.contactNumber,
+                );
+              },
             ),
           );
         }
@@ -255,9 +357,13 @@ class PushNotificationHandler {
             .get();
         if (snap.exists) {
           final product = ProductModel.fromFirestore(snap);
+          final String? notificationId = _str(data['notificationId']);
           Navigator.of(context).push(
             MaterialPageRoute<void>(
-              builder: (_) => ProductDetailScreen(product: product),
+              builder: (_) => ProductDetailScreen(
+                product: product,
+                notificationId: notificationId,
+              ),
             ),
           );
         }
@@ -309,6 +415,15 @@ class PushNotificationHandler {
       return;
     }
 
+    final type = message.data['type'] as String?;
+    if (type == 'product_approved' || type == 'task_approved') {
+      await PushNotificationHandler.handleNotificationNavigation(
+        navigatorKey,
+        Map<String, dynamic>.from(message.data),
+      );
+      return;
+    }
+
     final announcementId = message.data['announcementId'] as String?;
     final postId = message.data['postId'] as String?;
     if (announcementId != null && announcementId.isNotEmpty) {
@@ -318,10 +433,10 @@ class PushNotificationHandler {
         ),
       );
     } else if (postId != null && postId.isNotEmpty) {
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => PostDetailScreen(postId: postId),
-        ),
+      // Redirect to that specific post (and open comments if type is comment/like)
+      await PushNotificationHandler.handleNotificationNavigation(
+        navigatorKey,
+        Map<String, dynamic>.from(message.data),
       );
     }
   }

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/user_role.dart';
 import '../services/fcm_token_service.dart';
@@ -23,6 +24,46 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool obscurePassword = true;
   bool isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLastLoginData();
+  }
+
+  /// Load last successful login credentials for auto-fill.
+  /// Falls back to last registered values if no prior login exists on device.
+  Future<void> _loadLastLoginData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final phone = prefs.getString('last_login_phone') ??
+          prefs.getString('last_registered_phone');
+      final password = prefs.getString('last_login_password') ??
+          prefs.getString('last_registered_password');
+      
+      if (phone != null && password != null) {
+        setState(() {
+          phoneController.text = phone;
+          passwordController.text = password;
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to load registration data: $e');
+    }
+  }
+
+  Future<void> _saveLastLoginData({
+    required String phone,
+    required String password,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('last_login_phone', phone);
+      await prefs.setString('last_login_password', password);
+    } catch (e) {
+      debugPrint('Failed to save last login data: $e');
+    }
+  }
 
   @override
   void dispose() {
@@ -134,6 +175,9 @@ class _LoginScreenState extends State<LoginScreen> {
       // Register FCM token for this device so backend can send push notifications.
       unawaited(FcmTokenService.instance.registerCurrentTokenForUser(user.uid));
 
+      // Save last successful login for next app launch auto-fill.
+      unawaited(_saveLastLoginData(phone: phone, password: password));
+
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (context) => HomeScreen(userRole: role),
@@ -165,23 +209,86 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  /// Shows a dialog when the resident has no users doc or status is pending (admin/kapitan has not approved yet).
+  /// Shows a floating popup notification when the resident has no users doc or status is pending (admin/kapitan has not approved yet).
   void _showPendingApprovalDialog(BuildContext context) {
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Account pending approval'),
-        content: const Text(
-          'Your account is still not approved. It needs to be reviewed by the admin or kapitan first. '
-          'You will be able to sign in once your account has been approved.',
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('OK'),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
           ),
-        ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Yellow punctuation mark icon
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF7B500),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.priority_high,
+                  size: 50,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Account Pending heading
+              const Text(
+                'Account Pending Approval',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Message
+              const Text(
+                'Your account is still not approved. It needs to be reviewed by the admin or kapitan first. '
+                'You will be able to sign in once your account has been approved.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF4C4C4C),
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 24),
+              // Ok button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00A651),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text(
+                    'OK',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

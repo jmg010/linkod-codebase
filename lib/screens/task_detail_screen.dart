@@ -4,6 +4,7 @@ import '../models/task_model.dart';
 import '../services/tasks_service.dart';
 import '../services/firestore_service.dart';
 import '../services/task_chat_service.dart';
+import '../widgets/optimized_image.dart';
 import 'task_edit_screen.dart';
 import 'task_chat_screen.dart';
 
@@ -26,6 +27,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   bool _isCancelling = false;
   bool _isOwner = false;
   bool _isEditingConfirmedVolunteer = false;
+  final PageController _imagePageController = PageController();
+  int _imagePageIndex = 0;
 
   @override
   void initState() {
@@ -33,6 +36,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     final uid = FirestoreService.auth.currentUser?.uid;
     _isOwner = uid != null && uid == widget.task.requesterId;
     // Do NOT mark chat read here; mark only when user opens TaskChatScreen.
+  }
+
+  @override
+  void dispose() {
+    _imagePageController.dispose();
+    super.dispose();
   }
 
   Future<void> _confirmRemoveAcceptedVolunteer(String volunteerDocId, String volunteerName) async {
@@ -136,6 +145,22 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     }
   }
 
+  void _openChatWithVolunteer(String volunteerId, String volunteerName) {
+    final currentUser = FirestoreService.auth.currentUser;
+    if (currentUser == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TaskChatScreen(
+          taskId: widget.task.id,
+          taskTitle: widget.task.title,
+          otherPartyName: volunteerName,
+          otherPartyId: volunteerId,
+          currentUserId: currentUser.uid,
+        ),
+      ),
+    );
+  }
+
   void _openTaskChat() {
     final currentUser = FirestoreService.auth.currentUser;
     if (currentUser == null) return;
@@ -204,6 +229,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (widget.task.imageUrls.isNotEmpty) ...[
+            _buildImageSection(),
+            const SizedBox(height: 16),
+          ],
           // Title
           Text(
             widget.task.title,
@@ -256,46 +285,87 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
-  Widget _buildActionButton() {
-    final currentUser = FirestoreService.auth.currentUser;
-    if (_isOwner) {
-      return SizedBox(
-        width: double.infinity,
-        child: OutlinedButton.icon(
-          onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => TaskEditScreen(
-                  task: widget.task,
-                  contactNumber: widget.contactNumber,
-                ),
-              ),
-            );
-          },
-          icon: const Icon(
-            Icons.edit_outlined,
-            size: 18,
-            color: Color(0xFF4C4C4C),
-          ),
-          label: const Text(
-            'Edit',
-            style: TextStyle(
-              fontSize: 14,
-              color: Color(0xFF4C4C4C),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            minimumSize: const Size(0, 48),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-            side: BorderSide(color: Colors.grey.shade300, width: 1),
-            backgroundColor: Colors.white,
+  Widget _buildImageSection() {
+    final urls = widget.task.imageUrls;
+    if (urls.isEmpty) return const SizedBox.shrink();
+    if (urls.length == 1) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: SizedBox(
+          height: 190,
+          width: double.infinity,
+          child: OptimizedNetworkImage(
+            imageUrl: urls.first,
+            height: 190,
+            fit: BoxFit.cover,
+            cacheWidth: 400,
+            cacheHeight: 380,
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => openFullScreenImages(context, urls, initialIndex: 0),
           ),
         ),
       );
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: SizedBox(
+        height: 190,
+        width: double.infinity,
+        child: Stack(
+          children: [
+            PageView.builder(
+              controller: _imagePageController,
+              itemCount: urls.length,
+              onPageChanged: (i) => setState(() => _imagePageIndex = i),
+              itemBuilder: (context, index) {
+                return GestureDetector(
+                  onTap: () => openFullScreenImages(context, urls, initialIndex: index),
+                  child: OptimizedNetworkImage(
+                    imageUrl: urls[index],
+                    height: 190,
+                    fit: BoxFit.cover,
+                    cacheWidth: 400,
+                    cacheHeight: 380,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                );
+              },
+            ),
+            if (urls.length > 1)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 8,
+                child: Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: List.generate(
+                      urls.length,
+                      (i) => Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 3),
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _imagePageIndex == i
+                              ? const Color(0xFF20BF6B)
+                              : Colors.grey.shade400,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton() {
+    final currentUser = FirestoreService.auth.currentUser;
+    if (_isOwner) {
+      return const SizedBox.shrink();
     }
     if (currentUser == null) return const SizedBox.shrink();
     return StreamBuilder<Map<String, dynamic>?>(
@@ -664,6 +734,37 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               tooltip: 'Remove volunteer',
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+            ),
+          if (_isOwner && !_isEditingConfirmedVolunteer && status == 'accepted' && volunteerId != null && volunteerId.isNotEmpty)
+            StreamBuilder<int>(
+              stream: TaskChatService.getUnreadCountStream(widget.task.id, FirestoreService.auth.currentUser?.uid ?? ''),
+              builder: (context, unreadSnap) {
+                final unreadCount = unreadSnap.data ?? 0;
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    IconButton(
+                      onPressed: () => _openChatWithVolunteer(volunteerId, volunteerName),
+                      icon: const Icon(Icons.message_outlined, size: 20, color: Color(0xFF4C4C4C)),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                    ),
+                    if (unreadCount > 0)
+                      Positioned(
+                        right: 2,
+                        top: 2,
+                        child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
         ],
       ),

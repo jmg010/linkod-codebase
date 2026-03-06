@@ -9,6 +9,7 @@ import '../services/products_service.dart';
 import '../services/posts_service.dart';
 import '../services/firestore_service.dart';
 import 'task_detail_screen.dart';
+import 'task_edit_screen.dart';
 import 'product_detail_screen.dart';
 import 'announcement_detail_screen.dart';
 import 'post_detail_screen.dart';
@@ -87,10 +88,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           if (mounted) {
             Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => TaskDetailScreen(
-                  task: task,
-                  contactNumber: task.contactNumber,
-                ),
+                builder: (_) {
+                  final currentUid = FirestoreService.auth.currentUser?.uid;
+                  final isOwner = currentUid != null && currentUid == task.requesterId;
+                  if (isOwner && type == 'task_volunteer') {
+                    return TaskEditScreen(
+                      task: task,
+                      contactNumber: task.contactNumber,
+                    );
+                  }
+                  return TaskDetailScreen(
+                    task: task,
+                    contactNumber: task.contactNumber,
+                  );
+                },
               ),
             );
           }

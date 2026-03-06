@@ -2,8 +2,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../constants/purok.dart';
 import '../models/user_role.dart';
 import '../services/firestore_service.dart';
+import '../services/storage_service.dart';
+import '../widgets/optimized_image.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -69,7 +72,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           _fullName = data?['fullName'] as String? ?? 'User';
           _phoneController.text = data?['phoneNumber'] as String? ?? '';
           _selectedPurok = (data?['purok'] as num?)?.toInt() ?? 1;
-          _purokController.text = _selectedPurok.toString();
+          _purokController.text = purokDisplayName(_selectedPurok);
           _nameController.text = _fullName ?? 'User';
           _profileImageUrl = data?['profileImageUrl'] as String?;
           _demographyCategories = categories;
@@ -141,12 +144,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   void _showImageSourceDialog() {
+    final hasImage = _selectedImage != null ||
+        (_profileImageUrl != null && _profileImageUrl!.isNotEmpty);
     showModalBottomSheet(
       context: context,
       builder: (BuildContext context) {
         return SafeArea(
           child: Wrap(
             children: [
+              if (hasImage)
+                ListTile(
+                  leading: const Icon(Icons.fullscreen),
+                  title: const Text('View full size'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _openProfileImageFullScreen();
+                  },
+                ),
               ListTile(
                 leading: const Icon(Icons.photo_library),
                 title: const Text('Choose from Gallery'),
@@ -168,6 +182,50 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         );
       },
     );
+  }
+
+  void _openProfileImageFullScreen() {
+    if (_selectedImage != null) {
+      showDialog<void>(
+        context: context,
+        barrierColor: Colors.black,
+        barrierDismissible: true,
+        builder: (context) => GestureDetector(
+          onTap: () => Navigator.of(context).pop(),
+          behavior: HitTestBehavior.opaque,
+          child: Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: EdgeInsets.zero,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: InteractiveViewer(
+                    minScale: 0.5,
+                    maxScale: 4,
+                    child: Center(
+                      child: Image.file(_selectedImage!, fit: BoxFit.contain),
+                    ),
+                  ),
+                ),
+                SafeArea(
+                  child: Align(
+                    alignment: Alignment.topLeft,
+                    child: IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    } else if (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) {
+      openFullScreenImage(context, _profileImageUrl!);
+    }
   }
 
   Future<void> _updateProfile() async {
@@ -205,9 +263,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      // TODO: Upload profile image to Firebase Storage and update profileImageUrl
-      // For now, we'll just update the text fields
-      if (_profileImageUrl != null) {
+      if (_selectedImage != null) {
+        final bytes = await _selectedImage!.readAsBytes();
+        final profileUrl = await StorageService.instance.uploadImageFromBytes(
+          bytes,
+          StorageService.profilePath(currentUser.uid),
+        );
+        if (profileUrl != null) {
+          updates['profileImageUrl'] = profileUrl;
+        }
+      } else if (_profileImageUrl != null) {
         updates['profileImageUrl'] = _profileImageUrl;
       }
 
@@ -420,7 +485,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         if (_selectedPurok < 5) {
                           setState(() {
                             _selectedPurok++;
-                            _purokController.text = _selectedPurok.toString();
+                            _purokController.text = purokDisplayName(_selectedPurok);
                           });
                         }
                       },
@@ -431,7 +496,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         if (_selectedPurok > 1) {
                           setState(() {
                             _selectedPurok--;
-                            _purokController.text = _selectedPurok.toString();
+                            _purokController.text = purokDisplayName(_selectedPurok);
                           });
                         }
                       },

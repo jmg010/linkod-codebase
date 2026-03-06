@@ -38,10 +38,12 @@ dependencies:
   firebase_auth: ^5.3.0
   cloud_firestore: ^5.4.0
   firebase_messaging: ^15.2.0
+  firebase_storage: ^12.3.0
   flutter_local_notifications: ^18.0.1
   image_picker: ^1.0.0
   shared_preferences: ^2.2.2
-  overlay_support: ^2.1.0
+  cached_network_image: ^3.4.1
+  image: ^4.0.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

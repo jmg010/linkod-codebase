@@ -4,6 +4,7 @@ enum NavDestination {
   home,
   marketplace,
   errandJobPost,
+  bulletin,
   announcements,
   menu,
 }
@@ -68,11 +69,13 @@ class LinkodNavbar extends StatelessWidget {
             children: [
               _NavIcon(
                 icon: Icons.home,
+                label: 'Home',
                 isActive: currentDestination == NavDestination.home,
                 onTap: () => onDestinationChanged?.call(NavDestination.home),
               ),
               _NavIcon(
                 icon: Icons.campaign,
+                label: 'Announcement',
                 isActive: currentDestination == NavDestination.announcements,
                 onTap: () => onDestinationChanged?.call(NavDestination.announcements),
                 showAlert: hasUnreadAnnouncements && postCommentsNotificationCount == 0,
@@ -80,18 +83,27 @@ class LinkodNavbar extends StatelessWidget {
               ),
               _NavIcon(
                 icon: Icons.storefront,
+                label: 'Marketplace',
                 isActive: currentDestination == NavDestination.marketplace,
                 onTap: () => onDestinationChanged?.call(NavDestination.marketplace),
                 notificationCount: marketplaceNotificationCount,
               ),
               _NavIcon(
                 icon: Icons.handshake,
+                label: 'Errands',
                 isActive: currentDestination == NavDestination.errandJobPost,
                 onTap: () => onDestinationChanged?.call(NavDestination.errandJobPost),
                 notificationCount: errandNotificationCount,
               ),
               _NavIcon(
+                icon: Icons.dashboard,
+                label: 'Bulletin Board',
+                isActive: currentDestination == NavDestination.bulletin,
+                onTap: () => onDestinationChanged?.call(NavDestination.bulletin),
+              ),
+              _NavIcon(
                 icon: Icons.menu,
+                label: 'Menu',
                 isActive: currentDestination == NavDestination.menu,
                 onTap: () => onDestinationChanged?.call(NavDestination.menu),
               ),
@@ -106,6 +118,7 @@ class LinkodNavbar extends StatelessWidget {
 
 class _NavIcon extends StatelessWidget {
   final IconData icon;
+  final String? label;
   final bool isActive;
   final VoidCallback onTap;
   final bool showAlert;
@@ -113,6 +126,7 @@ class _NavIcon extends StatelessWidget {
 
   const _NavIcon({
     required this.icon,
+    this.label,
     required this.isActive,
     required this.onTap,
     this.showAlert = false,
@@ -125,7 +139,7 @@ class _NavIcon extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
@@ -134,59 +148,75 @@ class _NavIcon extends StatelessWidget {
             ),
           ),
         ),
-        child: Stack(
-          clipBehavior: Clip.none,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 28,
-              color: isActive ? const Color(0xFF20BF6B) : Colors.grey.shade600,
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(
+                  icon,
+                  size: 26,
+                  color: isActive ? const Color(0xFF20BF6B) : Colors.grey.shade600,
+                ),
+                if (showAlert && !showCount)
+                  Positioned(
+                    right: -2,
+                    top: -2,
+                    child: Container(
+                      width: 14,
+                      height: 14,
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: const Text(
+                        '!',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                if (showCount)
+                  Positioned(
+                    right: -4,
+                    top: -4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.rectangle,
+                        borderRadius: BorderRadius.all(Radius.circular(9)),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        notificationCount > 99 ? '99+' : '$notificationCount',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
-            if (showAlert && !showCount)
-              Positioned(
-                right: -2,
-                top: -2,
-                child: Container(
-                  width: 14,
-                  height: 14,
-                  decoration: const BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: const Text(
-                    '!',
-                    style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
+            if (label != null) ...[
+              const SizedBox(height: 2),
+              Text(
+                label!,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                  color: isActive ? const Color(0xFF20BF6B) : Colors.grey.shade600,
                 ),
               ),
-            if (showCount)
-              Positioned(
-                right: -4,
-                top: -4,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                  constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
-                  decoration: const BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.rectangle,
-                    borderRadius: BorderRadius.all(Radius.circular(9)),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    notificationCount > 99 ? '99+' : '$notificationCount',
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
+            ],
           ],
         ),
       ),

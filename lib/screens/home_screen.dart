@@ -14,6 +14,7 @@ import 'home_feed_screen.dart';
 import 'announcements_screen.dart';
 import 'marketplace_screen.dart';
 import 'tasks_screen.dart';
+import 'bulletin_board_screen.dart';
 import 'menu_screen.dart';
 import 'create_post_screen.dart';
 
@@ -33,6 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   NavDestination _currentNavDestination = NavDestination.home;
   late PageController _pageController;
+  int? _ignoreOnPageChangedUntilIndex;
   final GlobalKey<AnnouncementsScreenState> _announcementsKey =
       GlobalKey<AnnouncementsScreenState>();
   final GlobalKey<MarketplaceScreenState> _marketplaceKey =
@@ -52,7 +54,8 @@ class _HomeScreenState extends State<HomeScreen> {
   late final int _announcementsIndex = 1; // AnnouncementsScreen
   late final int _marketIndex = 2; // MarketplaceScreen
   late final int _tasksIndex = 3; // TasksScreen
-  late final int _profileIndex = 4; // MenuScreen
+  late final int _bulletinIndex = 4; // CommunityBulletinScreen
+  late final int _profileIndex = 5; // MenuScreen
 
   @override
   void initState() {
@@ -79,7 +82,8 @@ class _HomeScreenState extends State<HomeScreen> {
     AnnouncementsScreen(key: _announcementsKey), // Index 1: Announcements
     MarketplaceScreen(key: _marketplaceKey), // Index 2: Marketplace
     TasksScreen(key: _tasksKey), // Index 3: Errand/Job Post
-    MenuScreen(userRole: widget.userRole), // Index 4: Menu/Profile
+    const BulletinBoardScreen(), // Index 4: Bulletin Board
+    MenuScreen(userRole: widget.userRole), // Index 5: Menu/Profile
   ];
 
   void _onTabTapped(int index) {
@@ -95,16 +99,28 @@ class _HomeScreenState extends State<HomeScreen> {
           _currentNavDestination = NavDestination.marketplace;
         } else if (index == _tasksIndex) {
           _currentNavDestination = NavDestination.errandJobPost;
+        } else if (index == _bulletinIndex) {
+          _currentNavDestination = NavDestination.bulletin;
         } else if (index == _profileIndex) {
           _currentNavDestination = NavDestination.menu;
         }
       });
+      _ignoreOnPageChangedUntilIndex = index;
       _pageController.animateToPage(
         index,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
     }
+  }
+
+  NavDestination _destinationForIndex(int index) {
+    if (index == _feedIndex) return NavDestination.home;
+    if (index == _announcementsIndex) return NavDestination.announcements;
+    if (index == _marketIndex) return NavDestination.marketplace;
+    if (index == _tasksIndex) return NavDestination.errandJobPost;
+    if (index == _bulletinIndex) return NavDestination.bulletin;
+    return NavDestination.menu;
   }
 
   void _handleNavDestinationChange(NavDestination destination) {
@@ -119,6 +135,9 @@ class _HomeScreenState extends State<HomeScreen> {
       case NavDestination.errandJobPost:
         targetIndex = _tasksIndex;
         break;
+      case NavDestination.bulletin:
+        targetIndex = _bulletinIndex;
+        break;
       case NavDestination.announcements:
         targetIndex = _announcementsIndex;
         break;
@@ -132,6 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _currentNavDestination = destination;
         _currentIndex = targetIndex;
       });
+      _ignoreOnPageChangedUntilIndex = targetIndex;
       _pageController.animateToPage(
         targetIndex,
         duration: const Duration(milliseconds: 300),
@@ -179,6 +199,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _currentIndex = _feedIndex;
           _currentNavDestination = NavDestination.home;
         });
+        _ignoreOnPageChangedUntilIndex = _feedIndex;
         _pageController.animateToPage(
           _feedIndex,
           duration: const Duration(milliseconds: 300),
@@ -193,6 +214,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _currentIndex = _marketIndex;
           _currentNavDestination = NavDestination.marketplace;
         });
+        _ignoreOnPageChangedUntilIndex = _marketIndex;
         _pageController.animateToPage(
           _marketIndex,
           duration: const Duration(milliseconds: 300),
@@ -207,6 +229,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _currentIndex = _tasksIndex;
           _currentNavDestination = NavDestination.errandJobPost;
         });
+        _ignoreOnPageChangedUntilIndex = _tasksIndex;
         _pageController.animateToPage(
           _tasksIndex,
           duration: const Duration(milliseconds: 300),
@@ -224,18 +247,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Stream<int> _getErrandNotificationCountStream() {
     final uid = FirestoreService.currentUserId;
     if (uid == null) return Stream<int>.value(0);
-    return TasksService.getRequesterTasksStream(uid).asyncMap((tasks) async {
-      try {
-        int total = 0;
-        for (final t in tasks) {
-          final list = await TasksService.getVolunteersStream(t.id).first;
-          total += list.where((v) => (v['status'] as String? ?? 'pending') == 'pending').length;
-        }
-        return total;
-      } catch (_) {
-        return 0;
-      }
-    });
+    // Use combined stream for both requester tasks and interacted tasks
+    return TasksService.getTotalPostActivityUnreadStream(uid);
   }
 
   Stream<int> _getPostCommentsNotificationCountStream() {
@@ -247,7 +260,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Stream<int> _getMarketplaceNotificationCountStream() {
     final uid = FirestoreService.currentUserId;
     if (uid == null) return Stream<int>.value(0);
-    return ProductsService.getTotalUnreadProductMessagesForSellerStream(uid);
+    // Use combined stream for both seller products and interacted posts
+    return ProductsService.getTotalProductActivityUnreadStream(uid);
   }
 
   Stream<int> _getTaskChatUnreadCountStream() {
@@ -292,29 +306,22 @@ class _HomeScreenState extends State<HomeScreen> {
             builder: (context, errandSnap) {
               final errandCount = errandSnap.data ?? 0;
               return StreamBuilder<int>(
-                stream: taskChatStream,
+                stream: postCommentsStream,
                 initialData: 0,
-                builder: (context, taskChatSnap) {
-                  final taskChatCount = taskChatSnap.data ?? 0;
+                builder: (context, postSnap) {
+                  final postCommentsCount = postSnap.data ?? 0;
                   return StreamBuilder<int>(
-                    stream: postCommentsStream,
+                    stream: marketplaceStream,
                     initialData: 0,
-                    builder: (context, postSnap) {
-                      final postCommentsCount = postSnap.data ?? 0;
-                      return StreamBuilder<int>(
-                        stream: marketplaceStream,
-                        initialData: 0,
-                        builder: (context, marketplaceSnap) {
-                          final marketplaceCount = marketplaceSnap.data ?? 0;
-                          return LinkodNavbar(
-                            currentDestination: _currentNavDestination,
-                            onDestinationChanged: _handleNavDestinationChange,
-                            hasUnreadAnnouncements: _hasUnreadAnnouncements,
-                            errandNotificationCount: errandCount + taskChatCount,
-                            postCommentsNotificationCount: postCommentsCount,
-                            marketplaceNotificationCount: marketplaceCount,
-                          );
-                        },
+                    builder: (context, marketplaceSnap) {
+                      final marketplaceCount = marketplaceSnap.data ?? 0;
+                      return LinkodNavbar(
+                        currentDestination: _currentNavDestination,
+                        onDestinationChanged: _handleNavDestinationChange,
+                        hasUnreadAnnouncements: _hasUnreadAnnouncements,
+                        errandNotificationCount: errandCount,
+                        postCommentsNotificationCount: postCommentsCount,
+                        marketplaceNotificationCount: marketplaceCount,
                       );
                     },
                   );
@@ -327,20 +334,21 @@ class _HomeScreenState extends State<HomeScreen> {
             child: PageView(
               controller: _pageController,
               onPageChanged: (index) {
+                // If the user tapped a destination far away (e.g. Menu -> Home),
+                // PageView animates across intermediate pages and fires onPageChanged
+                // for those pages. Ignore those intermediate indices so the navbar
+                // doesn't appear to "force" Announcements as a stopover.
+                final ignoreUntil = _ignoreOnPageChangedUntilIndex;
+                if (ignoreUntil != null && index != ignoreUntil) {
+                  return;
+                }
                 setState(() {
                   _currentIndex = index;
-                  // Update nav destination based on index
-                  if (index == _feedIndex) {
-                    _currentNavDestination = NavDestination.home;
-                  } else if (index == _announcementsIndex) {
-                    _currentNavDestination = NavDestination.announcements;
-                  } else if (index == _marketIndex) {
-                    _currentNavDestination = NavDestination.marketplace;
-                  } else if (index == _tasksIndex) {
-                    _currentNavDestination = NavDestination.errandJobPost;
-                  } else if (index == _profileIndex) {
-                    _currentNavDestination = NavDestination.menu;
+                  if (ignoreUntil != null && index == ignoreUntil) {
+                    _ignoreOnPageChangedUntilIndex = null;
                   }
+                  // Update nav destination based on index
+                  _currentNavDestination = _destinationForIndex(index);
                 });
               },
               children: _screens,

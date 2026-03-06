@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../screens/announcement_detail_screen.dart';
+import 'optimized_image.dart';
 
 class AnnouncementCard extends StatelessWidget {
   final String title;
@@ -13,6 +14,8 @@ class AnnouncementCard extends StatelessWidget {
   final VoidCallback? onMarkAsReadPressed;
   final bool showTag;
   final String? announcementId;
+  /// Optional image URLs to show below title and content (Facebook-style).
+  final List<String>? imageUrls;
 
   const AnnouncementCard({
     super.key,
@@ -27,6 +30,7 @@ class AnnouncementCard extends StatelessWidget {
     this.onMarkAsReadPressed,
     this.showTag = false,
     this.announcementId,
+    this.imageUrls,
   });
 
   @override
@@ -127,6 +131,10 @@ class AnnouncementCard extends StatelessWidget {
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
             ),
+            if (imageUrls != null && imageUrls!.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _AnnouncementCardMedia(imageUrls: imageUrls!),
+            ],
             const SizedBox(height: 12),
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -185,6 +193,93 @@ class AnnouncementCard extends StatelessWidget {
     final month = date.month.toString().padLeft(2, '0');
     final year = date.year.toString();
     return '$day/$month/$year';
+  }
+}
+
+/// Facebook-style media block: one image or grid for multiple; tap opens full screen.
+class _AnnouncementCardMedia extends StatelessWidget {
+  const _AnnouncementCardMedia({required this.imageUrls});
+
+  final List<String> imageUrls;
+
+  @override
+  Widget build(BuildContext context) {
+    if (imageUrls.length == 1) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: AspectRatio(
+          aspectRatio: 16 / 9,
+          child: OptimizedNetworkImage(
+            imageUrl: imageUrls.first,
+            fit: BoxFit.cover,
+            cacheWidth: 800,
+            cacheHeight: 450,
+            borderRadius: BorderRadius.circular(12),
+            errorWidget: Container(
+              color: Colors.grey.shade300,
+              child: const Icon(Icons.image_not_supported),
+            ),
+            onTap: () => openFullScreenImage(context, imageUrls.first),
+          ),
+        ),
+      );
+    }
+
+    final displayed = imageUrls.take(6).toList();
+    return SizedBox(
+      height: 200,
+      child: GridView.builder(
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: 3,
+          mainAxisSpacing: 3,
+          childAspectRatio: 1,
+        ),
+        itemCount: displayed.length,
+        itemBuilder: (context, index) {
+          final url = displayed[index];
+          final isLast = index == displayed.length - 1 && imageUrls.length > displayed.length;
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: OptimizedNetworkImage(
+                  imageUrl: url,
+                  fit: BoxFit.cover,
+                  cacheWidth: 400,
+                  cacheHeight: 400,
+                  errorWidget: Container(
+                    color: Colors.grey.shade300,
+                    child: const Icon(Icons.image_not_supported),
+                  ),
+                  onTap: () => openFullScreenImages(context, imageUrls, initialIndex: index),
+                ),
+              ),
+              if (isLast)
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.black38,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '+${imageUrls.length - displayed.length}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    );
   }
 }
 

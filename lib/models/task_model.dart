@@ -15,11 +15,17 @@ class TaskModel {
   final TaskPriority priority;
   final String? contactNumber;
   final int volunteersCount;
+  /// Number of volunteers currently in "pending" status. Used for errand badge counts.
+  final int pendingVolunteersCount;
   final bool isActive;
   /// Gatekeeper: Pending (awaiting admin) or Approved (visible on feed).
   final String approvalStatus;
   /// Task category for filtering (e.g. General, Labor, Tutoring).
   final String? category;
+  /// Optional image URLs for the errand post (owner-attached).
+  final List<String> imageUrls;
+  /// Optional location/purok (e.g. "Purok Uno") for Barangay Cagbaoto.
+  final String? location;
 
   TaskModel({
     required this.id,
@@ -36,9 +42,12 @@ class TaskModel {
     this.priority = TaskPriority.medium,
     this.contactNumber,
     this.volunteersCount = 0,
+    this.pendingVolunteersCount = 0,
     this.isActive = true,
     this.approvalStatus = 'Pending',
     this.category,
+    this.imageUrls = const [],
+    this.location,
   });
 
   Map<String, dynamic> toJson() {
@@ -57,9 +66,12 @@ class TaskModel {
       'priority': priority.name,
       'contactNumber': contactNumber,
       'volunteersCount': volunteersCount,
+      'pendingVolunteersCount': pendingVolunteersCount,
       'isActive': isActive,
       'approvalStatus': approvalStatus,
       'category': category,
+      'imageUrls': imageUrls,
+      'location': location,
     };
   }
 
@@ -85,10 +97,24 @@ class TaskModel {
       ),
       contactNumber: json['contactNumber'] as String?,
       volunteersCount: (json['volunteersCount'] as num?)?.toInt() ?? 0,
+      pendingVolunteersCount:
+          (json['pendingVolunteersCount'] as num?)?.toInt() ?? 0,
       isActive: json['isActive'] as bool? ?? true,
       approvalStatus: json['approvalStatus'] as String? ?? 'Approved',
       category: json['category'] as String?,
+      imageUrls: _parseStringList(json['imageUrls']),
+      location: json['location'] as String?,
     );
+  }
+
+  static List<String> _parseStringList(dynamic value) {
+    if (value == null) return [];
+    if (value is! List) return [];
+    return value
+        .map((e) => e?.toString().trim())
+        .whereType<String>()
+        .where((s) => s.isNotEmpty)
+        .toList();
   }
 
   // Helper to parse Firestore Timestamp or ISO string
@@ -113,6 +139,7 @@ class TaskModel {
       ...data,
       'id': doc.id,
       'approvalStatus': data['approvalStatus'] as String? ?? 'Approved',
+      'imageUrls': data['imageUrls'],
     });
   }
 }

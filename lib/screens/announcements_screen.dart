@@ -51,6 +51,8 @@ class AnnouncementsScreenState extends State<AnnouncementsScreen> with SingleTic
           .doc(currentUser.uid)
           .get();
       
+      if (!mounted) return;
+      
       if (userDoc.exists) {
         final data = userDoc.data();
         final categoryString = data?['category'] as String? ?? '';
@@ -73,6 +75,7 @@ class AnnouncementsScreenState extends State<AnnouncementsScreen> with SingleTic
 
     try {
       final readIds = await AnnouncementsService.getReadAnnouncementIds(currentUser.uid);
+      if (!mounted) return;
       setState(() {
         _readAnnouncementIds = readIds;
       });
@@ -87,6 +90,7 @@ class AnnouncementsScreenState extends State<AnnouncementsScreen> with SingleTic
 
     try {
       await AnnouncementsService.markAsRead(announcementId, currentUser.uid);
+      if (!mounted) return;
       setState(() {
         _readAnnouncementIds.add(announcementId);
       });
@@ -221,6 +225,8 @@ class AnnouncementsScreenState extends State<AnnouncementsScreen> with SingleTic
                       final isRead = _readAnnouncementIds.contains(announcementId);
                       final viewCount = announcement['viewCount'] as int? ?? 0;
                       
+                      final imageUrlsRaw = announcement['imageUrls'] as List<dynamic>?;
+                      final imageUrls = imageUrlsRaw?.whereType<String>().toList();
                       return AnnouncementCard(
                         title: announcement['title'] as String? ?? '',
                         description: announcement['content'] as String? ?? announcement['description'] as String? ?? '',
@@ -231,6 +237,7 @@ class AnnouncementsScreenState extends State<AnnouncementsScreen> with SingleTic
                         unreadCount: viewCount,
                         isRead: isRead,
                         announcementId: announcementId,
+                        imageUrls: imageUrls?.isNotEmpty == true ? imageUrls : null,
                         onMarkAsReadPressed: () {
                           _markAsRead(announcementId);
                         },

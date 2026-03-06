@@ -1,10 +1,16 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/task_model.dart';
 import '../services/tasks_service.dart';
 import '../services/firestore_service.dart';
 import '../services/admin_settings_service.dart';
+import '../constants/purok.dart';
+import '../services/storage_service.dart';
+import '../widgets/optimized_image.dart';
 
 class CreateTaskScreen extends StatefulWidget {
   final Function(TaskModel)? onTaskCreated;
@@ -28,6 +34,12 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
   final _descriptionController = TextEditingController();
   final _contactController = TextEditingController();
   String? _selectedCategory;
+  /// Purok 1-5 for location (Barangay Cagbaoto). Default 1.
+  int _selectedPurok = 1;
+  final List<XFile> _pickedImages = [];
+  List<String> _existingImageUrls = [];
+  final PageController _imagePageController = PageController();
+  int _imagePageIndex = 0;
 
   final List<String> _categories = [
     'General',
@@ -39,22 +51,32 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
   ];
 
   bool get _isEdit => widget.isEdit && widget.existingTask != null;
+  bool get _hasAnyImages => _existingImageUrls.isNotEmpty || _pickedImages.isNotEmpty;
+  int get _totalImageCount => _existingImageUrls.length + _pickedImages.length;
+
+  bool _isPosting = false;
 
   @override
   void initState() {
     super.initState();
     if (widget.existingTask != null) {
-      _titleController.text = widget.existingTask!.title;
-      _descriptionController.text = widget.existingTask!.description;
-      _contactController.text = widget.existingTask!.contactNumber ?? '';
-      _selectedCategory = widget.existingTask!.category;
+      final t = widget.existingTask!;
+      _titleController.text = t.title;
+      _descriptionController.text = t.description;
+      _contactController.text = t.contactNumber ?? '';
+      _selectedCategory = t.category;
+      _existingImageUrls = List<String>.from(t.imageUrls);
+      if (t.location != null && t.location!.isNotEmpty) {
+        _selectedPurok = purokFromDisplayName(t.location!);
+        if (_selectedPurok < 1 || _selectedPurok > 5) _selectedPurok = 1;
+      }
     }
     if (!_isEdit) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _loadUserPhone());
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadUserData());
     }
   }
 
-  Future<void> _loadUserPhone() async {
+  Future<void> _loadUserData() async {
     final user = FirestoreService.auth.currentUser;
     if (user == null) return;
     try {
@@ -63,31 +85,129 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
           .doc(user.uid)
           .get();
       if (!doc.exists || !mounted) return;
-      final phone = doc.data()?['phoneNumber'] as String?;
+      final data = doc.data();
+      final phone = data?['phoneNumber'] as String?;
       if (phone != null && phone.isNotEmpty) {
         _contactController.text = phone;
+      }
+      final purok = (data?['purok'] as num?)?.toInt();
+      if (purok != null && purok >= 1 && purok <= 5) {
+        setState(() => _selectedPurok = purok);
       }
     } catch (_) {}
   }
 
   @override
   void dispose() {
+    _imagePageController.dispose();
     _titleController.dispose();
     _descriptionController.dispose();
     _contactController.dispose();
     super.dispose();
   }
 
+  void _removeImageAt(int index) {
+    if (index < _existingImageUrls.length) {
+      setState(() {
+        _existingImageUrls.removeAt(index);
+        _syncImagePageAfterRemove(index);
+      });
+    } else {
+      setState(() {
+        _pickedImages.removeAt(index - _existingImageUrls.length);
+        _syncImagePageAfterRemove(index);
+      });
+    }
+  }
+
+  void _syncImagePageAfterRemove(int removedIndex) {
+    final n = _totalImageCount;
+    if (n == 0) return;
+    if (_imagePageIndex >= n) {
+      _imagePageIndex = n - 1;
+      if (_imagePageController.hasClients) {
+        _imagePageController.jumpToPage(_imagePageIndex);
+      }
+    } else if (removedIndex <= _imagePageIndex && _imagePageIndex > 0) {
+      _imagePageIndex--;
+      if (_imagePageController.hasClients) {
+        _imagePageController.jumpToPage(_imagePageIndex);
+      }
+    }
+  }
+
+  void _openImageFullScreen(int index) {
+    if (index < _existingImageUrls.length) {
+      openFullScreenImages(context, _existingImageUrls, initialIndex: index);
+      return;
+    }
+    final xFile = _pickedImages[index - _existingImageUrls.length];
+    xFile.readAsBytes().then((bytes) {
+      if (!mounted) return;
+      showDialog<void>(
+        context: context,
+        barrierColor: Colors.black,
+        barrierDismissible: true,
+        builder: (ctx) => GestureDetector(
+          onTap: () => Navigator.of(ctx).pop(),
+          behavior: HitTestBehavior.opaque,
+          child: Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: EdgeInsets.zero,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                GestureDetector(
+                  onTap: () => Navigator.of(ctx).pop(),
+                  child: InteractiveViewer(
+                    minScale: 0.5,
+                    maxScale: 4,
+                    child: Center(
+                      child: Image.memory(bytes, fit: BoxFit.contain),
+                    ),
+                  ),
+                ),
+                SafeArea(
+                  child: Align(
+                    alignment: Alignment.topLeft,
+                    child: IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                      onPressed: () => Navigator.of(ctx).pop(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    });
+  }
+
   Future<void> _handlePost() async {
     if (!_formKey.currentState!.validate()) return;
 
     if (_isEdit) {
+      if (_isPosting) return;
+      setState(() => _isPosting = true);
       try {
+        final currentUser = FirestoreService.auth.currentUser!;
+        final List<String> newUrls = [];
+        for (var i = 0; i < _pickedImages.length; i++) {
+          final url = await StorageService.instance.uploadImageFromXFile(
+            _pickedImages[i],
+            StorageService.taskImagePath(currentUser.uid, i),
+          );
+          if (url != null) newUrls.add(url);
+        }
+        final imageUrls = [..._existingImageUrls, ...newUrls];
         await TasksService.updateTask(widget.existingTask!.id, {
           'title': _titleController.text.trim(),
           'description': _descriptionController.text.trim(),
           'contactNumber': _contactController.text.trim(),
           'category': _selectedCategory,
+          'imageUrls': imageUrls,
+          'location': purokDisplayName(_selectedPurok),
         });
         if (mounted) {
           Navigator.of(context).pop();
@@ -104,6 +224,8 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
             SnackBar(content: Text('Error: ${e.toString()}')),
           );
         }
+      } finally {
+        if (mounted) setState(() => _isPosting = false);
       }
       return;
     }
@@ -132,11 +254,22 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
     final userData = userDoc.data() as Map<String, dynamic>;
     final userName = userData['fullName'] as String? ?? 'User';
 
+    if (_isPosting) return;
+    setState(() => _isPosting = true);
     try {
       // Read auto-approve settings
       final autoSettings = await AdminSettingsService.getAutoApproveSettings();
       final shouldAutoApprove = autoSettings['tasks'] ?? false;
       final initialApprovalStatus = shouldAutoApprove ? 'Approved' : 'Pending';
+
+      final List<String> imageUrls = [];
+      for (var i = 0; i < _pickedImages.length; i++) {
+        final url = await StorageService.instance.uploadImageFromXFile(
+          _pickedImages[i],
+          StorageService.taskImagePath(currentUser.uid, i),
+        );
+        if (url != null) imageUrls.add(url);
+      }
 
       final task = TaskModel(
         id: '', // Will be set by Firestore
@@ -152,6 +285,8 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
             : (userData['phoneNumber'] as String?),
         approvalStatus: initialApprovalStatus, // Set based on auto-approve flag
         category: _selectedCategory,
+        imageUrls: imageUrls,
+        location: purokDisplayName(_selectedPurok),
       );
 
       await TasksService.createTask(task);
@@ -175,6 +310,8 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
           SnackBar(content: Text('Error: ${e.toString()}')),
         );
       }
+    } finally {
+      if (mounted) setState(() => _isPosting = false);
     }
   }
 
@@ -261,6 +398,189 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                           },
                         ),
                         const SizedBox(height: 16),
+                        const Text('Photos (optional) ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                        const SizedBox(height: 6),
+                        GestureDetector(
+                          onTap: () async {
+                            final picker = ImagePicker();
+                            final xFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                            if (xFile != null && mounted) {
+                              setState(() => _pickedImages.add(xFile));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('${_totalImageCount} image(s)')),
+                              );
+                            }
+                          },
+                          child: Container(
+                            height: 190,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: _hasAnyImages ? Colors.grey.shade100 : const Color(0xFFE3E3E3),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: !_hasAnyImages
+                                ? Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      SizedBox(
+                                        width: 70,
+                                        height: 70,
+                                        child: Stack(
+                                          alignment: Alignment.center,
+                                          children: [
+                                            const Icon(Icons.image_outlined,
+                                                size: 46, color: Color(0xFF646464)),
+                                            Positioned(
+                                              right: 4,
+                                              top: 6,
+                                              child: Container(
+                                                width: 20,
+                                                height: 20,
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white,
+                                                  borderRadius: BorderRadius.circular(6),
+                                                  border: Border.all(
+                                                    color: Colors.grey.shade400,
+                                                  ),
+                                                ),
+                                                child: const Icon(
+                                                  Icons.add,
+                                                  size: 14,
+                                                  color: Colors.black87,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      const Text(
+                                        'Tap to add photos',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: Color(0xFF4C4C4C),
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: Stack(
+                                      clipBehavior: Clip.none,
+                                      children: [
+                                        SizedBox(
+                                          height: 166,
+                                          width: double.infinity,
+                                          child: PageView.builder(
+                                            controller: _imagePageController,
+                                            itemCount: _totalImageCount,
+                                            onPageChanged: (i) => setState(() => _imagePageIndex = i),
+                                            itemBuilder: (context, i) {
+                                              final isUrl = i < _existingImageUrls.length;
+                                              return Stack(
+                                                clipBehavior: Clip.none,
+                                                children: [
+                                                  GestureDetector(
+                                                    onTap: () => _openImageFullScreen(i),
+                                                    child: ClipRRect(
+                                                      borderRadius: BorderRadius.circular(8),
+                                                      child: isUrl
+                                                          ? OptimizedNetworkImage(
+                                                              imageUrl: _existingImageUrls[i],
+                                                              width: double.infinity,
+                                                              height: 166,
+                                                              fit: BoxFit.cover,
+                                                              cacheWidth: 400,
+                                                              cacheHeight: 332,
+                                                              borderRadius: BorderRadius.circular(8),
+                                                            )
+                                                          : _TaskXFilePageImage(
+                                                              xFile: _pickedImages[i - _existingImageUrls.length],
+                                                            ),
+                                                    ),
+                                                  ),
+                                                  Positioned(
+                                                    top: 4,
+                                                    right: 4,
+                                                    child: Material(
+                                                      color: Colors.black54,
+                                                      shape: const CircleBorder(),
+                                                      child: InkWell(
+                                                        onTap: () => _removeImageAt(i),
+                                                        customBorder: const CircleBorder(),
+                                                        child: const Padding(
+                                                          padding: EdgeInsets.all(6),
+                                                          child: Icon(Icons.close, color: Colors.white, size: 20),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                        if (_totalImageCount > 1)
+                                          Positioned(
+                                            left: 0,
+                                            right: 0,
+                                            bottom: 8,
+                                            child: Center(
+                                              child: SingleChildScrollView(
+                                                scrollDirection: Axis.horizontal,
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: List.generate(
+                                                    _totalImageCount,
+                                                    (i) => Container(
+                                                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                                                      width: 6,
+                                                      height: 6,
+                                                      decoration: BoxDecoration(
+                                                        shape: BoxShape.circle,
+                                                        color: _imagePageIndex == i
+                                                            ? const Color(0xFF20BF6B)
+                                                            : Colors.grey.shade400,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        Positioned(
+                                          left: 0,
+                                          bottom: 0,
+                                          child: Material(
+                                            elevation: 2,
+                                            color: const Color(0xFF20BF6B),
+                                            shape: const CircleBorder(),
+                                            child: InkWell(
+                                              onTap: () async {
+                                                final picker = ImagePicker();
+                                                final xFile = await picker.pickImage(
+                                                    source: ImageSource.gallery, imageQuality: 85);
+                                                if (xFile != null && mounted) {
+                                                  setState(() => _pickedImages.add(xFile));
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    SnackBar(content: Text('${_totalImageCount} image(s)')),
+                                                  );
+                                                }
+                                              },
+                                              customBorder: const CircleBorder(),
+                                              child: const Padding(
+                                                padding: EdgeInsets.all(12),
+                                                child: Icon(Icons.add, color: Colors.white, size: 28),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
                         const Text('Contact Information ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
                         const SizedBox(height: 6),
                         _buildInputField(
@@ -274,11 +594,38 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                             return null;
                           },
                         ),
+                        const SizedBox(height: 16),
+                        const Text('Location (Purok) ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                        const SizedBox(height: 6),
+                        DropdownButtonFormField<String>(
+                          value: purokDisplayName(_selectedPurok),
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: Colors.white,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(color: Colors.grey.shade300),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(color: Colors.grey.shade300),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(color: Color(0xFF20BF6B), width: 1.5),
+                            ),
+                          ),
+                          items: purokLabels.map((label) => DropdownMenuItem(value: label, child: Text(label))).toList(),
+                          onChanged: (value) {
+                            if (value != null) setState(() => _selectedPurok = purokFromDisplayName(value));
+                          },
+                        ),
                         const SizedBox(height: 24),
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
-                            onPressed: _handlePost,
+                            onPressed: _isPosting ? null : _handlePost,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF20BF6B),
                               foregroundColor: Colors.white,
@@ -288,13 +635,22 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                               ),
                               elevation: 0,
                             ),
-                            child: const Text(
-                              'Post',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                            child: _isPosting
+                                ? const SizedBox(
+                                    height: 22,
+                                    width: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    ),
+                                  )
+                                : const Text(
+                                    'Post',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                           ),
                         ),
                       ],
@@ -414,6 +770,41 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
         Icons.keyboard_arrow_down,
         color: Color(0xFF9E9E9E),
       ),
+    );
+  }
+}
+
+/// Full-area preview for one picked image in the task image PageView.
+class _TaskXFilePageImage extends StatelessWidget {
+  const _TaskXFilePageImage({required this.xFile});
+
+  final XFile xFile;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Uint8List>(
+      future: xFile.readAsBytes(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError || !snapshot.hasData) {
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              color: Colors.grey.shade300,
+              alignment: Alignment.center,
+              child: Icon(Icons.broken_image_outlined, size: 40, color: Colors.grey.shade600),
+            ),
+          );
+        }
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.memory(
+            snapshot.data!,
+            width: double.infinity,
+            height: 166,
+            fit: BoxFit.cover,
+          ),
+        );
+      },
     );
   }
 }

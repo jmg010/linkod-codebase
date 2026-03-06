@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'optimized_image.dart';
 import '../models/product_model.dart';
 
 class ProductCard extends StatelessWidget {
@@ -61,7 +64,7 @@ class ProductCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            _buildImage(context),
+            _ProductCardImage(product: product),
             const SizedBox(height: 12),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -81,7 +84,9 @@ class ProductCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  '₱${product.price.toStringAsFixed(0)}',
+                  product.priceUnit != null && product.priceUnit!.isNotEmpty
+                      ? '₱${product.price.toStringAsFixed(0)}/${product.priceUnit}'
+                      : '₱${product.price.toStringAsFixed(0)}',
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
@@ -133,26 +138,6 @@ class ProductCard extends StatelessWidget {
     );
   }
 
-  Widget _buildImage(BuildContext context) {
-    final bool hasImages = product.imageUrls.isNotEmpty;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        height: 160,
-        width: double.infinity,
-        color: Colors.grey.shade100,
-        child: hasImages
-            ? Image.network(
-                product.imageUrls.first,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    _buildPlaceholder(context),
-              )
-            : _buildPlaceholder(context),
-      ),
-    );
-  }
-
   Widget _buildPlaceholder(BuildContext context) {
     final Color color = Theme.of(context).colorScheme.primary;
     return Container(
@@ -182,5 +167,122 @@ class ProductCard extends StatelessWidget {
     final String minutes = date.minute.toString().padLeft(2, '0');
     final String period = date.hour >= 12 ? 'PM' : 'AM';
     return '$monthName ${date.day} at $hour:$minutes $period';
+  }
+}
+
+/// Image area with auto-swipe when product has multiple images.
+class _ProductCardImage extends StatefulWidget {
+  const _ProductCardImage({required this.product});
+
+  final ProductModel product;
+
+  @override
+  State<_ProductCardImage> createState() => _ProductCardImageState();
+}
+
+class _ProductCardImageState extends State<_ProductCardImage> {
+  late PageController _pageController;
+  Timer? _timer;
+  static const Duration _autoSwipeInterval = Duration(seconds: 3);
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+    if (widget.product.imageUrls.length > 1) {
+      _timer = Timer.periodic(_autoSwipeInterval, (_) => _advancePage());
+    }
+  }
+
+  void _advancePage() {
+    if (!mounted || !_pageController.hasClients) return;
+    final count = widget.product.imageUrls.length;
+    if (count <= 1) return;
+    final current = _pageController.page?.round() ?? 0;
+    final next = (current + 1) % count;
+    _pageController.animateToPage(
+      next,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final product = widget.product;
+    final hasImages = product.imageUrls.isNotEmpty;
+    if (!hasImages) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          height: 160,
+          width: double.infinity,
+          color: Colors.grey.shade100,
+          alignment: Alignment.center,
+          child: Icon(Icons.image_outlined, size: 40, color: Colors.grey.shade400),
+        ),
+      );
+    }
+    if (product.imageUrls.length == 1) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          height: 160,
+          width: double.infinity,
+          color: Colors.grey.shade100,
+          child: OptimizedNetworkImage(
+            imageUrl: product.imageUrls.first,
+            height: 160,
+            fit: BoxFit.cover,
+            cacheWidth: 400,
+            cacheHeight: 400,
+            borderRadius: BorderRadius.circular(14),
+            errorWidget: _errorPlaceholder(),
+            onTap: () => openFullScreenImages(context, product.imageUrls, initialIndex: 0),
+          ),
+        ),
+      );
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        height: 160,
+        width: double.infinity,
+        color: Colors.grey.shade100,
+        child: PageView.builder(
+          controller: _pageController,
+          itemCount: product.imageUrls.length,
+          itemBuilder: (context, index) {
+            return GestureDetector(
+              onTap: () => openFullScreenImages(context, product.imageUrls, initialIndex: index),
+              child: OptimizedNetworkImage(
+                imageUrl: product.imageUrls[index],
+                height: 160,
+                fit: BoxFit.cover,
+                cacheWidth: 400,
+                cacheHeight: 400,
+                borderRadius: BorderRadius.circular(14),
+                errorWidget: _errorPlaceholder(),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _errorPlaceholder() {
+    return Container(
+      color: Colors.grey.shade200,
+      alignment: Alignment.center,
+      child: Icon(Icons.image_not_supported_outlined, size: 40, color: Colors.grey.shade500),
+    );
   }
 }

@@ -230,10 +230,11 @@ service cloud.firestore {
             || resource.data.assignedTo == request.auth.uid)
         && request.resource.data.approvalStatus == resource.data.approvalStatus;
 
-      // Volunteer flow: any signed-in user may update only volunteersCount and updatedAt (increment on volunteer, decrement on cancel)
+      // Volunteer flow: any signed-in user may update only volunteersCount,
+      // pendingVolunteersCount and updatedAt (increment on volunteer, decrement on cancel/reject)
       allow update: if isSignedIn()
         && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['volunteersCount', 'updatedAt']);
+             .hasOnly(['volunteersCount', 'pendingVolunteersCount', 'updatedAt']);
 
       // Participants can delete their own tasks? (Keep legacy behavior)
       allow delete: if isSignedIn()
@@ -354,6 +355,62 @@ service cloud.firestore {
 
       // Only Super Admin can create notifications for any user (e.g. account approval)
       allow create: if isSuperAdmin();
+    }
+
+    // ========= user_task_interactions =========
+    // Tracks which tasks a user has interacted with (for Activity Log)
+    // Document ID format: {userId}_{taskId}
+
+    match /user_task_interactions/{interactionId} {
+      // Helper: check if document belongs to current user (by ID prefix or field)
+      function isOwner() {
+        return (resource.data != null && resource.data.userId == request.auth.uid)
+          || interactionId.matches(request.auth.uid + "_.*");
+      }
+      function willBeOwner() {
+        return request.resource.data.userId == request.auth.uid
+          || interactionId.matches(request.auth.uid + "_.*");
+      }
+
+      // Users can read their own interactions
+      allow read: if isSignedIn() && isOwner();
+
+      // Users can create interactions for themselves
+      allow create: if isSignedIn() && willBeOwner();
+
+      // Users can update their own interactions (e.g., unreadReplyCount)
+      allow update: if isSignedIn() && isOwner();
+
+      // Users can delete their own interactions
+      allow delete: if isSignedIn() && isOwner();
+    }
+
+    // ========= user_product_interactions =========
+    // Tracks which products a user has interacted with (for Activity Log)
+    // Document ID format: {userId}_{productId}
+
+    match /user_product_interactions/{interactionId} {
+      // Helper: check if document belongs to current user (by ID prefix or field)
+      function isOwner() {
+        return (resource.data != null && resource.data.userId == request.auth.uid)
+          || interactionId.matches(request.auth.uid + "_.*");
+      }
+      function willBeOwner() {
+        return request.resource.data.userId == request.auth.uid
+          || interactionId.matches(request.auth.uid + "_.*");
+      }
+
+      // Users can read their own interactions
+      allow read: if isSignedIn() && isOwner();
+
+      // Users can create interactions for themselves
+      allow create: if isSignedIn() && willBeOwner();
+
+      // Users can update their own interactions (e.g., unreadReplyCount)
+      allow update: if isSignedIn() && isOwner();
+
+      // Users can delete their own interactions
+      allow delete: if isSignedIn() && isOwner();
     }
 
     // ========= userAnnouncementReads =========

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/announcements_service.dart';
 import '../services/firestore_service.dart';
+import '../widgets/optimized_image.dart';
 
 /// Shows a single announcement by ID. Used when user opens the app from a push
 /// notification (data payload announcementId) or from in-app navigation.
@@ -171,6 +172,8 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
     final postedByPosition = _announcement!['postedByPosition'] as String?;
     final category = _announcement!['category'] as String?;
     final createdAt = _announcement!['createdAt'];
+    final imageUrlsRaw = _announcement!['imageUrls'] as List<dynamic>?;
+    final imageUrls = imageUrlsRaw?.whereType<String>().toList();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
@@ -194,6 +197,7 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
             postedByPosition: postedByPosition,
             category: category,
             createdAt: createdAt,
+            imageUrls: imageUrls,
           ),
         ],
       ),
@@ -207,6 +211,7 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
     String? postedByPosition,
     String? category,
     dynamic createdAt,
+    List<String>? imageUrls,
   }) {
     return Container(
       width: double.infinity,
@@ -336,6 +341,10 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
               height: 1.6,
             ),
           ),
+          if (imageUrls != null && imageUrls.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            _buildDetailImages(imageUrls),
+          ],
           const SizedBox(height: 24),
           // Footer with announcement icon
           Row(
@@ -369,6 +378,84 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDetailImages(List<String> imageUrls) {
+    if (imageUrls.length == 1) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: AspectRatio(
+          aspectRatio: 16 / 9,
+          child: OptimizedNetworkImage(
+            imageUrl: imageUrls.first,
+            fit: BoxFit.cover,
+            cacheWidth: 800,
+            cacheHeight: 450,
+            borderRadius: BorderRadius.circular(12),
+            errorWidget: Container(
+              color: Colors.grey.shade300,
+              child: const Icon(Icons.image_not_supported),
+            ),
+            onTap: () => openFullScreenImage(context, imageUrls.first),
+          ),
+        ),
+      );
+    }
+    final displayed = imageUrls.take(6).toList();
+    return SizedBox(
+      height: 200,
+      child: GridView.builder(
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: 3,
+          mainAxisSpacing: 3,
+          childAspectRatio: 1,
+        ),
+        itemCount: displayed.length,
+        itemBuilder: (context, index) {
+          final url = displayed[index];
+          final isLast = index == displayed.length - 1 && imageUrls.length > displayed.length;
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: OptimizedNetworkImage(
+                  imageUrl: url,
+                  fit: BoxFit.cover,
+                  cacheWidth: 400,
+                  cacheHeight: 400,
+                  errorWidget: Container(
+                    color: Colors.grey.shade300,
+                    child: const Icon(Icons.image_not_supported),
+                  ),
+                  onTap: () => openFullScreenImages(context, imageUrls, initialIndex: index),
+                ),
+              ),
+              if (isLast)
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.black38,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '+${imageUrls.length - displayed.length}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     );
   }

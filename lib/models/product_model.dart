@@ -7,6 +7,8 @@ class ProductModel {
   final String title;
   final String description;
   final double price;
+  /// Pricing unit (e.g. kg, pcs, piece, bunch, sack). Null = legacy, display may infer from category.
+  final String? priceUnit;
   final List<String> imageUrls;
   final String category;
   final DateTime createdAt;
@@ -25,6 +27,7 @@ class ProductModel {
     required this.title,
     required this.description,
     required this.price,
+    this.priceUnit,
     this.imageUrls = const [],
     this.category = 'General',
     required this.createdAt,
@@ -44,6 +47,7 @@ class ProductModel {
       'title': title,
       'description': description,
       'price': price,
+      'priceUnit': priceUnit,
       'imageUrls': imageUrls,
       'category': category,
       'createdAt': Timestamp.fromDate(createdAt),
@@ -64,6 +68,7 @@ class ProductModel {
       title: json['title'] as String? ?? '',
       description: json['description'] as String? ?? '',
       price: (json['price'] as num?)?.toDouble() ?? 0.0,
+      priceUnit: json['priceUnit'] as String?,
       imageUrls: (json['imageUrls'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??

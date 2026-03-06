@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
+import '../constants/purok.dart';
 import '../models/post_model.dart';
 import '../models/product_model.dart';
 import '../models/task_model.dart';
@@ -11,6 +13,8 @@ import '../services/products_service.dart';
 import '../services/tasks_service.dart';
 import '../services/firestore_service.dart';
 import '../services/admin_settings_service.dart';
+import '../services/storage_service.dart';
+import '../widgets/xfile_preview_image.dart';
 
 enum CreateType {
   announcement('Announcement'),
@@ -43,7 +47,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   PostCategory _selectedCategory = PostCategory.health;
   String _selectedProductCategory = 'General';
   TaskPriority _selectedPriority = TaskPriority.medium;
-  final List<String> _selectedImages = []; // Placeholder for image URLs
+  final List<XFile> _pickedImages = [];
   String _generatedMessage = '';
   bool _isGenerating = false;
 
@@ -57,14 +61,15 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     super.dispose();
   }
 
-  void _handleImagePicker() {
-    // Placeholder for image picker
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Image picker feature coming soon!'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+  Future<void> _handleImagePicker() async {
+    final picker = ImagePicker();
+    final xFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    if (xFile != null && mounted) {
+      setState(() => _pickedImages.add(xFile));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${_pickedImages.length} image(s) selected')),
+      );
+    }
   }
 
   Future<void> _handleSubmit() async {
@@ -95,6 +100,15 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     final userName = userData['fullName'] as String? ?? 'User';
     final userRole = userData['role'] as String? ?? 'resident';
 
+    final List<String> imageUrls = [];
+    for (var i = 0; i < _pickedImages.length; i++) {
+      final path = _selectedType == CreateType.product
+          ? StorageService.productImagePath(currentUser.uid, i)
+          : StorageService.postImagePath(currentUser.uid, i);
+      final url = await StorageService.instance.uploadImageFromXFile(_pickedImages[i], path);
+      if (url != null) imageUrls.add(url);
+    }
+
     try {
       switch (_selectedType) {
         case CreateType.announcement:
@@ -106,7 +120,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             content: _contentController.text.trim(),
             category: _selectedCategory,
             createdAt: DateTime.now(),
-            imageUrls: _selectedImages,
+            imageUrls: imageUrls,
             isAnnouncement: widget.userRole == UserRole.official,
           );
           await PostsService.createPost(post);
@@ -132,6 +146,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           final shouldAutoApprove = autoSettings['products'] ?? false;
           final initialStatus = shouldAutoApprove ? 'Approved' : 'Pending';
 
+          final userPurok = (userData['purok'] as num?)?.toInt() ?? 1;
           final product = ProductModel(
             id: '', // Will be set by Firestore
             sellerId: currentUser.uid,
@@ -142,8 +157,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             category: _selectedProductCategory,
             createdAt: DateTime.now(),
             isAvailable: true,
-            imageUrls: _selectedImages,
-            location: '', // Can be added later
+            imageUrls: imageUrls,
+            location: purokDisplayName(userPurok.clamp(1, 5)),
             contactNumber: userData['phoneNumber'] as String? ?? '',
             status: initialStatus, // Set based on auto-approve flag
           );
@@ -166,6 +181,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           final shouldAutoApprove = autoSettings['tasks'] ?? false;
           final initialApprovalStatus = shouldAutoApprove ? 'Approved' : 'Pending';
 
+          final userPurok = (userData['purok'] as num?)?.toInt() ?? 1;
           final task = TaskModel(
             id: '', // Will be set by Firestore
             title: _titleController.text.trim(),
@@ -177,6 +193,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             priority: _selectedPriority,
             contactNumber: userData['phoneNumber'] as String?,
             approvalStatus: initialApprovalStatus, // Set based on auto-approve flag
+            location: purokDisplayName(userPurok.clamp(1, 5)),
           );
           await TasksService.createTask(task);
           if (mounted) {
@@ -595,11 +612,24 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
-                if (_selectedImages.isNotEmpty) ...[
+                if (_pickedImages.isNotEmpty) ...[
                   const SizedBox(height: 8),
-                  Text(
-                    '${_selectedImages.length} image(s) selected',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  SizedBox(
+                    height: 100,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _pickedImages.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                      itemBuilder: (context, i) {
+                        return XFilePreviewImage(
+                          xFile: _pickedImages[i],
+                          width: 90,
+                          height: 90,
+                          borderRadius: BorderRadius.circular(8),
+                          onRemove: () => setState(() => _pickedImages.removeAt(i)),
+                        );
+                      },
+                    ),
                   ),
                 ],
                 const SizedBox(height: 16),

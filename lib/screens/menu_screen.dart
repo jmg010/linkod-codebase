@@ -1,9 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import '../constants/purok.dart';
 import '../models/user_role.dart';
 import '../services/fcm_token_service.dart';
 import '../services/firestore_service.dart';
+import '../services/storage_service.dart';
+import '../widgets/optimized_image.dart';
 import 'edit_profile_screen.dart';
 import 'login_screen.dart';
 
@@ -126,23 +130,32 @@ class _MenuScreenState extends State<MenuScreen> {
                   padding: const EdgeInsets.all(24),
                   child: Column(
                     children: [
-                      // Profile Avatar
-                      CircleAvatar(
-                        radius: 50,
-                        backgroundColor: const Color(0xFF20BF6B),
-                        backgroundImage: _profileImageUrl != null && _profileImageUrl!.isNotEmpty
-                            ? NetworkImage(_profileImageUrl!)
-                            : null,
-                        child: _profileImageUrl == null || _profileImageUrl!.isEmpty
-                            ? Text(
-                                (_userName?.isNotEmpty ?? false) ? _userName![0].toUpperCase() : widget.userRole.displayName[0],
-                                style: const TextStyle(
-                                  fontSize: 40,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : null,
+                      // Profile Avatar (resident: tap to change photo; others: tap to view full size)
+                      GestureDetector(
+                        onTap: () {
+                          if (widget.userRole == UserRole.resident) {
+                            _showChangePhotoSheet();
+                          } else if (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) {
+                            openFullScreenImage(context, _profileImageUrl!);
+                          }
+                        },
+                        child: CircleAvatar(
+                          radius: 50,
+                          backgroundColor: const Color(0xFF20BF6B),
+                          backgroundImage: _profileImageUrl != null && _profileImageUrl!.isNotEmpty
+                              ? NetworkImage(_profileImageUrl!)
+                              : null,
+                          child: _profileImageUrl == null || _profileImageUrl!.isEmpty
+                              ? Text(
+                                  (_userName?.isNotEmpty ?? false) ? _userName![0].toUpperCase() : widget.userRole.displayName[0],
+                                  style: const TextStyle(
+                                    fontSize: 40,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : null,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       // User Name (from Firestore or fallback to role-based)
@@ -166,7 +179,7 @@ class _MenuScreenState extends State<MenuScreen> {
                       if (!_isLoadingUser && _purok != null) ...[
                         const SizedBox(height: 4),
                         Text(
-                          'Purok $_purok',
+                          purokDisplayName(_purok!),
                           style: TextStyle(
                             fontSize: 13,
                             color: Colors.grey.shade600,
@@ -337,6 +350,86 @@ class _MenuScreenState extends State<MenuScreen> {
         ],
       ),
     );
+  }
+
+  void _showChangePhotoSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Choose from Gallery'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickProfileImage();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Take Photo'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _takeProfilePhoto();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickProfileImage() async {
+    final picker = ImagePicker();
+    final xFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 512,
+      maxHeight: 512,
+      imageQuality: 85,
+    );
+    if (xFile != null && mounted) await _uploadAndSaveProfilePhoto(xFile);
+  }
+
+  Future<void> _takeProfilePhoto() async {
+    final picker = ImagePicker();
+    final xFile = await picker.pickImage(
+      source: ImageSource.camera,
+      maxWidth: 512,
+      maxHeight: 512,
+      imageQuality: 85,
+    );
+    if (xFile != null && mounted) await _uploadAndSaveProfilePhoto(xFile);
+  }
+
+  Future<void> _uploadAndSaveProfilePhoto(XFile xFile) async {
+    final currentUser = FirestoreService.auth.currentUser;
+    if (currentUser == null) return;
+    try {
+      final url = await StorageService.instance.uploadImageFromXFile(
+        xFile,
+        StorageService.profilePath(currentUser.uid),
+      );
+      if (url == null || !mounted) return;
+      await FirestoreService.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .update({'profileImageUrl': url});
+      if (mounted) {
+        await _loadUserProfile();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Profile photo updated')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
+    }
   }
 
   String _getUserName(UserRole role) {

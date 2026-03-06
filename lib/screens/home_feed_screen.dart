@@ -15,6 +15,7 @@ import '../services/announcements_service.dart';
 import '../services/firestore_service.dart';
 import 'product_detail_screen.dart';
 import 'task_detail_screen.dart';
+import 'task_edit_screen.dart';
 import 'search_screen.dart';
 
 class HomeFeedScreen extends StatefulWidget {
@@ -28,6 +29,8 @@ class HomeFeedScreen extends StatefulWidget {
 
 class _HomeFeedScreenState extends State<HomeFeedScreen> {
   Set<String> _readAnnouncementIds = {};
+  bool _readAnnouncementIdsLoaded = false;
+  bool? _lastReportedHasUnreadAnnouncements;
   List<String> _userCategories = [];
 
   static const int _initialPageSize = 15;
@@ -117,11 +120,17 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
 
     try {
       final readIds = await AnnouncementsService.getReadAnnouncementIds(currentUser.uid);
+      if (!mounted) return;
       setState(() {
         _readAnnouncementIds = readIds;
+        _readAnnouncementIdsLoaded = true;
       });
     } catch (e) {
       debugPrint('Error loading read announcements: $e');
+      if (!mounted) return;
+      setState(() {
+        _readAnnouncementIdsLoaded = true;
+      });
     }
   }
 
@@ -218,12 +227,17 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
         final sorted = _sortUnreadFirst(withReadFlag);
         final displayItems = sorted;
 
-        final hasUnreadAnnouncements = sorted.any((item) {
-          final type = item['type'] as String?;
-          final isRead = item['isRead'] as bool? ?? false;
-          return type == 'announcement' && !isRead;
-        });
-        if (widget.onUnreadAnnouncementsChanged != null) {
+        // Avoid a brief "unread" badge flicker while read IDs are still loading.
+        final bool hasUnreadAnnouncements = _readAnnouncementIdsLoaded
+            ? sorted.any((item) {
+                final type = item['type'] as String?;
+                final isRead = item['isRead'] as bool? ?? false;
+                return type == 'announcement' && !isRead;
+              })
+            : false;
+        if (widget.onUnreadAnnouncementsChanged != null &&
+            _lastReportedHasUnreadAnnouncements != hasUnreadAnnouncements) {
+          _lastReportedHasUnreadAnnouncements = hasUnreadAnnouncements;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
               widget.onUnreadAnnouncementsChanged!(hasUnreadAnnouncements);
@@ -260,6 +274,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
         return Stack(
           children: [
             Scrollbar(
+              controller: _scrollController,
               thumbVisibility: false,
               child: ListView.builder(
                 controller: _scrollController,
@@ -407,6 +422,8 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                 final announcementId = item['id'] as String;
                 final isRead = _readAnnouncementIds.contains(announcementId);
                 final viewCount = item['viewCount'] as int? ?? 0;
+                final imageUrlsRaw = item['imageUrls'] as List<dynamic>?;
+                final imageUrls = imageUrlsRaw?.whereType<String>().toList();
                 return AnnouncementCard(
                   title: item['title'] as String? ?? '',
                   description: item['content'] as String? ?? item['description'] as String? ?? '',
@@ -418,6 +435,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                   isRead: isRead,
                   showTag: true,
                   announcementId: announcementId,
+                  imageUrls: imageUrls?.isNotEmpty == true ? imageUrls : null,
                   onMarkAsReadPressed: () {
                     _markAnnouncementAsRead(announcementId);
                   },
@@ -428,11 +446,14 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
               } else if (type == 'task') {
                 final task = item['task'] as TaskModel;
                 final errandStatus = _mapTaskStatusToErrandStatus(task.status);
+                final currentUserId = FirestoreService.currentUserId;
+                final isOwner = currentUserId != null && currentUserId == task.requesterId;
                 return ErrandJobCard(
                   title: task.title,
                   description: task.description,
                   postedBy: task.requesterName,
                   date: task.createdAt,
+                  imageUrls: task.imageUrls,
                   status: errandStatus,
                   statusLabel: task.status.displayName,
                   volunteerName: task.assignedByName,
@@ -440,10 +461,15 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                   onViewPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => TaskDetailScreen(
-                          task: task,
-                          contactNumber: task.contactNumber,
-                        ),
+                        builder: (_) => isOwner
+                            ? TaskEditScreen(
+                                task: task,
+                                contactNumber: task.contactNumber ?? '',
+                              )
+                            : TaskDetailScreen(
+                                task: task,
+                                contactNumber: task.contactNumber,
+                              ),
                       ),
                     );
                   },

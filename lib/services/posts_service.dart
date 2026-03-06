@@ -231,29 +231,31 @@ class PostsService {
 
   /// Unread = comments by others (userId != ownerUserId) after lastReadAt.
   static Stream<int> getUnreadCommentsCountForPostStream(String postId, String ownerUserId) {
-    return getCommentsStream(postId).asyncMap((comments) async {
-      try {
-        final readDoc = await _postsCollection
-            .doc(postId)
-            .collection('comment_read')
-            .doc(ownerUserId)
-            .get();
-        final data = readDoc.data() as Map<String, dynamic>?;
-        final lastReadAt = data?['lastReadAt'] != null
-            ? (data!['lastReadAt'] is Timestamp)
-                ? (data['lastReadAt'] as Timestamp).toDate()
-                : DateTime(1970)
-            : DateTime(1970);
-        return comments
-            .where((c) {
-              final commentUserId = c['userId'] as String? ?? '';
-              final createdAt = c['createdAt'] as DateTime? ?? DateTime(1970);
-              return commentUserId != ownerUserId && createdAt.isAfter(lastReadAt);
-            })
-            .length;
-      } catch (_) {
-        return 0;
-      }
+    // Important: unread count must update both when new comments arrive AND when the
+    // owner marks comments as read (comment_read/{ownerUserId} changes).
+    final readDocStream = _postsCollection
+        .doc(postId)
+        .collection('comment_read')
+        .doc(ownerUserId)
+        .snapshots();
+
+    return getCommentsStream(postId).asyncExpand((comments) {
+      return readDocStream.map((readSnap) {
+        try {
+          final data = readSnap.data() as Map<String, dynamic>?;
+          final raw = data?['lastReadAt'];
+          final lastReadAt = raw is Timestamp
+              ? raw.toDate()
+              : (raw is DateTime ? raw : DateTime(1970));
+          return comments.where((c) {
+            final commentUserId = c['userId'] as String? ?? '';
+            final createdAt = c['createdAt'] as DateTime? ?? DateTime(1970);
+            return commentUserId != ownerUserId && createdAt.isAfter(lastReadAt);
+          }).length;
+        } catch (_) {
+          return 0;
+        }
+      });
     });
   }
 
@@ -297,14 +299,11 @@ class PostsService {
       setPosts(posts);
     });
 
-    controller.onCancel = () {
-      sub.cancel();
-      for (final s in postSubs.values) {
-        s.cancel();
-      }
-      postSubs.clear();
-      unreadByPost.clear();
+    controller.onListen = () {
+      if (!controller.isClosed) emitSum();
     };
+    // Do not cancel source when last listener cancels so badge stays correct when returning to screen.
+    controller.onCancel = () {};
 
     return controller.stream;
   }

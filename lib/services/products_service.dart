@@ -99,7 +99,22 @@ class ProductsService {
       final productSnap = await _productsCollection.doc(productId).get();
       final productData = productSnap.data() as Map<String, dynamic>?;
       final sellerId = productData?['sellerId'] as String?;
+      final sellerName = productData?['sellerName'] as String? ?? 'Unknown';
+      final productTitle = productData?['title'] as String? ?? 'Unknown Product';
+      
       print('Creating product message notification for seller: $sellerId');
+      
+      // Record this interaction for the sender (for Activity Log)
+      if (!isSeller && senderId.isNotEmpty) {
+        await recordUserProductInteraction(
+          senderId,
+          productId,
+          productTitle,
+          sellerId ?? '',
+          sellerName,
+        );
+      }
+      
       if (!isSeller && sellerId != null && sellerId != senderId) {
         final batch = FirestoreService.instance.batch();
         final notifRef =
@@ -167,21 +182,25 @@ class ProductsService {
 
   /// Unread = messages from non-seller after lastReadAt for the given viewer (typically the seller).
   static Stream<int> getUnreadProductMessagesCountStream(String productId, String viewerUserId) {
-    return getMessagesStream(productId).asyncMap((messages) async {
-      try {
-        final readSnap = await _messageReadDoc(productId, viewerUserId).get();
-        final data = readSnap.data() as Map<String, dynamic>?;
-        final lastReadAt = data?['lastReadAt'] != null
-            ? (data!['lastReadAt'] is Timestamp)
-                ? (data['lastReadAt'] as Timestamp).toDate()
-                : DateTime(1970)
-            : DateTime(1970);
-        return messages
-            .where((m) => m.senderId != viewerUserId && m.createdAt.isAfter(lastReadAt))
-            .length;
-      } catch (_) {
-        return 0;
-      }
+    // Important: unread count must update both when new messages arrive AND when the
+    // viewer marks the thread as read (message_read/{userId} changes).
+    return getMessagesStream(productId).asyncExpand((messages) {
+      return _messageReadDoc(productId, viewerUserId).snapshots().map((readSnap) {
+        try {
+          final data = readSnap.data() as Map<String, dynamic>?;
+          final raw = data?['lastReadAt'];
+          final lastReadAt = raw is Timestamp
+              ? raw.toDate()
+              : (raw is DateTime ? raw : DateTime(1970));
+          return messages
+              .where(
+                (m) => m.senderId != viewerUserId && m.createdAt.isAfter(lastReadAt),
+              )
+              .length;
+        } catch (_) {
+          return 0;
+        }
+      });
     });
   }
 
@@ -225,14 +244,11 @@ class ProductsService {
       setProducts(products);
     });
 
-    controller.onCancel = () {
-      sub.cancel();
-      for (final s in productSubs.values) {
-        s.cancel();
-      }
-      productSubs.clear();
-      unreadByProduct.clear();
+    controller.onListen = () {
+      if (!controller.isClosed) emitSum();
     };
+    // Do not cancel source when last listener cancels so badge stays correct when returning to screen.
+    controller.onCancel = () {};
 
     return controller.stream;
   }
@@ -280,15 +296,250 @@ class ProductsService {
       setProducts(products);
     });
 
+    controller.onListen = () {
+      if (!controller.isClosed) emitList();
+    };
+    controller.onCancel = () {};
+
+    return controller.stream;
+  }
+
+  // ==================== INTERACTED PRODUCTS (Activity Log) ====================
+
+  static final CollectionReference _interactionsCollection =
+      FirestoreService.instance.collection('user_product_interactions');
+
+  /// Record that a user has interacted with a product (called when sending a message)
+  static Future<void> recordUserProductInteraction(
+    String userId,
+    String productId,
+    String productTitle,
+    String sellerId,
+    String sellerName,
+  ) async {
+    final interactionRef = _interactionsCollection.doc('${userId}_$productId');
+    await interactionRef.set({
+      'userId': userId,
+      'productId': productId,
+      'productTitle': productTitle,
+      'sellerId': sellerId,
+      'sellerName': sellerName,
+      'lastInteractedAt': FieldValue.serverTimestamp(),
+      'unreadReplyCount': 0,
+    }, SetOptions(merge: true));
+  }
+
+  /// Get all products that a user has interacted with (Activity Log)
+  static Stream<List<MapEntry<ProductModel, int>>> getUserInteractedProductsStream(String userId) {
+    final controller = StreamController<List<MapEntry<ProductModel, int>>>.broadcast();
+    final Map<String, int> unreadByProduct = {};
+    final Map<String, StreamSubscription<int>> productSubs = {};
+    List<ProductModel> _currentProducts = [];
+
+    void emitList() {
+      if (!controller.isClosed) {
+        final list = _currentProducts
+            .map((p) => MapEntry(p, unreadByProduct[p.id] ?? 0))
+            .toList();
+        controller.add(list);
+      }
+    }
+
+    void setProducts(List<ProductModel> products) {
+      final newIds = products.map((p) => p.id).toSet();
+      for (final id in productSubs.keys.toList()) {
+        if (!newIds.contains(id)) {
+          productSubs[id]?.cancel();
+          productSubs.remove(id);
+          unreadByProduct.remove(id);
+        }
+      }
+      _currentProducts = products;
+      for (final p in products) {
+        if (productSubs.containsKey(p.id)) continue;
+        unreadByProduct[p.id] = 0;
+        // For interacted products, user is not the seller, so we track unread replies from seller
+        final sub = _getUnreadRepliesFromSellerStream(p.id, userId).listen((count) {
+          unreadByProduct[p.id] = count;
+          emitList();
+        });
+        productSubs[p.id] = sub;
+      }
+      emitList();
+    }
+
+    // Listen to user's interactions to get the list of product IDs
+    final interactionsSub = _interactionsCollection
+        .where('userId', isEqualTo: userId)
+        .orderBy('lastInteractedAt', descending: true)
+        .snapshots()
+        .asyncMap((snapshot) async {
+          final productIds = snapshot.docs
+              .map((doc) => (doc.data() as Map<String, dynamic>)['productId'] as String?)
+              .where((id) => id != null)
+              .cast<String>()
+              .toList();
+          
+          if (productIds.isEmpty) return <ProductModel>[];
+          
+          // Fetch the actual product documents
+          final products = <ProductModel>[];
+          for (final batch in _chunks(productIds, 10)) {
+            final query = await _productsCollection
+                .where(FieldPath.documentId, whereIn: batch)
+                .get();
+            products.addAll(query.docs
+                .map((doc) => ProductModel.fromFirestore(doc))
+                .where((p) => p.isAvailable));
+          }
+          // Sort by the order from interactions (most recent first)
+          final idOrder = Map.fromIterables(
+            productIds,
+            List.generate(productIds.length, (i) => i),
+          );
+          products.sort((a, b) => idOrder[a.id]!.compareTo(idOrder[b.id]!));
+          return products;
+        })
+        .listen((products) {
+          setProducts(products);
+        });
+
+    controller.onListen = () {
+      if (!controller.isClosed) emitList();
+    };
+    controller.onCancel = () {
+      interactionsSub.cancel();
+    };
+
+    return controller.stream;
+  }
+
+  /// Get unread replies from seller for a specific product (for user's Activity Log)
+  static Stream<int> _getUnreadRepliesFromSellerStream(String productId, String userId) {
+    return getMessagesStream(productId).asyncExpand((messages) {
+      return _messageReadDoc(productId, userId).snapshots().map((readSnap) {
+        try {
+          final data = readSnap.data() as Map<String, dynamic>?;
+          final raw = data?['lastReadAt'];
+          final lastReadAt = raw is Timestamp
+              ? raw.toDate()
+              : (raw is DateTime ? raw : DateTime(1970));
+          // Count messages from seller (not from user) after lastReadAt
+          return messages
+              .where(
+                (m) => m.senderId != userId && m.createdAt.isAfter(lastReadAt),
+              )
+              .length;
+        } catch (_) {
+          return 0;
+        }
+      });
+    });
+  }
+
+  /// Total unread replies across all products the user has interacted with (for Activity Log tab badge)
+  static Stream<int> getTotalUnreadRepliesForUserStream(String userId) {
+    final controller = StreamController<int>.broadcast();
+    final Map<String, int> unreadByProduct = {};
+    final Map<String, StreamSubscription<int>> productSubs = {};
+    List<String> _currentProductIds = [];
+
+    void emitSum() {
+      if (!controller.isClosed) {
+        final sum = _currentProductIds.fold<int>(0, (s, id) => s + (unreadByProduct[id] ?? 0));
+        controller.add(sum);
+      }
+    }
+
+    void setProductIds(List<String> productIds) {
+      final newIds = productIds.toSet();
+      for (final id in productSubs.keys.toList()) {
+        if (!newIds.contains(id)) {
+          productSubs[id]?.cancel();
+          productSubs.remove(id);
+          unreadByProduct.remove(id);
+        }
+      }
+      _currentProductIds = productIds;
+      for (final id in productIds) {
+        if (productSubs.containsKey(id)) continue;
+        unreadByProduct[id] = 0;
+        final sub = _getUnreadRepliesFromSellerStream(id, userId).listen((count) {
+          unreadByProduct[id] = count;
+          emitSum();
+        });
+        productSubs[id] = sub;
+      }
+      emitSum();
+    }
+
+    final sub = _interactionsCollection
+        .where('userId', isEqualTo: userId)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => (doc.data() as Map<String, dynamic>)['productId'] as String?)
+            .where((id) => id != null)
+            .cast<String>()
+            .toList())
+        .listen((productIds) {
+          setProductIds(productIds);
+        });
+
+    controller.onListen = () {
+      if (!controller.isClosed) emitSum();
+    };
     controller.onCancel = () {
       sub.cancel();
       for (final s in productSubs.values) {
         s.cancel();
       }
-      productSubs.clear();
-      unreadByProduct.clear();
     };
 
     return controller.stream;
+  }
+
+  /// Combined total unread count for Product Activity (seller products + interacted posts)
+  /// This is used for the marketplace "My Product" button badge
+  static Stream<int> getTotalProductActivityUnreadStream(String userId) {
+    final controller = StreamController<int>.broadcast();
+    int _sellerUnread = 0;
+    int _interactedUnread = 0;
+
+    void emitSum() {
+      if (!controller.isClosed) {
+        controller.add(_sellerUnread + _interactedUnread);
+      }
+    }
+
+    // Listen to seller products unread
+    final sellerSub = getTotalUnreadProductMessagesForSellerStream(userId).listen((count) {
+      _sellerUnread = count;
+      emitSum();
+    });
+
+    // Listen to interacted posts unread
+    final interactedSub = getTotalUnreadRepliesForUserStream(userId).listen((count) {
+      _interactedUnread = count;
+      emitSum();
+    });
+
+    controller.onListen = () {
+      if (!controller.isClosed) emitSum();
+    };
+    controller.onCancel = () {
+      sellerSub.cancel();
+      interactedSub.cancel();
+    };
+
+    return controller.stream;
+  }
+
+  /// Helper to chunk list for Firestore 'whereIn' queries (max 10 items)
+  static List<List<T>> _chunks<T>(List<T> list, int chunkSize) {
+    final chunks = <List<T>>[];
+    for (var i = 0; i < list.length; i += chunkSize) {
+      chunks.add(list.sublist(i, i + chunkSize > list.length ? list.length : i + chunkSize));
+    }
+    return chunks;
   }
 }

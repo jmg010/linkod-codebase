@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'optimized_image.dart';
 
 enum ErrandJobStatus {
   open,
@@ -19,6 +20,8 @@ class ErrandJobCard extends StatelessWidget {
   final bool showTag;
   final String viewButtonLabel;
   final IconData viewButtonIcon;
+  /// Optional image URLs for the errand (owner-attached). Shown like product card.
+  final List<String> imageUrls;
 
   const ErrandJobCard({
     super.key,
@@ -34,6 +37,7 @@ class ErrandJobCard extends StatelessWidget {
     this.showTag = false,
     this.viewButtonLabel = 'View',
     this.viewButtonIcon = Icons.visibility_outlined,
+    this.imageUrls = const [],
   });
 
   @override
@@ -91,6 +95,11 @@ class ErrandJobCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
+            ],
+            // Image section (when imageUrls provided)
+            if (imageUrls.isNotEmpty) ...[
+              _ErrandCardImage(imageUrls: imageUrls),
+              const SizedBox(height: 12),
             ],
             // Title and status tag in same row
             Row(
@@ -316,6 +325,80 @@ class ErrandJobCard extends StatelessWidget {
       'December'
     ];
     return months[month - 1];
+  }
+}
+
+/// Image area for errand card (single image or PageView; tap to fullscreen).
+class _ErrandCardImage extends StatelessWidget {
+  const _ErrandCardImage({required this.imageUrls});
+
+  final List<String> imageUrls;
+
+  @override
+  Widget build(BuildContext context) {
+    if (imageUrls.isEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          height: 160,
+          width: double.infinity,
+          color: Colors.grey.shade100,
+          alignment: Alignment.center,
+          child: Icon(Icons.image_outlined, size: 40, color: Colors.grey.shade400),
+        ),
+      );
+    }
+    if (imageUrls.length == 1) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: SizedBox(
+          height: 160,
+          width: double.infinity,
+          child: OptimizedNetworkImage(
+            imageUrl: imageUrls.first,
+            height: 160,
+            fit: BoxFit.cover,
+            cacheWidth: 400,
+            cacheHeight: 400,
+            borderRadius: BorderRadius.circular(14),
+            errorWidget: _errorPlaceholder(),
+            onTap: () => openFullScreenImages(context, imageUrls, initialIndex: 0),
+          ),
+        ),
+      );
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: SizedBox(
+        height: 160,
+        width: double.infinity,
+        child: PageView.builder(
+          itemCount: imageUrls.length,
+          itemBuilder: (context, index) {
+            return GestureDetector(
+              onTap: () => openFullScreenImages(context, imageUrls, initialIndex: index),
+              child: OptimizedNetworkImage(
+                imageUrl: imageUrls[index],
+                height: 160,
+                fit: BoxFit.cover,
+                cacheWidth: 400,
+                cacheHeight: 400,
+                borderRadius: BorderRadius.circular(14),
+                errorWidget: _errorPlaceholder(),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _errorPlaceholder() {
+    return Container(
+      color: Colors.grey.shade200,
+      alignment: Alignment.center,
+      child: Icon(Icons.image_not_supported_outlined, size: 40, color: Colors.grey.shade500),
+    );
   }
 }
 

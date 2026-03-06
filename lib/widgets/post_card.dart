@@ -5,6 +5,7 @@ import '../ui_constants.dart';
 import '../services/posts_service.dart';
 import '../services/firestore_service.dart';
 import '../screens/post_detail_screen.dart';
+import 'optimized_image.dart';
 
 class PostCard extends StatefulWidget {
   final PostModel post;
@@ -346,13 +347,16 @@ class _PostMedia extends StatelessWidget {
     if (imageUrls.length == 1) {
       return AspectRatio(
         aspectRatio: 16 / 9,
-        child: Image.network(
-          imageUrls.first,
+        child: OptimizedNetworkImage(
+          imageUrl: imageUrls.first,
           fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => Container(
+          cacheWidth: 800,
+          cacheHeight: 450,
+          errorWidget: Container(
             color: Colors.grey.shade300,
             child: const Icon(Icons.image_not_supported),
           ),
+          onTap: () => openFullScreenImage(context, imageUrls.first),
         ),
       );
     }
@@ -374,13 +378,16 @@ class _PostMedia extends StatelessWidget {
           return Stack(
             fit: StackFit.expand,
             children: [
-              Image.network(
-                url,
+              OptimizedNetworkImage(
+                imageUrl: url,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
+                cacheWidth: 400,
+                cacheHeight: 400,
+                errorWidget: Container(
                   color: Colors.grey.shade300,
                   child: const Icon(Icons.image_not_supported),
                 ),
+                onTap: () => openFullScreenImages(context, imageUrls, initialIndex: index),
               ),
               if (isLast)
                 Container(

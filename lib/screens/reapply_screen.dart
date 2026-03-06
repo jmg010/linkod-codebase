@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../services/storage_service.dart';
+import '../widgets/xfile_preview_image.dart';
 import 'landing_screen.dart';
 
 /// Philippines mobile: 10–11 digits.
@@ -32,7 +34,7 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscure = true;
-  String? _proofOfResidencePath;
+  XFile? _proofFile;
   final List<String> _categories = [
     'Senior', 'Student', 'PWD', 'Youth', 'Farmer',
     'Fisherman', 'Tricycle Driver', 'Small Business Owner',
@@ -82,11 +84,26 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
   }
 
   Future<void> _submitProofOnly() async {
+    if (_proofFile == null) {
+      setState(() => _errorMessage = 'Please add proof of residence.');
+      return;
+    }
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
     try {
+      final proofUrl = await StorageService.instance.uploadImageFromXFile(
+        _proofFile!,
+        StorageService.proofPath(widget.uid),
+      );
+      if (proofUrl == null && mounted) {
+        setState(() {
+          _errorMessage = 'Failed to upload proof. Try again.';
+          _isLoading = false;
+        });
+        return;
+      }
       final docRef = FirebaseFirestore.instance.collection('users').doc(widget.uid);
       final doc = await docRef.get();
       if (!doc.exists) {
@@ -94,12 +111,14 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
         return;
       }
       final currentCount = (doc.data()?['reapplicationCount'] as int?) ?? 0;
-      await docRef.update({
+      final updates = <String, dynamic>{
         'accountStatus': 'pending',
         'reapplicationCount': currentCount + 1,
         'lastUpdated': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-      });
+      };
+      if (proofUrl != null) updates['proofOfResidenceUrl'] = proofUrl;
+      await docRef.update(updates);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Re-application submitted. You will be notified when reviewed.')),
@@ -239,19 +258,15 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
                         const SizedBox(height: 18),
                         const Text('Proof of residence *', style: TextStyle(fontWeight: FontWeight.w600)),
                         const SizedBox(height: 6),
-                        const Text(
-                          'Upload will be available when Firebase Storage is enabled.',
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
                         const SizedBox(height: 18),
                         OutlinedButton.icon(
-                          icon: Icon(_proofOfResidencePath != null ? Icons.check_circle : Icons.add_photo_alternate_outlined, size: 20),
-                          label: Text(_proofOfResidencePath != null ? 'Photo selected' : 'Add proof of residence'),
+                          icon: Icon(_proofFile != null ? Icons.check_circle : Icons.add_photo_alternate_outlined, size: 20),
+                          label: Text(_proofFile != null ? 'Photo selected' : 'Add proof of residence'),
                           onPressed: () async {
                             final picker = ImagePicker();
                             final xFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
                             if (xFile != null && mounted) {
-                              setState(() => _proofOfResidencePath = xFile.path);
+                              setState(() => _proofFile = xFile);
                             }
                           },
                           style: OutlinedButton.styleFrom(
@@ -259,6 +274,23 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
                             side: const BorderSide(color: Color(0xFF00A651)),
                           ),
                         ),
+                        if (_proofFile != null) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFF00A651).withOpacity(0.3)),
+                            ),
+                            padding: const EdgeInsets.all(12),
+                            child: XFilePreviewImage(
+                              xFile: _proofFile!,
+                              width: 120,
+                              height: 90,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ],
                       ] else ...[
                         const Text('Update your information and submit for review.', style: TextStyle(fontSize: 14, color: Colors.black87, height: 1.4)),
                         const SizedBox(height: 18),

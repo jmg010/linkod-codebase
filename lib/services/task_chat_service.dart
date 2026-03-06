@@ -163,14 +163,114 @@ class TaskChatService {
       });
     });
 
-    controller.onCancel = () {
-      reqSub?.cancel();
-      assSub?.cancel();
-      for (final sub in taskSubs.values) {
-        sub.cancel();
+    controller.onListen = () {
+      if (!controller.isClosed) emitSum();
+    };
+    // Do not cancel source when last listener cancels so badge stays correct when returning to screen.
+    controller.onCancel = () {};
+
+    return controller.stream;
+  }
+
+  /// Total unread for tasks where user is the REQUESTER (for MY POSTS tab badge)
+  static Stream<int> getTotalUnreadForRequesterStream(String uid) {
+    final controller = StreamController<int>.broadcast();
+    final Map<String, int> unreadByTask = {};
+    final Map<String, StreamSubscription<int>> taskSubs = {};
+    List<String> _currentTaskIds = [];
+
+    void emitSum() {
+      if (!controller.isClosed) {
+        final sum = _currentTaskIds.fold<int>(0, (s, id) => s + (unreadByTask[id] ?? 0));
+        controller.add(sum);
       }
-      taskSubs.clear();
-      unreadByTask.clear();
+    }
+
+    void setTaskIds(List<String> ids) {
+      final newSet = ids.toSet();
+      for (final id in taskSubs.keys.toList()) {
+        if (!newSet.contains(id)) {
+          taskSubs[id]?.cancel();
+          taskSubs.remove(id);
+          unreadByTask.remove(id);
+        }
+      }
+      _currentTaskIds = newSet.toList();
+      for (final id in newSet) {
+        if (taskSubs.containsKey(id)) continue;
+        final sub = getUnreadCountStream(id, uid).listen((count) {
+          unreadByTask[id] = count;
+          emitSum();
+        });
+        taskSubs[id] = sub;
+      }
+      emitSum();
+    }
+
+    final reqSub = TasksService.getRequesterTasksStream(uid).listen((rList) {
+      setTaskIds(rList.map((t) => t.id).toList());
+    });
+
+    controller.onListen = () {
+      if (!controller.isClosed) emitSum();
+    };
+    controller.onCancel = () {
+      reqSub.cancel();
+      for (final s in taskSubs.values) {
+        s.cancel();
+      }
+    };
+
+    return controller.stream;
+  }
+
+  /// Total unread for tasks where user is ASSIGNED (for INTERACTED POSTS tab badge)
+  static Stream<int> getTotalUnreadForAssignedStream(String uid) {
+    final controller = StreamController<int>.broadcast();
+    final Map<String, int> unreadByTask = {};
+    final Map<String, StreamSubscription<int>> taskSubs = {};
+    List<String> _currentTaskIds = [];
+
+    void emitSum() {
+      if (!controller.isClosed) {
+        final sum = _currentTaskIds.fold<int>(0, (s, id) => s + (unreadByTask[id] ?? 0));
+        controller.add(sum);
+      }
+    }
+
+    void setTaskIds(List<String> ids) {
+      final newSet = ids.toSet();
+      for (final id in taskSubs.keys.toList()) {
+        if (!newSet.contains(id)) {
+          taskSubs[id]?.cancel();
+          taskSubs.remove(id);
+          unreadByTask.remove(id);
+        }
+      }
+      _currentTaskIds = newSet.toList();
+      for (final id in newSet) {
+        if (taskSubs.containsKey(id)) continue;
+        final sub = getUnreadCountStream(id, uid).listen((count) {
+          unreadByTask[id] = count;
+          emitSum();
+        });
+        taskSubs[id] = sub;
+      }
+      emitSum();
+    }
+
+    final assSub = TasksService.getAssignedTasksStream(uid).listen((aList) {
+      setTaskIds(aList.map((t) => t.id).toList());
+    });
+
+    controller.onListen = () {
+      if (!controller.isClosed) emitSum();
+    };
+    controller.onCancel = () {
+      assSub.cancel();
+      for (final s in taskSubs.values) {
+        s.cancel();
+      }
     };
 
     return controller.stream;

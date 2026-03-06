@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../widgets/optimized_image.dart';
 import '../models/message_model.dart';
 import '../models/product_model.dart';
+import '../services/notifications_service.dart';
 import '../services/products_service.dart';
 import '../services/firestore_service.dart';
 import 'sell_product_screen.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final ProductModel product;
+  final String? notificationId;
 
   const ProductDetailScreen({
     super.key,
     required this.product,
+    this.notificationId,
   });
 
   @override
@@ -44,9 +48,17 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   void initState() {
     super.initState();
     _currentProduct = widget.product;
-    // Do NOT mark product messages as read here; mark only when user focuses message input or sends (see below).
+    
+    // Mark notification as read if opened from notification
+    if (widget.notificationId != null) {
+      NotificationsService.markAsRead(widget.notificationId!);
+    }
+    
+    // Mark product messages as read when seller opens the screen so the red indicator clears.
     final uid = FirestoreService.auth.currentUser?.uid;
     if (uid != null && widget.product.sellerId == uid) {
+      _hasMarkedMessagesRead = true;
+      ProductsService.markProductMessagesAsRead(widget.product.id, uid);
       _didAddMessageFocusListener = true;
       _messageFocusNode.addListener(_onMessageFocusChanged);
     }
@@ -81,10 +93,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     return uid != null && _currentProduct.sellerId == uid;
   }
 
-  /// Price string without trailing slash when there is no unit (e.g. /kg for Food).
+  /// Price string with unit when set (e.g. /kg, /pcs). Legacy: infer /kg for Food category.
   String _priceDisplay(ProductModel product) {
-    final hasUnit = product.category.toLowerCase().contains('food');
-    if (hasUnit) {
+    final unit = product.priceUnit;
+    if (unit != null && unit.isNotEmpty) {
+      return '₱${product.price.toStringAsFixed(0)}/$unit';
+    }
+    if (product.category.toLowerCase().contains('food')) {
       return '₱${product.price.toStringAsFixed(0)}/kg';
     }
     return '₱${product.price.toStringAsFixed(0)}';
@@ -653,51 +668,57 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   Widget _buildHeroImage(ProductModel product) {
     final bool hasImage = product.imageUrls.isNotEmpty;
-    return Stack(
-      children: [
-        ClipRRect(
-          borderRadius: const BorderRadius.only(
-            bottomLeft: Radius.circular(24),
-            bottomRight: Radius.circular(24),
-          ),
-          child: SizedBox(
-            height: 180,
-            width: double.infinity,
-            child: hasImage
-                ? Image.network(
-                    product.imageUrls.first,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) =>
-                        _imagePlaceholder(),
-                  )
-                : _imagePlaceholder(),
-          ),
-        ),
-        Positioned(
-          top: 12,
-          left: 12,
-          child: SafeArea(
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.85),
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new, size: 18),
-                color: Colors.black87,
-                onPressed: () => Navigator.of(context).pop(),
-              ),
+    final urls = product.imageUrls;
+    if (!hasImage) {
+      return Stack(
+        children: [
+          ClipRRect(
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(24),
+              bottomRight: Radius.circular(24),
+            ),
+            child: SizedBox(
+              height: 180,
+              width: double.infinity,
+              child: _imagePlaceholder(),
             ),
           ),
+          _buildBackButton(),
+        ],
+      );
+    }
+    return _ProductImageCarousel(
+      imageUrls: urls,
+      onTap: openFullScreenImages,
+      imagePlaceholder: _imagePlaceholder(),
+      backButton: _buildBackButton(),
+    );
+  }
+
+  Widget _buildBackButton() {
+    return Positioned(
+      top: 12,
+      left: 12,
+      child: SafeArea(
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.85),
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+            color: Colors.black87,
+            onPressed: () => Navigator.of(context).pop(),
+          ),
         ),
-      ],
+      ),
     );
   }
 
@@ -1000,6 +1021,102 @@ class _MessageBubble extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// Swipeable image carousel for product detail. Single image still uses PageView (one page).
+class _ProductImageCarousel extends StatefulWidget {
+  const _ProductImageCarousel({
+    required this.imageUrls,
+    required this.onTap,
+    required this.imagePlaceholder,
+    required this.backButton,
+  });
+
+  final List<String> imageUrls;
+  final void Function(BuildContext context, List<String> urls, {int initialIndex}) onTap;
+  final Widget imagePlaceholder;
+  final Widget backButton;
+
+  @override
+  State<_ProductImageCarousel> createState() => _ProductImageCarouselState();
+}
+
+class _ProductImageCarouselState extends State<_ProductImageCarousel> {
+  late PageController _pageController;
+  int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final urls = widget.imageUrls;
+    return Stack(
+      children: [
+        ClipRRect(
+          borderRadius: const BorderRadius.only(
+            bottomLeft: Radius.circular(24),
+            bottomRight: Radius.circular(24),
+          ),
+          child: SizedBox(
+            height: 180,
+            width: double.infinity,
+            child: PageView.builder(
+              controller: _pageController,
+              itemCount: urls.length,
+              onPageChanged: (index) => setState(() => _currentIndex = index),
+              itemBuilder: (context, index) {
+                return GestureDetector(
+                  onTap: () => widget.onTap(context, urls, initialIndex: _currentIndex),
+                  child: OptimizedNetworkImage(
+                    imageUrl: urls[index],
+                    height: 180,
+                    fit: BoxFit.cover,
+                    cacheWidth: 800,
+                    cacheHeight: 800,
+                    errorWidget: widget.imagePlaceholder,
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        widget.backButton,
+        if (urls.length > 1)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 12,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                urls.length,
+                (i) => Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _currentIndex == i
+                        ? Colors.white
+                        : Colors.white.withOpacity(0.4),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

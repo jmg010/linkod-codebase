@@ -35,8 +35,6 @@ class TasksScreenState extends State<TasksScreen> {
   int _displayCount = _initialPageSize;
   int _totalTaskCount = 0;
   final ScrollController _scrollController = ScrollController();
-  String? _cachedMyPostUid;
-  Stream<int>? _cachedMyPostStream;
 
   List<TaskModel> _filterByCategory(List<TaskModel> tasks) {
     if (_selectedFilter == _filterAll) return tasks;
@@ -169,28 +167,15 @@ class TasksScreenState extends State<TasksScreen> {
 
   static Stream<int> _ownerPendingVolunteersCountStream(String? uid) {
     if (uid == null) return Stream<int>.value(0);
-    return TasksService.getRequesterTasksStream(uid).asyncMap((tasks) async {
-      try {
-        int total = 0;
-        for (final t in tasks) {
-          final list = await TasksService.getVolunteersStream(t.id).first;
-          total += list.where((v) => (v['status'] as String? ?? 'pending') == 'pending').length;
-        }
-        return total;
-      } catch (_) {
-        return 0;
-      }
-    });
+    // Use combined stream for both requester tasks and interacted tasks
+    return TasksService.getTotalPostActivityUnreadStream(uid);
   }
 
   @override
   Widget build(BuildContext context) {
     final currentUserId = FirestoreService.currentUserId;
-    if (_cachedMyPostUid != currentUserId) {
-      _cachedMyPostUid = currentUserId;
-      _cachedMyPostStream = _ownerPendingVolunteersCountStream(currentUserId);
-    }
-    final myPostStream = _cachedMyPostStream ?? Stream<int>.value(0);
+    // Use a fresh stream each build so we never reuse a single-subscription stream after tab switch.
+    final myPostStream = _ownerPendingVolunteersCountStream(currentUserId);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F4F4),
@@ -243,7 +228,8 @@ class TasksScreenState extends State<TasksScreen> {
                   stream: myPostStream,
                   initialData: 0,
                   builder: (context, snap) {
-                    final hasNotification = (snap.data ?? 0) > 0;
+                    final count = snap.data ?? 0;
+                    final showBadge = count > 0;
                     return Stack(
                       clipBehavior: Clip.none,
                       children: [
@@ -254,16 +240,29 @@ class TasksScreenState extends State<TasksScreen> {
                           foregroundColor: const Color(0xFF4A4A4A),
                           onPressed: _handleMyPosts,
                         ),
-                        if (hasNotification)
+                        if (showBadge)
                           Positioned(
-                            right: 4,
-                            top: 2,
+                            right: 0,
+                            top: -2,
                             child: Container(
-                              width: 10,
-                              height: 10,
-                              decoration: const BoxDecoration(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                              decoration: BoxDecoration(
                                 color: Colors.red,
-                                shape: BoxShape.circle,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              constraints: const BoxConstraints(
+                                minWidth: 18,
+                                minHeight: 18,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  count > 99 ? '99+' : count.toString(),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -382,6 +381,7 @@ class TasksScreenState extends State<TasksScreen> {
                                     description: task.description,
                                     postedBy: task.requesterName,
                                     date: task.createdAt,
+                                    imageUrls: task.imageUrls,
                                     status: _mapStatus(task.status)!,
                                     statusLabel: task.status.displayName,
                                     volunteerName: task.assignedByName,
@@ -455,6 +455,7 @@ class TasksScreenState extends State<TasksScreen> {
                           description: task.description,
                           postedBy: task.requesterName,
                           date: task.createdAt,
+                          imageUrls: task.imageUrls,
                           status: status!,
                           statusLabel: task.status.displayName,
                           volunteerName: task.assignedByName,

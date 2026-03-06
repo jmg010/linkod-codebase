@@ -1,10 +1,151 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/task_model.dart';
 import 'firestore_service.dart';
+import 'task_chat_service.dart';
 
 class TasksService {
   static final CollectionReference _tasksCollection =
       FirestoreService.instance.collection('tasks');
+
+  // ==================== INTERACTED TASKS (Activity Log) ====================
+
+  static final CollectionReference _interactionsCollection =
+      FirestoreService.instance.collection('user_task_interactions');
+
+  /// Record that a user has interacted with a task (called when volunteering or chatting)
+  static Future<void> recordUserTaskInteraction(
+    String userId,
+    String taskId,
+    String taskTitle,
+    String requesterId,
+    String requesterName,
+  ) async {
+    final interactionRef = _interactionsCollection.doc('${userId}_$taskId');
+    await interactionRef.set({
+      'userId': userId,
+      'taskId': taskId,
+      'taskTitle': taskTitle,
+      'requesterId': requesterId,
+      'requesterName': requesterName,
+      'lastInteractedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  /// Get all tasks that a user has been ASSIGNED to (for INTERACTED POSTS tab)
+  /// Matches the badge logic: getTotalUnreadForAssignedStream
+  static Stream<List<MapEntry<TaskModel, int>>> getUserInteractedTasksStream(String userId) {
+    final controller = StreamController<List<MapEntry<TaskModel, int>>>.broadcast();
+    final Map<String, int> unreadByTask = {};
+    final Map<String, StreamSubscription<int>> taskSubs = {};
+    List<TaskModel> _currentTasks = [];
+
+    void emitList() {
+      if (!controller.isClosed) {
+        final list = _currentTasks
+            .map((t) => MapEntry(t, unreadByTask[t.id] ?? 0))
+            .toList();
+        controller.add(list);
+      }
+    }
+
+    void setTasks(List<TaskModel> tasks) {
+      final newIds = tasks.map((t) => t.id).toSet();
+      for (final id in taskSubs.keys.toList()) {
+        if (!newIds.contains(id)) {
+          taskSubs[id]?.cancel();
+          taskSubs.remove(id);
+          unreadByTask.remove(id);
+        }
+      }
+      _currentTasks = tasks;
+      for (final t in tasks) {
+        if (taskSubs.containsKey(t.id)) continue;
+        unreadByTask[t.id] = 0;
+        // Track unread chat messages for this assigned task
+        final sub = TaskChatService.getUnreadCountStream(t.id, userId).listen((count) {
+          unreadByTask[t.id] = count;
+          emitList();
+        });
+        taskSubs[t.id] = sub;
+      }
+      emitList();
+    }
+
+    // Listen to assigned tasks (same as badge count)
+    final tasksSub = getAssignedTasksStream(userId).listen((tasks) {
+      setTasks(tasks);
+    });
+
+    controller.onListen = () {
+      if (!controller.isClosed) emitList();
+    };
+    controller.onCancel = () {
+      tasksSub.cancel();
+      for (final s in taskSubs.values) {
+        s.cancel();
+      }
+    };
+
+    return controller.stream;
+  }
+
+  /// Combined total unread count for Post Activity (requester tasks + interacted tasks)
+  /// This is used for the errands "My Post" button badge
+  static Stream<int> getTotalPostActivityUnreadStream(String userId) {
+    final controller = StreamController<int>.broadcast();
+    int _requesterUnread = 0;
+    int _interactedUnread = 0;
+
+    void emitSum() {
+      if (!controller.isClosed) {
+        controller.add(_requesterUnread + _interactedUnread);
+      }
+    }
+
+    // Listen to requester tasks unread (pending volunteers)
+    final requesterSub = getRequesterTasksStream(userId).asyncMap((tasks) async {
+      try {
+        int total = 0;
+        for (final t in tasks) {
+          // Count pending volunteers + unread chat messages
+          final chatUnread = await TaskChatService.getUnreadCountStream(t.id, userId).first;
+          total += t.pendingVolunteersCount + chatUnread;
+        }
+        return total;
+      } catch (_) {
+        return 0;
+      }
+    }).listen((count) {
+      _requesterUnread = count;
+      emitSum();
+    });
+
+    // Listen to interacted tasks unread
+    final interactedSub = TaskChatService.getTotalUnreadForUserStream(userId).listen((count) {
+      _interactedUnread = count;
+      emitSum();
+    });
+
+    controller.onListen = () {
+      if (!controller.isClosed) emitSum();
+    };
+    controller.onCancel = () {
+      requesterSub.cancel();
+      interactedSub.cancel();
+    };
+
+    return controller.stream;
+  }
+
+  /// Helper to chunk list for Firestore 'whereIn' queries (max 10 items)
+  static List<List<T>> _chunks<T>(List<T> list, int chunkSize) {
+    final chunks = <List<T>>[];
+    for (var i = 0; i < list.length; i += chunkSize) {
+      chunks.add(list.sublist(i, i + chunkSize > list.length ? list.length : i + chunkSize));
+    }
+    return chunks;
+  }
 
   /// Get all tasks (Gatekeeper: only Approved)
   static Stream<List<TaskModel>> getTasksStream() {
@@ -82,7 +223,8 @@ class TasksService {
     String volunteerId,
     String volunteerName,
   ) async {
-    final volunteersRef = _tasksCollection.doc(taskId).collection('volunteers');
+    final taskRef = _tasksCollection.doc(taskId);
+    final volunteersRef = taskRef.collection('volunteers');
     
     // Check if already volunteered
     final existingVolunteer = await volunteersRef.where('volunteerId', isEqualTo: volunteerId).get();
@@ -98,9 +240,11 @@ class TasksService {
       'status': 'pending',
     });
     
-    // Increment volunteersCount
-    await _tasksCollection.doc(taskId).update({
+    // Increment volunteersCount and pendingVolunteersCount
+    await taskRef.update({
       'volunteersCount': FieldValue.increment(1),
+      'pendingVolunteersCount': FieldValue.increment(1),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
 
     // Create notification for task requester (client-side, Firestore only).
@@ -108,6 +252,20 @@ class TasksService {
       final taskSnap = await _tasksCollection.doc(taskId).get();
       final taskData = taskSnap.data() as Map<String, dynamic>?;
       final requesterId = taskData?['requesterId'] as String?;
+      final requesterName = taskData?['requesterName'] as String? ?? 'Unknown';
+      final taskTitle = taskData?['title'] as String? ?? 'Unknown Task';
+      
+      // Record this interaction for the volunteer (for Activity Log)
+      if (volunteerId.isNotEmpty) {
+        await recordUserTaskInteraction(
+          volunteerId,
+          taskId,
+          taskTitle,
+          requesterId ?? '',
+          requesterName,
+        );
+      }
+      
       if (requesterId != null && requesterId != volunteerId) {
         final batch = FirestoreService.instance.batch();
         final notifRef =
@@ -184,7 +342,8 @@ class TasksService {
     String volunteerDocId,
     String requesterId,
   ) async {
-    final volunteersRef = _tasksCollection.doc(taskId).collection('volunteers');
+    final taskRef = _tasksCollection.doc(taskId);
+    final volunteersRef = taskRef.collection('volunteers');
     final volunteerDoc = await volunteersRef.doc(volunteerDocId).get();
     
     if (!volunteerDoc.exists) {
@@ -202,11 +361,12 @@ class TasksService {
       'acceptedBy': requesterId,
     });
     
-    // Update task with assigned volunteer
-    await _tasksCollection.doc(taskId).update({
+    // Update task with assigned volunteer and decrement pendingVolunteersCount
+    await taskRef.update({
       'assignedTo': volunteerId,
       'assignedByName': volunteerName,
       'status': 'ongoing',
+      'pendingVolunteersCount': FieldValue.increment(-1),
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
@@ -239,7 +399,8 @@ class TasksService {
 
   /// Cancel own volunteer application (only while pending)
   static Future<void> cancelVolunteer(String taskId, String volunteerId) async {
-    final volunteersRef = _tasksCollection.doc(taskId).collection('volunteers');
+    final taskRef = _tasksCollection.doc(taskId);
+    final volunteersRef = taskRef.collection('volunteers');
     final query = await volunteersRef
         .where('volunteerId', isEqualTo: volunteerId)
         .limit(1)
@@ -253,8 +414,10 @@ class TasksService {
       throw Exception('Only pending applications can be cancelled');
     }
     await volunteersRef.doc(doc.id).delete();
-    await _tasksCollection.doc(taskId).update({
+    await taskRef.update({
       'volunteersCount': FieldValue.increment(-1),
+      'pendingVolunteersCount': FieldValue.increment(-1),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
@@ -286,8 +449,14 @@ class TasksService {
       return;
     }
 
-    await taskRef.collection('volunteers').doc(volunteerDocId).update({
-      'status': 'rejected',
+    // For pending volunteers, delete their record so they can re-apply
+    await taskRef.collection('volunteers').doc(volunteerDocId).delete();
+
+    // Decrement counters for rejected pending volunteer
+    await taskRef.update({
+      'volunteersCount': FieldValue.increment(-1),
+      'pendingVolunteersCount': FieldValue.increment(-1),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
 
     if (volunteerId != null && assignedTo == volunteerId) {

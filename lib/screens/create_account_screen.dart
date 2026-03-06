@@ -2,8 +2,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/fcm_token_service.dart';
+import '../services/storage_service.dart';
+import '../widgets/xfile_preview_image.dart';
 import 'login_screen.dart';
 
 /// Philippines mobile: 10 digits (9XX XXX XXXX) or 11 with leading 0 (09XX XXX XXXX). Max 11 digits.
@@ -24,8 +27,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
   bool obscure = true;
   bool isLoading = false;
-  /// Proof of residence: storage-ready. When Firebase Storage is enabled, set proofOfResidenceUrl from upload.
-  String? _proofOfResidencePath;
+  /// Proof of residence: picked file is uploaded to Firebase Storage on submit; URL stored in awaitingApproval.
+  XFile? _proofFile;
 
   // Demographic categories (Tattoo removed per request)
   final List<String> categories = [
@@ -80,7 +83,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                       const SizedBox(height: 24),
 
                       // FULL NAME
-                      const Text("Full Name *"),
+                      const Text("Full Name "),
                       const SizedBox(height: 6),
                       TextField(
                         controller: nameController,
@@ -94,14 +97,14 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                       const SizedBox(height: 18),
 
                       // PHONE NUMBER (Philippines: 09XX XXX XXXX, max 11 digits)
-                      const Text("Phone Number *"),
+                      const Text("Phone Number "),
                       const SizedBox(height: 6),
                       TextField(
                         controller: phoneController,
                         keyboardType: TextInputType.phone,
                         maxLength: 13,
                         decoration: InputDecoration(
-                          hintText: '09XX XXX XXXX (11 digits)',
+                          hintText: '09XX XXX XXXX',
                           counterText: '',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -112,7 +115,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                       const SizedBox(height: 18),
 
                       // PASSWORD
-                      const Text("Password (min 6 characters) *"),
+                      const Text("Password (min 6 characters) "),
                       const SizedBox(height: 6),
                       TextField(
                         controller: passwordController,
@@ -133,22 +136,19 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
                       const Text("Proof of residence (optional)", style: TextStyle(fontWeight: FontWeight.w600)),
                       const SizedBox(height: 6),
-                      const Text(
-                        "Upload will be available when Firebase Storage is enabled.",
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
+                      
                       const SizedBox(height: 8),
                       OutlinedButton.icon(
-                        icon: Icon(_proofOfResidencePath != null ? Icons.check_circle : Icons.add_photo_alternate_outlined, size: 20),
-                        label: Text(_proofOfResidencePath != null ? 'Photo selected' : 'Add proof of residence (e.g. ID or utility bill)'),
+                        icon: Icon(_proofFile != null ? Icons.check_circle : Icons.add_photo_alternate_outlined, size: 20),
+                        label: Text(_proofFile != null ? 'Photo selected' : 'Add proof of residence (e.g. ID or utility bill)'),
                         onPressed: () async {
                           final picker = ImagePicker();
                           final xFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
                           if (xFile != null && mounted) {
-                            setState(() => _proofOfResidencePath = xFile.path);
+                            setState(() => _proofFile = xFile);
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Proof of residence photo selected. Upload will be available when Firebase Storage is enabled.'),
+                                content: Text('Proof of residence photo selected.'),
                               ),
                             );
                           }
@@ -158,6 +158,34 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                           side: const BorderSide(color: Color(0xFF00A651)),
                         ),
                       ),
+                      if (_proofFile != null) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFF00A651).withOpacity(0.3)),
+                          ),
+                          padding: const EdgeInsets.all(12),
+                          child: Row(
+                            children: [
+                              XFilePreviewImage(
+                                xFile: _proofFile!,
+                                width: 100,
+                                height: 80,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'Proof of residence will be uploaded when you submit.',
+                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 18),
 
                       const Text(
@@ -246,7 +274,19 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     if (digits.length == 10 && !digits.startsWith('0')) return '0$digits'; // 9XXXXXXXXX -> 09XXXXXXXXX
     if (digits.length == 10 && digits.startsWith('0')) return digits; // 0XXXXXXXXX: don't add 0 (would be 009...)
     if (digits.length == 12 && digits.startsWith('63')) return '0${digits.substring(2)}';
-    return digits;
+    return digits; // fallback: return as-is
+  }
+
+  /// Save registration data for auto-fill on login screen
+  Future<void> _saveRegistrationData(String phone, String password) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('last_registered_phone', phone);
+      await prefs.setString('last_registered_password', password);
+    } catch (e) {
+      // Silently fail if storage fails
+      debugPrint('Failed to save registration data: $e');
+    }
   }
 
   Future<void> _signup() async {
@@ -311,6 +351,15 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       // Convert categories array to comma-separated string (per schema)
       final categoryString = selectedCategories.join(', ');
 
+      // Upload proof of residence to Firebase Storage if one was selected
+      String? proofOfResidenceUrl;
+      if (_proofFile != null) {
+        proofOfResidenceUrl = await StorageService.instance.uploadImageFromXFile(
+          _proofFile!,
+          StorageService.proofPath(uid),
+        );
+      }
+
       // Get FCM token and store with request so admin can send push on approval
       final fcmToken = await FcmTokenService.instance.getTokenForAwaitingApproval();
       final fcmTokens = (fcmToken != null && fcmToken.isNotEmpty) ? [fcmToken] : <String>[];
@@ -325,12 +374,15 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         'category': categoryString,
         'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
-        'proofOfResidenceUrl': null,
+        'proofOfResidenceUrl': proofOfResidenceUrl,
         'fcmTokens': fcmTokens,
       });
 
       // Sign out so they see success and later use Login to see "pending approval" message
       await FirebaseAuth.instance.signOut();
+
+      // Save registration data for auto-fill on login screen
+      await _saveRegistrationData(phone, password);
 
       if (!mounted) return;
 
