@@ -12,11 +12,7 @@ class TaskDetailScreen extends StatefulWidget {
   final TaskModel task;
   final String? contactNumber;
 
-  const TaskDetailScreen({
-    super.key,
-    required this.task,
-    this.contactNumber,
-  });
+  const TaskDetailScreen({super.key, required this.task, this.contactNumber});
 
   @override
   State<TaskDetailScreen> createState() => _TaskDetailScreenState();
@@ -44,37 +40,52 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     super.dispose();
   }
 
-  Future<void> _confirmRemoveAcceptedVolunteer(String volunteerDocId, String volunteerName) async {
+  Future<void> _confirmRemoveAcceptedVolunteer(
+    String volunteerDocId,
+    String volunteerName,
+  ) async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Remove volunteer?'),
-        content: Text('Remove $volunteerName from this errand? This will unassign them.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text('Cancel', style: TextStyle(color: Colors.grey.shade700)),
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('Remove volunteer?'),
+            content: Text(
+              'Remove $volunteerName from this errand? This will unassign them.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(color: Colors.grey.shade700),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text(
+                  'Remove',
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Remove', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
     );
     if (confirm != true || !mounted) return;
     try {
       await TasksService.rejectVolunteer(widget.task.id, volunteerDocId);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Volunteer removed')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Volunteer removed')));
       setState(() => _isEditingConfirmedVolunteer = false);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
     }
   }
 
@@ -90,10 +101,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     setState(() => _isVolunteering = true);
 
     try {
-      final userDoc = await FirestoreService.instance
-          .collection('users')
-          .doc(currentUser.uid)
-          .get();
+      final userDoc =
+          await FirestoreService.instance
+              .collection('users')
+              .doc(currentUser.uid)
+              .get();
       final userName = userDoc.data()?['fullName'] as String? ?? 'User';
 
       await TasksService.volunteerForTask(
@@ -114,9 +126,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     } catch (e) {
       setState(() => _isVolunteering = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
       }
     }
   }
@@ -136,9 +148,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
       }
     } finally {
       if (mounted) setState(() => _isCancelling = false);
@@ -150,13 +162,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     if (currentUser == null) return;
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => TaskChatScreen(
-          taskId: widget.task.id,
-          taskTitle: widget.task.title,
-          otherPartyName: volunteerName,
-          otherPartyId: volunteerId,
-          currentUserId: currentUser.uid,
-        ),
+        builder:
+            (_) => TaskChatScreen(
+              taskId: widget.task.id,
+              taskTitle: widget.task.title,
+              otherPartyName: volunteerName,
+              otherPartyId: volunteerId,
+              currentUserId: currentUser.uid,
+            ),
       ),
     );
   }
@@ -165,18 +178,22 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     final currentUser = FirestoreService.auth.currentUser;
     if (currentUser == null) return;
     final isOwner = currentUser.uid == widget.task.requesterId;
-    final otherName = isOwner ? (widget.task.assignedByName ?? 'Volunteer') : widget.task.requesterName;
+    final otherName =
+        isOwner
+            ? (widget.task.assignedByName ?? 'Volunteer')
+            : widget.task.requesterName;
     final otherId = isOwner ? widget.task.assignedTo : widget.task.requesterId;
     if (otherId == null || otherId.isEmpty) return;
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => TaskChatScreen(
-          taskId: widget.task.id,
-          taskTitle: widget.task.title,
-          otherPartyName: otherName,
-          otherPartyId: otherId,
-          currentUserId: currentUser.uid,
-        ),
+        builder:
+            (_) => TaskChatScreen(
+              taskId: widget.task.id,
+              taskTitle: widget.task.title,
+              otherPartyName: otherName,
+              otherPartyId: otherId,
+              currentUserId: currentUser.uid,
+            ),
       ),
     );
   }
@@ -262,10 +279,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           const SizedBox(height: 10),
           Text(
             widget.contactNumber ?? '09026095205',
-            style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFF4C4C4C),
-            ),
+            style: const TextStyle(fontSize: 14, color: Color(0xFF4C4C4C)),
           ),
           const SizedBox(height: 20),
           // Status Section
@@ -319,7 +333,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               onPageChanged: (i) => setState(() => _imagePageIndex = i),
               itemBuilder: (context, index) {
                 return GestureDetector(
-                  onTap: () => openFullScreenImages(context, urls, initialIndex: index),
+                  onTap:
+                      () => openFullScreenImages(
+                        context,
+                        urls,
+                        initialIndex: index,
+                      ),
                   child: OptimizedNetworkImage(
                     imageUrl: urls[index],
                     height: 190,
@@ -347,9 +366,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         height: 6,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: _imagePageIndex == i
-                              ? const Color(0xFF20BF6B)
-                              : Colors.grey.shade400,
+                          color:
+                              _imagePageIndex == i
+                                  ? const Color(0xFF20BF6B)
+                                  : Colors.grey.shade400,
                         ),
                       ),
                     ),
@@ -369,28 +389,33 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     }
     if (currentUser == null) return const SizedBox.shrink();
     return StreamBuilder<Map<String, dynamic>?>(
-      stream: TasksService.getMyVolunteerStatusStream(widget.task.id, currentUser.uid),
+      stream: TasksService.getMyVolunteerStatusStream(
+        widget.task.id,
+        currentUser.uid,
+      ),
       builder: (context, statusSnap) {
         final myStatus = statusSnap.data;
         final status = myStatus?['status'] as String?;
         // Default: Volunteer button (only when task open and not volunteered/rejected)
         if (status == null || status == 'rejected') {
-          if (widget.task.status != TaskStatus.open) return const SizedBox.shrink();
+          if (widget.task.status != TaskStatus.open)
+            return const SizedBox.shrink();
           return SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
               onPressed: _isVolunteering ? null : _handleVolunteer,
-              icon: _isVolunteering
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(
-                      Icons.favorite_border,
-                      size: 18,
-                      color: Color(0xFF4C4C4C),
-                    ),
+              icon:
+                  _isVolunteering
+                      ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                      : const Icon(
+                        Icons.favorite_border,
+                        size: 18,
+                        color: Color(0xFF4C4C4C),
+                      ),
               label: Text(
                 _isVolunteering ? 'Volunteering...' : 'Volunteer',
                 style: const TextStyle(
@@ -400,7 +425,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 ),
               ),
               style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 minimumSize: const Size(0, 48),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
@@ -417,17 +445,18 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             width: double.infinity,
             child: OutlinedButton.icon(
               onPressed: _isCancelling ? null : _handleCancelVolunteer,
-              icon: _isCancelling
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(
-                      Icons.close,
-                      size: 18,
-                      color: Color(0xFF4C4C4C),
-                    ),
+              icon:
+                  _isCancelling
+                      ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                      : const Icon(
+                        Icons.close,
+                        size: 18,
+                        color: Color(0xFF4C4C4C),
+                      ),
               label: Text(
                 _isCancelling ? 'Cancelling...' : 'Cancel',
                 style: const TextStyle(
@@ -437,7 +466,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 ),
               ),
               style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 minimumSize: const Size(0, 48),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
@@ -451,7 +483,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         // Approved: Message icon with optional unread badge
         if (status == 'accepted') {
           return StreamBuilder<int>(
-            stream: TaskChatService.getUnreadCountStream(widget.task.id, currentUser.uid),
+            stream: TaskChatService.getUnreadCountStream(
+              widget.task.id,
+              currentUser.uid,
+            ),
             builder: (context, unreadSnap) {
               final unreadCount = unreadSnap.data ?? 0;
               return SizedBox(
@@ -476,7 +511,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                               color: Colors.red,
                               shape: BoxShape.circle,
                             ),
-                            constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                            constraints: const BoxConstraints(
+                              minWidth: 16,
+                              minHeight: 16,
+                            ),
                             child: Text(
                               unreadCount > 99 ? '99+' : '$unreadCount',
                               style: const TextStyle(
@@ -498,7 +536,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     ),
                   ),
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
                     minimumSize: const Size(0, 48),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
@@ -586,7 +627,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             children: [
               const Expanded(
                 child: Text(
-                  'List of volunteers',
+                  'List of Volunteers',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
@@ -596,15 +637,25 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               ),
               if (_isOwner)
                 IconButton(
-                  onPressed: () => setState(() => _isEditingConfirmedVolunteer = !_isEditingConfirmedVolunteer),
+                  onPressed:
+                      () => setState(
+                        () =>
+                            _isEditingConfirmedVolunteer =
+                                !_isEditingConfirmedVolunteer,
+                      ),
                   icon: Icon(
-                    _isEditingConfirmedVolunteer ? Icons.close : Icons.edit_outlined,
+                    _isEditingConfirmedVolunteer
+                        ? Icons.close
+                        : Icons.edit_outlined,
                     color: const Color(0xFF4C4C4C),
                     size: 20,
                   ),
                   tooltip: _isEditingConfirmedVolunteer ? 'Done' : 'Edit',
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                  constraints: const BoxConstraints(
+                    minWidth: 40,
+                    minHeight: 40,
+                  ),
                 ),
             ],
           ),
@@ -628,23 +679,23 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   child: Text(
                     'No volunteers yet',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade600,
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
                   ),
                 );
               }
 
               return Column(
-                children: volunteers.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final volunteer = entry.value;
-                  return Padding(
-                    padding: EdgeInsets.only(bottom: index < volunteers.length - 1 ? 12 : 0),
-                    child: _buildVolunteerItem(volunteer),
-                  );
-                }).toList(),
+                children:
+                    volunteers.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final volunteer = entry.value;
+                      return Padding(
+                        padding: EdgeInsets.only(
+                          bottom: index < volunteers.length - 1 ? 12 : 0,
+                        ),
+                        child: _buildVolunteerItem(volunteer),
+                      );
+                    }).toList(),
               );
             },
           ),
@@ -661,11 +712,13 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
-        color: status == 'accepted' ? Colors.green.shade50 : Colors.grey.shade100,
+        color:
+            status == 'accepted' ? Colors.green.shade50 : Colors.grey.shade100,
         borderRadius: BorderRadius.circular(14),
-        border: status == 'accepted' 
-            ? Border.all(color: Colors.green.shade200)
-            : null,
+        border:
+            status == 'accepted'
+                ? Border.all(color: Colors.green.shade200)
+                : null,
       ),
       child: Row(
         children: [
@@ -673,13 +726,19 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: status == 'accepted' ? Colors.green.shade200 : Colors.grey.shade200,
+              color:
+                  status == 'accepted'
+                      ? Colors.green.shade200
+                      : Colors.grey.shade200,
               shape: BoxShape.circle,
             ),
             child: Icon(
               status == 'accepted' ? Icons.check_circle : Icons.person_outline,
               size: 20,
-              color: status == 'accepted' ? Colors.green.shade700 : const Color(0xFF6E6E6E),
+              color:
+                  status == 'accepted'
+                      ? Colors.green.shade700
+                      : const Color(0xFF6E6E6E),
             ),
           ),
           const SizedBox(width: 12),
@@ -700,7 +759,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     future: _getVolunteerPhone(volunteerId),
                     builder: (context, snap) {
                       final phone = snap.data;
-                      if (phone == null || phone.isEmpty) return const SizedBox.shrink();
+                      if (phone == null || phone.isEmpty)
+                        return const SizedBox.shrink();
                       return Padding(
                         padding: const EdgeInsets.only(top: 2),
                         child: Text(
@@ -727,27 +787,49 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           ),
           if (_isOwner && _isEditingConfirmedVolunteer && status == 'accepted')
             IconButton(
-              onPressed: volunteerDocId.isEmpty
-                  ? null
-                  : () => _confirmRemoveAcceptedVolunteer(volunteerDocId, volunteerName),
+              onPressed:
+                  volunteerDocId.isEmpty
+                      ? null
+                      : () => _confirmRemoveAcceptedVolunteer(
+                        volunteerDocId,
+                        volunteerName,
+                      ),
               icon: Icon(Icons.close, color: Colors.red.shade700, size: 20),
               tooltip: 'Remove volunteer',
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
             ),
-          if (_isOwner && !_isEditingConfirmedVolunteer && status == 'accepted' && volunteerId != null && volunteerId.isNotEmpty)
+          if (_isOwner &&
+              !_isEditingConfirmedVolunteer &&
+              status == 'accepted' &&
+              volunteerId != null &&
+              volunteerId.isNotEmpty)
             StreamBuilder<int>(
-              stream: TaskChatService.getUnreadCountStream(widget.task.id, FirestoreService.auth.currentUser?.uid ?? ''),
+              stream: TaskChatService.getUnreadCountStream(
+                widget.task.id,
+                FirestoreService.auth.currentUser?.uid ?? '',
+              ),
               builder: (context, unreadSnap) {
                 final unreadCount = unreadSnap.data ?? 0;
                 return Stack(
                   clipBehavior: Clip.none,
                   children: [
                     IconButton(
-                      onPressed: () => _openChatWithVolunteer(volunteerId, volunteerName),
-                      icon: const Icon(Icons.message_outlined, size: 20, color: Color(0xFF4C4C4C)),
+                      onPressed:
+                          () => _openChatWithVolunteer(
+                            volunteerId,
+                            volunteerName,
+                          ),
+                      icon: const Icon(
+                        Icons.message_outlined,
+                        size: 20,
+                        color: Color(0xFF4C4C4C),
+                      ),
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                      constraints: const BoxConstraints(
+                        minWidth: 40,
+                        minHeight: 40,
+                      ),
                     ),
                     if (unreadCount > 0)
                       Positioned(
@@ -773,14 +855,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   Future<String?> _getVolunteerPhone(String volunteerId) async {
     try {
-      final doc = await FirestoreService.instance
-          .collection('users')
-          .doc(volunteerId)
-          .get();
+      final doc =
+          await FirestoreService.instance
+              .collection('users')
+              .doc(volunteerId)
+              .get();
       return doc.data()?['phoneNumber'] as String?;
     } catch (_) {
       return null;
     }
   }
-
-  }
+}
