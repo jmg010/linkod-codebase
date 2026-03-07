@@ -14,6 +14,7 @@ class AnnouncementCard extends StatelessWidget {
   final VoidCallback? onMarkAsReadPressed;
   final bool showTag;
   final String? announcementId;
+
   /// Optional image URLs to show below title and content (Facebook-style).
   final List<String>? imageUrls;
 
@@ -39,9 +40,7 @@ class AnnouncementCard extends StatelessWidget {
       margin: EdgeInsets.zero,
       elevation: 1.5,
       shadowColor: Colors.black.withOpacity(0.06),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
         child: Column(
@@ -50,9 +49,15 @@ class AnnouncementCard extends StatelessWidget {
             // Tag row (if showTag is true)
             if (showTag) ...[
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.red.shade400,
                       borderRadius: BorderRadius.circular(18),
@@ -66,13 +71,38 @@ class AnnouncementCard extends StatelessWidget {
                       ),
                     ),
                   ),
+
+                  Row(
+                    children: [
+                      Text(
+                        _formatDate(date),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: const Color(0xFF6E6E6E),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
-              const SizedBox(height: 8),
+            ] else ...[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    _formatDate(date),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: const Color(0xFF6E6E6E),
+                    ),
+                  ),
+                ],
+              ),
             ],
+            const SizedBox(height: 8),
+
             Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   postedByPosition != null && postedByPosition!.isNotEmpty
@@ -83,19 +113,16 @@ class AnnouncementCard extends StatelessWidget {
                     color: const Color(0xFF6E6E6E),
                   ),
                 ),
-                Text(
-                  _formatDate(date),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: const Color(0xFF6E6E6E),
-                  ),
-                ),
               ],
             ),
+
             if (category != null) ...[
               const SizedBox(height: 6),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 3,
+                ),
                 decoration: BoxDecoration(
                   color: _getCategoryColor(category!),
                   borderRadius: BorderRadius.circular(18),
@@ -139,7 +166,11 @@ class AnnouncementCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Icon(Icons.visibility_outlined, size: 16, color: const Color(0xFF6E6E6E)),
+                Icon(
+                  Icons.visibility_outlined,
+                  size: 16,
+                  color: const Color(0xFF6E6E6E),
+                ),
                 const SizedBox(width: 6),
                 Text(
                   '${unreadCount ?? 0} views',
@@ -162,7 +193,10 @@ class AnnouncementCard extends StatelessWidget {
                   if (announcementId != null && announcementId!.isNotEmpty) {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => AnnouncementDetailScreen(announcementId: announcementId!),
+                        builder:
+                            (_) => AnnouncementDetailScreen(
+                              announcementId: announcementId!,
+                            ),
                       ),
                     );
                   }
@@ -239,7 +273,9 @@ class _AnnouncementCardMedia extends StatelessWidget {
         itemCount: displayed.length,
         itemBuilder: (context, index) {
           final url = displayed[index];
-          final isLast = index == displayed.length - 1 && imageUrls.length > displayed.length;
+          final isLast =
+              index == displayed.length - 1 &&
+              imageUrls.length > displayed.length;
           return Stack(
             fit: StackFit.expand,
             children: [
@@ -254,7 +290,12 @@ class _AnnouncementCardMedia extends StatelessWidget {
                     color: Colors.grey.shade300,
                     child: const Icon(Icons.image_not_supported),
                   ),
-                  onTap: () => openFullScreenImages(context, imageUrls, initialIndex: index),
+                  onTap:
+                      () => openFullScreenImages(
+                        context,
+                        imageUrls,
+                        initialIndex: index,
+                      ),
                 ),
               ),
               if (isLast)
@@ -284,10 +325,7 @@ class _AnnouncementCardMedia extends StatelessWidget {
 }
 
 class _ReadButton extends StatelessWidget {
-  const _ReadButton({
-    required this.isRead,
-    this.onPressed,
-  });
+  const _ReadButton({required this.isRead, this.onPressed});
 
   final bool isRead;
   final VoidCallback? onPressed;
@@ -314,13 +352,10 @@ class _ReadButton extends StatelessWidget {
       style: OutlinedButton.styleFrom(
         backgroundColor: Colors.white,
         side: BorderSide(color: borderColor, width: 1),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(32),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
         padding: const EdgeInsets.symmetric(vertical: 12),
         alignment: Alignment.center,
       ),
     );
   }
 }
-
