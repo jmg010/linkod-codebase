@@ -82,8 +82,16 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
 
   void _loadMoreIfNeeded() {
     if (_displayCount >= _totalFeedLength) return;
+    // Save current scroll position before setState
+    final currentOffset = _scrollController.offset;
     setState(() {
       _displayCount = (_displayCount + _loadMorePageSize).clamp(0, _totalFeedLength);
+    });
+    // Restore scroll position after frame builds
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients && mounted) {
+        _scrollController.jumpTo(currentOffset);
+      }
     });
   }
 
@@ -277,6 +285,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
               controller: _scrollController,
               thumbVisibility: false,
               child: ListView.builder(
+                key: const PageStorageKey('home_feed_list'),
                 controller: _scrollController,
                 padding: const EdgeInsets.fromLTRB(10, 8, 10, 24),
                 physics: const ClampingScrollPhysics(),

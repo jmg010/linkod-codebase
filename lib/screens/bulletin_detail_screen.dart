@@ -1,0 +1,227 @@
+import 'package:flutter/material.dart';
+import '../models/bulletin_model.dart';
+
+class BulletinDetailScreen extends StatelessWidget {
+  final BulletinModel bulletin;
+
+  const BulletinDetailScreen({
+    super.key,
+    required this.bulletin,
+  });
+
+  String _formatDate(DateTime date) {
+    final months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final category = bulletin.category;
+    final backgroundColor = category?.backgroundColor ?? Colors.white;
+    final iconColor = category?.iconColor ?? Colors.grey;
+    
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: CustomScrollView(
+        slivers: [
+          // App bar with image
+          SliverAppBar(
+            expandedHeight: bulletin.imageUrl != null ? 240 : 0,
+            pinned: true,
+            backgroundColor: backgroundColor,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            title: Text(
+              'Bulletin Board',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: Colors.black87,
+              ),
+            ),
+            centerTitle: true,
+            flexibleSpace: bulletin.imageUrl != null
+                ? FlexibleSpaceBar(
+                    background: Image.network(
+                      bulletin.imageUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: backgroundColor,
+                      ),
+                    ),
+                  )
+                : null,
+          ),
+
+          // Content
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Category badge
+                  if (category != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: iconColor.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            category.icon,
+                            size: 16,
+                            color: iconColor,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            category.title.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: iconColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  const SizedBox(height: 16),
+
+                  // Title
+                  Text(
+                    bulletin.title,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.black87,
+                      height: 1.3,
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Full description
+                  Text(
+                    bulletin.description,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey.shade800,
+                      height: 1.6,
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Divider
+                  Divider(color: Colors.grey.shade300),
+
+                  const SizedBox(height: 16),
+
+                  // Metadata row
+                  Row(
+                    children: [
+                      // Date
+                      Icon(
+                        Icons.calendar_today,
+                        size: 18,
+                        color: Colors.grey.shade600,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _formatDate(bulletin.date),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade700,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  if (bulletin.location != null) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.location_on,
+                          size: 18,
+                          color: Colors.grey.shade600,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            bulletin.location!,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+
+                  const SizedBox(height: 24),
+
+                  // Posted by
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.account_balance,
+                          size: 24,
+                          color: const Color(0xFF00A651),
+                        ),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Posted by',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                            const Text(
+                              'Barangay Office',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

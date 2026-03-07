@@ -54,7 +54,7 @@ class _HomeScreenState extends State<HomeScreen> {
   late final int _announcementsIndex = 1; // AnnouncementsScreen
   late final int _marketIndex = 2; // MarketplaceScreen
   late final int _tasksIndex = 3; // TasksScreen
-  late final int _bulletinIndex = 4; // CommunityBulletinScreen
+  late final int _bulletinIndex = 4; // BulletinBoardScreen
   late final int _profileIndex = 5; // MenuScreen
 
   @override

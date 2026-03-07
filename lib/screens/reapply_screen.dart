@@ -119,6 +119,22 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
       };
       if (proofUrl != null) updates['proofOfResidenceUrl'] = proofUrl;
       await docRef.update(updates);
+
+      // Add/update awaitingApproval for admin notification
+      await FirebaseFirestore.instance
+          .collection('awaitingApproval')
+          .doc(widget.uid)
+          .set({
+        'uid': widget.uid,
+        'fullName': doc.data()?['fullName'] ?? '',
+        'phoneNumber': doc.data()?['phoneNumber'] ?? '',
+        'source': 'users',
+        'status': 'pending',
+        'reapplicationCount': currentCount + 1,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Re-application submitted. You will be notified when reviewed.')),
@@ -184,6 +200,24 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
         'lastUpdated': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
+      // Add/update awaitingApproval for admin notification
+      await FirebaseFirestore.instance
+          .collection('awaitingApproval')
+          .doc(widget.uid)
+          .set({
+        'uid': widget.uid,
+        'fullName': name,
+        'phoneNumber': phone,
+        'source': 'users',
+        'status': 'pending',
+        'reapplicationCount': currentCount + 1,
+        'category': categoryString,
+        'categories': _selectedCategories.toList(),
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Re-application submitted. You will be notified when reviewed.')),

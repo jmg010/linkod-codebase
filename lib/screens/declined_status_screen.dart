@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'login_screen.dart';
 import 'reapply_screen.dart';
 
 /// Shown when the user logs in but their account status is "declined".
@@ -146,7 +147,16 @@ class DeclinedStatusScreen extends StatelessWidget {
                       const SizedBox(height: 16),
                       Center(
                         child: TextButton(
-                          onPressed: () => FirebaseAuth.instance.signOut(),
+                          onPressed: () async {
+                            await FirebaseAuth.instance.signOut();
+                            if (context.mounted) {
+                              Navigator.of(context).pushReplacement(
+                                MaterialPageRoute(
+                                  builder: (_) => const LoginScreen(),
+                                ),
+                              );
+                            }
+                          },
                           child: const Text('Sign out'),
                         ),
                       ),

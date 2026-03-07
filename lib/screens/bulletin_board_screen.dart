@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../models/bulletin_category_model.dart';
+import '../widgets/category_card.dart';
+import 'bulletin_category_screen.dart';
 
 class BulletinBoardScreen extends StatelessWidget {
   const BulletinBoardScreen({super.key});
@@ -6,61 +9,72 @@ class BulletinBoardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F4F4),
+      backgroundColor: Colors.grey.shade100,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+            // Title with white background container
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Expanded(
-                    child: Text(
-                      'Bulletin Board',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black87,
-                      ),
+                  const Text(
+                    'Bulletin Board',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black87,
                     ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.search,
+                        color: Color(0xFF6E6E6E), size: 26),
+                    onPressed: () {
+                      // Search functionality - can be added later
+                    },
                   ),
                 ],
               ),
             ),
-            // Content area
+
+            // Categories list
             Expanded(
-              child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      Icons.campaign_outlined,
-                      size: 80,
-                      color: Colors.grey.shade400,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Bulletin Board',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey.shade700,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
+                    // Subtitle
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      padding: const EdgeInsets.only(bottom: 16),
                       child: Text(
-                        'Local updates, events, and important notices will appear here.',
-                        textAlign: TextAlign.center,
+                        'Select a category to view bulletins',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.grey.shade500,
+                          color: Colors.grey.shade600,
                         ),
                       ),
                     ),
+
+                    // Category cards
+                    for (final category in BulletinCategoryModel.categories)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: CategoryCard(
+                          category: category,
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => BulletinCategoryScreen(
+                                  category: category,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
                   ],
                 ),
               ),

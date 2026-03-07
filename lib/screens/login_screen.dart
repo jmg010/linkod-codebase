@@ -24,6 +24,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool obscurePassword = true;
   bool isLoading = false;
+  String? phoneError;
+  String? passwordError;
 
   @override
   void initState() {
@@ -97,7 +99,11 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    setState(() => isLoading = true);
+    setState(() {
+      isLoading = true;
+      phoneError = null;
+      passwordError = null;
+    });
 
     try {
       final email = _phoneToEmail(phone);
@@ -184,24 +190,20 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
     } on FirebaseAuthException catch (e) {
-      String message = 'Failed to sign in. Please try again.';
-      if (e.code == 'user-not-found') {
-        message = 'No account found for that phone number.';
-      } else if (e.code == 'wrong-password') {
-        message = 'Incorrect password. Please try again.';
-      } else if (e.code == 'invalid-credential') {
-        message = 'Invalid credentials. Please check your details.';
+      String? passErr;
+      if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        passErr = 'Wrong Phone Number or Password.';
+      } else {
+        passErr = 'Failed to sign in. Please try again.';
       }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      setState(() {
+        phoneError = passErr != null ? '' : null;
+        passwordError = passErr;
+      });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Something went wrong: ${e.toString()}'),
-        ),
-      );
+      setState(() {
+        phoneError = 'Something went wrong. Please try again.';
+      });
     } finally {
       if (mounted) {
         setState(() => isLoading = false);
@@ -344,6 +346,15 @@ class _LoginScreenState extends State<LoginScreen> {
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
+                          errorText: phoneError,
+                          errorBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Colors.red),
+                          ),
+                          focusedErrorBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Colors.red),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 18),
@@ -356,6 +367,15 @@ class _LoginScreenState extends State<LoginScreen> {
                           hintText: 'At least 6 characters',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
+                          ),
+                          errorText: passwordError,
+                          errorBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Colors.red),
+                          ),
+                          focusedErrorBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Colors.red),
                           ),
                           suffixIcon: IconButton(
                             icon: Icon(obscurePassword ? Icons.visibility_off : Icons.visibility),
