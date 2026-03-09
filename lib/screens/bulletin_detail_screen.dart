@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/bulletin_model.dart';
 
 class BulletinDetailScreen extends StatelessWidget {
@@ -124,6 +125,13 @@ class BulletinDetailScreen extends StatelessWidget {
 
                   const SizedBox(height: 24),
 
+                  // File attachment section
+                  if (_hasFileAttachment()) ...[
+                    const SizedBox(height: 20),
+                    _buildFileAttachmentSection(context),
+                    const SizedBox(height: 24),
+                  ],
+
                   // Divider
                   Divider(color: Colors.grey.shade300),
 
@@ -216,6 +224,117 @@ class BulletinDetailScreen extends StatelessWidget {
                   ),
 
                   const SizedBox(height: 32),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Check if bulletin has a file attachment
+  bool _hasFileAttachment() {
+    final pdfUrl = bulletin.pdfUrl;
+    final pdfName = bulletin.pdfName;
+    return (pdfUrl != null && pdfUrl.isNotEmpty) ||
+           (pdfName != null && pdfName.isNotEmpty);
+  }
+
+  /// Build file attachment section for detail screen
+  Widget _buildFileAttachmentSection(BuildContext context) {
+    final fileUrl = bulletin.pdfUrl;
+    final fileName = bulletin.pdfName ?? 'Attached File';
+    final isPdf = fileName.toLowerCase().endsWith('.pdf') ||
+                  (fileUrl != null && fileUrl.toLowerCase().contains('.pdf'));
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.grey.shade300,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Attached File',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 12),
+          InkWell(
+            onTap: () async {
+              if (fileUrl != null && fileUrl.isNotEmpty) {
+                final uri = Uri.parse(fileUrl);
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              }
+            },
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Colors.grey.shade200,
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: isPdf ? Colors.red.shade50 : Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      isPdf ? Icons.picture_as_pdf : Icons.attach_file,
+                      color: isPdf ? Colors.red.shade600 : Colors.blue.shade600,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          fileName,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade800,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Tap to view or download',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.open_in_new,
+                    size: 20,
+                    color: Colors.grey.shade500,
+                  ),
                 ],
               ),
             ),

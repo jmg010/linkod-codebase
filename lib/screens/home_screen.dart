@@ -54,8 +54,7 @@ class _HomeScreenState extends State<HomeScreen> {
   late final int _announcementsIndex = 1; // AnnouncementsScreen
   late final int _marketIndex = 2; // MarketplaceScreen
   late final int _tasksIndex = 3; // TasksScreen
-  late final int _bulletinIndex = 4; // BulletinBoardScreen
-  late final int _profileIndex = 5; // MenuScreen
+  late final int _profileIndex = 4; // MenuScreen
 
   @override
   void initState() {
@@ -82,8 +81,7 @@ class _HomeScreenState extends State<HomeScreen> {
     AnnouncementsScreen(key: _announcementsKey), // Index 1: Announcements
     MarketplaceScreen(key: _marketplaceKey), // Index 2: Marketplace
     TasksScreen(key: _tasksKey), // Index 3: Errand/Job Post
-    const BulletinBoardScreen(), // Index 4: Bulletin Board
-    MenuScreen(userRole: widget.userRole), // Index 5: Menu/Profile
+    MenuScreen(userRole: widget.userRole), // Index 4: Menu/Profile
   ];
 
   void _onTabTapped(int index) {
@@ -99,8 +97,6 @@ class _HomeScreenState extends State<HomeScreen> {
           _currentNavDestination = NavDestination.marketplace;
         } else if (index == _tasksIndex) {
           _currentNavDestination = NavDestination.errandJobPost;
-        } else if (index == _bulletinIndex) {
-          _currentNavDestination = NavDestination.bulletin;
         } else if (index == _profileIndex) {
           _currentNavDestination = NavDestination.menu;
         }
@@ -119,7 +115,6 @@ class _HomeScreenState extends State<HomeScreen> {
     if (index == _announcementsIndex) return NavDestination.announcements;
     if (index == _marketIndex) return NavDestination.marketplace;
     if (index == _tasksIndex) return NavDestination.errandJobPost;
-    if (index == _bulletinIndex) return NavDestination.bulletin;
     return NavDestination.menu;
   }
 
@@ -135,15 +130,15 @@ class _HomeScreenState extends State<HomeScreen> {
       case NavDestination.errandJobPost:
         targetIndex = _tasksIndex;
         break;
-      case NavDestination.bulletin:
-        targetIndex = _bulletinIndex;
-        break;
       case NavDestination.announcements:
         targetIndex = _announcementsIndex;
         break;
-        case NavDestination.menu:
-          targetIndex = _profileIndex;
-          break;
+      case NavDestination.menu:
+        targetIndex = _profileIndex;
+        break;
+      case NavDestination.bulletin:
+        targetIndex = _feedIndex;
+        break;
     }
     
     if (_currentIndex != targetIndex) {
