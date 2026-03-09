@@ -149,13 +149,6 @@ class LinkodNavbar extends StatelessWidget {
                 notificationCount: errandNotificationCount,
               ),
               _NavIcon(
-                icon: Icons.dashboard,
-                label: 'Bulletin Board',
-                isActive: currentDestination == NavDestination.bulletin,
-                onTap:
-                    () => onDestinationChanged?.call(NavDestination.bulletin),
-              ),
-              _NavIcon(
                 icon: Icons.menu,
                 label: 'Menu',
                 isActive: currentDestination == NavDestination.menu,

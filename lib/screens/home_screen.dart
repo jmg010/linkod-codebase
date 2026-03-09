@@ -14,7 +14,6 @@ import 'home_feed_screen.dart';
 import 'announcements_screen.dart';
 import 'marketplace_screen.dart';
 import 'tasks_screen.dart';
-import 'bulletin_board_screen.dart';
 import 'menu_screen.dart';
 import 'create_post_screen.dart';
 
@@ -39,8 +38,6 @@ class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<TasksScreenState> _tasksKey = GlobalKey<TasksScreenState>();
   final GlobalKey<HomeFeedScreenState> _homeFeedKey =
       GlobalKey<HomeFeedScreenState>();
-  final GlobalKey<BulletinBoardScreenState> _bulletinKey =
-      GlobalKey<BulletinBoardScreenState>();
   bool _hasUnreadAnnouncements = false;
   String? _cachedErrandUid;
   Stream<int>? _cachedErrandStream;
@@ -55,8 +52,7 @@ class _HomeScreenState extends State<HomeScreen> {
   late final int _announcementsIndex = 1; // AnnouncementsScreen
   late final int _marketIndex = 2; // MarketplaceScreen
   late final int _tasksIndex = 3; // TasksScreen
-  late final int _bulletinIndex = 4; // BulletinBoardScreen
-  late final int _profileIndex = 5; // MenuScreen
+  late final int _profileIndex = 4; // MenuScreen
 
   @override
   void initState() {
@@ -84,8 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
     AnnouncementsScreen(key: _announcementsKey), // Index 1: Announcements
     MarketplaceScreen(key: _marketplaceKey), // Index 2: Marketplace
     TasksScreen(key: _tasksKey), // Index 3: Errand/Job Post
-    BulletinBoardScreen(key: _bulletinKey), // Index 4: Bulletin Board
-    MenuScreen(userRole: widget.userRole), // Index 5: Menu/Profile
+    MenuScreen(userRole: widget.userRole), // Index 4: Menu/Profile
   ];
 
   void _onTabTapped(int index) {
@@ -101,8 +96,6 @@ class _HomeScreenState extends State<HomeScreen> {
           _currentNavDestination = NavDestination.marketplace;
         } else if (index == _tasksIndex) {
           _currentNavDestination = NavDestination.errandJobPost;
-        } else if (index == _bulletinIndex) {
-          _currentNavDestination = NavDestination.bulletin;
         } else if (index == _profileIndex) {
           _currentNavDestination = NavDestination.menu;
         }
@@ -121,7 +114,6 @@ class _HomeScreenState extends State<HomeScreen> {
     if (index == _announcementsIndex) return NavDestination.announcements;
     if (index == _marketIndex) return NavDestination.marketplace;
     if (index == _tasksIndex) return NavDestination.errandJobPost;
-    if (index == _bulletinIndex) return NavDestination.bulletin;
     return NavDestination.menu;
   }
 
@@ -144,7 +136,8 @@ class _HomeScreenState extends State<HomeScreen> {
         targetIndex = _profileIndex;
         break;
       case NavDestination.bulletin:
-        targetIndex = _bulletinIndex;
+        // Bulletin is accessed via the barangay logo button, not through main nav
+        targetIndex = _feedIndex;
         break;
     }
 
@@ -174,11 +167,11 @@ class _HomeScreenState extends State<HomeScreen> {
         case NavDestination.errandJobPost:
           _tasksKey.currentState?.scrollToTop();
           break;
-        case NavDestination.bulletin:
-          _bulletinKey.currentState?.scrollToTop();
-          break;
         case NavDestination.menu:
           // Menu doesn't really have a scrollable timeline to top
+          break;
+        case NavDestination.bulletin:
+          // Bulletin is not part of main nav tabs
           break;
       }
     }

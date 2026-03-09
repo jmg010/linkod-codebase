@@ -1,33 +1,30 @@
 import 'dart:typed_data';
 
-import 'package:image/image.dart' as img;
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 /// Compresses image bytes for upload: max width ~800px, target size ~300–500KB.
-/// Uses app memory only; does not write to disk.
+/// Uses native compression; handles all formats including HEIC from iOS.
 class ImageCompression {
   ImageCompression._();
 
   static const int maxWidth = 800;
-  static const int targetMaxBytes = 500 * 1024; // 500KB
-  static const int absoluteMaxBytes = 600 * 1024; // hard cap
+  static const int maxHeight = 800;
+  static const int quality = 85;
 
-  /// Returns compressed JPEG bytes, or original [bytes] if decode/compress fails.
-  static Uint8List compressForUpload(Uint8List bytes) {
-    if (bytes.lengthInBytes <= targetMaxBytes) return bytes;
+  /// Returns compressed JPEG bytes, or original [bytes] if compression fails.
+  static Future<Uint8List> compressForUpload(Uint8List bytes) async {
     try {
-      final decoded = img.decodeImage(bytes);
-      if (decoded == null) return bytes;
-      img.Image resized = decoded;
-      if (decoded.width > maxWidth) {
-        resized = img.copyResize(decoded, width: maxWidth);
-      }
-      for (final quality in [85, 75, 65, 55, 45, 35]) {
-        final encoded = img.encodeJpg(resized, quality: quality);
-        if (encoded.length <= absoluteMaxBytes) return Uint8List.fromList(encoded);
-      }
-      final encoded = img.encodeJpg(resized, quality: 30);
-      return Uint8List.fromList(encoded);
-    } catch (_) {
+      // Use flutter_image_compress which handles all formats including HEIC
+      final result = await FlutterImageCompress.compressWithList(
+        bytes,
+        minWidth: maxWidth,
+        minHeight: maxHeight,
+        quality: quality,
+        format: CompressFormat.jpeg,
+      );
+      return result;
+    } catch (e) {
+      // If compression fails, return original bytes
       return bytes;
     }
   }

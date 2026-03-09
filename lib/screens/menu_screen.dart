@@ -136,38 +136,65 @@ class _MenuScreenState extends State<MenuScreen> {
                   padding: const EdgeInsets.all(24),
                   child: Column(
                     children: [
-                      // Profile Avatar (resident: tap to change photo; others: tap to view full size)
+                      // Profile Avatar - tap to change photo for all users
                       GestureDetector(
                         onTap: () {
-                          if (widget.userRole == UserRole.resident) {
-                            _showChangePhotoSheet();
-                          } else if (_profileImageUrl != null &&
+                          if (_profileImageUrl != null &&
                               _profileImageUrl!.isNotEmpty) {
-                            openFullScreenImage(context, _profileImageUrl!);
+                            _showPhotoOptionsSheet();
+                          } else {
+                            _showChangePhotoSheet();
                           }
                         },
-                        child: CircleAvatar(
-                          radius: 50,
-                          backgroundColor: const Color(0xFF20BF6B),
-                          backgroundImage:
-                              _profileImageUrl != null &&
-                                      _profileImageUrl!.isNotEmpty
-                                  ? NetworkImage(_profileImageUrl!)
-                                  : null,
-                          child:
-                              _profileImageUrl == null ||
-                                      _profileImageUrl!.isEmpty
-                                  ? Text(
-                                    (_userName?.isNotEmpty ?? false)
-                                        ? _userName![0].toUpperCase()
-                                        : widget.userRole.displayName[0],
-                                    style: const TextStyle(
-                                      fontSize: 40,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                  : null,
+                        child: Stack(
+                          children: [
+                            CircleAvatar(
+                              radius: 50,
+                              backgroundColor: const Color(0xFF20BF6B),
+                              backgroundImage:
+                                  _profileImageUrl != null &&
+                                          _profileImageUrl!.isNotEmpty
+                                      ? NetworkImage(_profileImageUrl!)
+                                      : null,
+                              child:
+                                  _profileImageUrl == null ||
+                                          _profileImageUrl!.isEmpty
+                                      ? Text(
+                                        (_userName?.isNotEmpty ?? false)
+                                            ? _userName![0].toUpperCase()
+                                            : widget.userRole.displayName[0],
+                                        style: const TextStyle(
+                                          fontSize: 40,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                      : null,
+                            ),
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: Container(
+                                width: 28,
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF20BF6B),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: isDark
+                                        ? const Color(0xFF1E1E1E)
+                                        : Colors.white,
+                                    width: 2,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.camera_alt,
+                                  size: 14,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -383,6 +410,38 @@ class _MenuScreenState extends State<MenuScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showPhotoOptionsSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder:
+          (ctx) => SafeArea(
+            child: Wrap(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.fullscreen),
+                  title: const Text('View Full Size'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    if (_profileImageUrl != null &&
+                        _profileImageUrl!.isNotEmpty) {
+                      openFullScreenImage(context, _profileImageUrl!);
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library),
+                  title: const Text('Change Photo'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showChangePhotoSheet();
+                  },
+                ),
+              ],
+            ),
+          ),
     );
   }
 

@@ -15,30 +15,32 @@ class BulletinCategoryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: isDark ? const Color(0xFF121212) : Colors.grey.shade100,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header with back button
             Container(
-              color: Colors.white,
+              color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
               padding: const EdgeInsets.fromLTRB(12, 12, 20, 12),
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new,
-                        color: Colors.black87),
+                    icon: Icon(Icons.arrow_back_ios_new,
+                        color: isDark ? Colors.white : Colors.black87),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                   Expanded(
                     child: Text(
                       category.title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
-                        color: Colors.black87,
+                        color: isDark ? Colors.white : Colors.black87,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -63,7 +65,7 @@ class BulletinCategoryScreen extends StatelessWidget {
                   final postingsData = snapshot.data ?? [];
 
                   if (postingsData.isEmpty) {
-                    return _buildEmptyState();
+                    return _buildEmptyState(isDark);
                   }
 
                   // Convert Firestore data to BulletinModel
@@ -101,14 +103,18 @@ class BulletinCategoryScreen extends StatelessWidget {
                           margin: const EdgeInsets.only(bottom: 16),
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: category.backgroundColor,
+                            color: const Color(0xFFE8F8F0),
                             borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: const Color(0xFF20BF6B).withOpacity(0.3),
+                              width: 1,
+                            ),
                           ),
                           child: Row(
                             children: [
                               Icon(
                                 category.icon,
-                                color: category.iconColor,
+                                color: const Color(0xFF20BF6B),
                                 size: 24,
                               ),
                               const SizedBox(width: 12),
@@ -117,7 +123,7 @@ class BulletinCategoryScreen extends StatelessWidget {
                                   category.description,
                                   style: TextStyle(
                                     fontSize: 14,
-                                    color: Colors.grey.shade800,
+                                    color: isDark ? Colors.grey.shade300 : Colors.grey.shade800,
                                   ),
                                 ),
                               ),
@@ -147,7 +153,7 @@ class BulletinCategoryScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(bool isDark) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -155,7 +161,7 @@ class BulletinCategoryScreen extends StatelessWidget {
           Icon(
             category.icon,
             size: 80,
-            color: Colors.grey.shade400,
+            color: isDark ? Colors.grey.shade600 : Colors.grey.shade400,
           ),
           const SizedBox(height: 16),
           Text(
@@ -163,7 +169,7 @@ class BulletinCategoryScreen extends StatelessWidget {
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w600,
-              color: Colors.grey.shade700,
+              color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
             ),
           ),
           const SizedBox(height: 8),
@@ -174,7 +180,7 @@ class BulletinCategoryScreen extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey.shade500,
+                color: isDark ? Colors.grey.shade500 : Colors.grey.shade500,
               ),
             ),
           ),

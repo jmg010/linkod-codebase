@@ -20,12 +20,15 @@ class BulletinDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final category = bulletin.category;
-    final backgroundColor = category?.backgroundColor ?? Colors.white;
+    final backgroundColor = isDark 
+        ? const Color(0xFF1E1E1E) 
+        : (category?.backgroundColor ?? Colors.white);
     final iconColor = category?.iconColor ?? Colors.grey;
     
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
       body: CustomScrollView(
         slivers: [
           // App bar with image
@@ -34,7 +37,8 @@ class BulletinDetailScreen extends StatelessWidget {
             pinned: true,
             backgroundColor: backgroundColor,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87),
+              icon: Icon(Icons.arrow_back_ios_new, 
+                  color: isDark ? Colors.white : Colors.black87),
               onPressed: () => Navigator.of(context).pop(),
             ),
             title: Text(
@@ -42,7 +46,7 @@ class BulletinDetailScreen extends StatelessWidget {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: Colors.black87,
+                color: isDark ? Colors.white : Colors.black87,
               ),
             ),
             centerTitle: true,
@@ -103,10 +107,10 @@ class BulletinDetailScreen extends StatelessWidget {
                   // Title
                   Text(
                     bulletin.title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
-                      color: Colors.black87,
+                      color: isDark ? Colors.white : Colors.black87,
                       height: 1.3,
                     ),
                   ),
@@ -118,7 +122,7 @@ class BulletinDetailScreen extends StatelessWidget {
                     bulletin.description,
                     style: TextStyle(
                       fontSize: 16,
-                      color: Colors.grey.shade800,
+                      color: isDark ? Colors.grey.shade300 : Colors.grey.shade800,
                       height: 1.6,
                     ),
                   ),
@@ -133,7 +137,7 @@ class BulletinDetailScreen extends StatelessWidget {
                   ],
 
                   // Divider
-                  Divider(color: Colors.grey.shade300),
+                  Divider(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
 
                   const SizedBox(height: 16),
 
@@ -144,14 +148,14 @@ class BulletinDetailScreen extends StatelessWidget {
                       Icon(
                         Icons.calendar_today,
                         size: 18,
-                        color: Colors.grey.shade600,
+                        color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
                       ),
                       const SizedBox(width: 8),
                       Text(
                         _formatDate(bulletin.date),
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.grey.shade700,
+                          color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -165,7 +169,7 @@ class BulletinDetailScreen extends StatelessWidget {
                         Icon(
                           Icons.location_on,
                           size: 18,
-                          color: Colors.grey.shade600,
+                          color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
                         ),
                         const SizedBox(width: 8),
                         Expanded(
@@ -173,7 +177,7 @@ class BulletinDetailScreen extends StatelessWidget {
                             bulletin.location!,
                             style: TextStyle(
                               fontSize: 14,
-                              color: Colors.grey.shade700,
+                              color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -188,7 +192,7 @@ class BulletinDetailScreen extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
+                      color: isDark ? const Color(0xFF1E1E1E) : Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -206,15 +210,15 @@ class BulletinDetailScreen extends StatelessWidget {
                               'Posted by',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.grey.shade600,
+                                color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
                               ),
                             ),
-                            const Text(
+                            Text(
                               'Barangay Office',
                               style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
-                                color: Colors.black87,
+                                color: isDark ? Colors.white : Colors.black87,
                               ),
                             ),
                           ],
@@ -243,6 +247,7 @@ class BulletinDetailScreen extends StatelessWidget {
 
   /// Build file attachment section for detail screen
   Widget _buildFileAttachmentSection(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final fileUrl = bulletin.pdfUrl;
     final fileName = bulletin.pdfName ?? 'Attached File';
     final isPdf = fileName.toLowerCase().endsWith('.pdf') ||
@@ -251,10 +256,10 @@ class BulletinDetailScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.grey.shade50,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.grey.shade300,
+          color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
           width: 1,
         ),
       ),
@@ -266,7 +271,7 @@ class BulletinDetailScreen extends StatelessWidget {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: Colors.grey.shade600,
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
             ),
           ),
           const SizedBox(height: 12),
@@ -283,10 +288,10 @@ class BulletinDetailScreen extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isDark ? const Color(0xFF2C2C2C) : Colors.white,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: Colors.grey.shade200,
+                  color: isDark ? Colors.grey.shade700 : Colors.grey.shade200,
                   width: 1,
                 ),
               ),
@@ -295,12 +300,16 @@ class BulletinDetailScreen extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: isPdf ? Colors.red.shade50 : Colors.blue.shade50,
+                      color: isPdf 
+                          ? (isDark ? Colors.red.shade900.withOpacity(0.3) : Colors.red.shade50)
+                          : (isDark ? Colors.blue.shade900.withOpacity(0.3) : Colors.blue.shade50),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
                       isPdf ? Icons.picture_as_pdf : Icons.attach_file,
-                      color: isPdf ? Colors.red.shade600 : Colors.blue.shade600,
+                      color: isPdf 
+                          ? (isDark ? Colors.red.shade300 : Colors.red.shade600)
+                          : (isDark ? Colors.blue.shade300 : Colors.blue.shade600),
                       size: 28,
                     ),
                   ),
@@ -314,7 +323,7 @@ class BulletinDetailScreen extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: Colors.grey.shade800,
+                            color: isDark ? Colors.grey.shade200 : Colors.grey.shade800,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -324,7 +333,7 @@ class BulletinDetailScreen extends StatelessWidget {
                           'Tap to view or download',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey.shade600,
+                            color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
                           ),
                         ),
                       ],
@@ -333,7 +342,7 @@ class BulletinDetailScreen extends StatelessWidget {
                   Icon(
                     Icons.open_in_new,
                     size: 20,
-                    color: Colors.grey.shade500,
+                    color: isDark ? Colors.grey.shade500 : Colors.grey.shade500,
                   ),
                 ],
               ),
