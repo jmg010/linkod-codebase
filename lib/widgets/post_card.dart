@@ -54,7 +54,10 @@ class _PostCardState extends State<PostCard> {
     if (currentUser == null) return;
 
     try {
-      final hasLiked = await PostsService.hasUserLikedPost(widget.post.id, currentUser.uid);
+      final hasLiked = await PostsService.hasUserLikedPost(
+        widget.post.id,
+        currentUser.uid,
+      );
       setState(() {
         _isLiked = hasLiked;
       });
@@ -76,15 +79,16 @@ class _PostCardState extends State<PostCard> {
 
     try {
       // Get user name
-      final userDoc = await FirestoreService.instance
-          .collection('users')
-          .doc(currentUser.uid)
-          .get();
-      
+      final userDoc =
+          await FirestoreService.instance
+              .collection('users')
+              .doc(currentUser.uid)
+              .get();
+
       final userName = userDoc.data()?['fullName'] as String? ?? 'User';
 
       await PostsService.likePost(widget.post.id, currentUser.uid, userName);
-      
+
       setState(() {
         _isLiked = !_isLiked;
         _isLiking = false;
@@ -98,9 +102,9 @@ class _PostCardState extends State<PostCard> {
   void _handleComment({String? initialCommentId}) {
     final currentUser = FirestoreService.auth.currentUser;
     if (currentUser == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please log in to comment')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please log in to comment')));
       return;
     }
 
@@ -113,11 +117,12 @@ class _PostCardState extends State<PostCard> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _CommentSheet(
-        postId: widget.post.id,
-        commentController: _commentController,
-        initialCommentId: initialCommentId,
-      ),
+      builder:
+          (context) => _CommentSheet(
+            postId: widget.post.id,
+            commentController: _commentController,
+            initialCommentId: initialCommentId,
+          ),
     );
   }
 
@@ -131,98 +136,146 @@ class _PostCardState extends State<PostCard> {
     final cardContent = InkWell(
       onTap: () {
         Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => PostDetailScreen(postId: post.id),
-          ),
+          MaterialPageRoute(builder: (_) => PostDetailScreen(postId: post.id)),
         );
       },
       child: Card(
-      margin: const EdgeInsets.symmetric(horizontal: kPaddingSmall, vertical: kPaddingSmall / 2),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(kPaddingLarge, kPaddingLarge, kPaddingLarge, 0),
-            child: _PostHeader(post: post),
-          ),
-          // Post type tag
-          Padding(
-            padding: const EdgeInsets.fromLTRB(kPaddingLarge, kPaddingSmall, kPaddingLarge, 0),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade400,
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: Text(
-                'Post',
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
-          if (post.title.isNotEmpty)
+        color:
+            Theme.of(context).brightness == Brightness.dark
+                ? const Color(0xFF1E1E1E)
+                : Colors.white,
+        shadowColor:
+            Theme.of(context).brightness == Brightness.dark
+                ? Colors.black.withOpacity(0.3)
+                : Colors.black.withOpacity(0.06),
+        margin: const EdgeInsets.symmetric(
+          horizontal: kPaddingSmall,
+          vertical: kPaddingSmall / 2,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(kPaddingLarge, kPaddingMedium, kPaddingLarge, 0),
-              child: Text(
-                post.title,
-                style: kHeadlineSmall,
+              padding: const EdgeInsets.fromLTRB(
+                kPaddingLarge,
+                kPaddingLarge,
+                kPaddingLarge,
+                0,
+              ),
+              child: _PostHeader(post: post),
+            ),
+            // Post type tag
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                kPaddingLarge,
+                kPaddingSmall,
+                kPaddingLarge,
+                0,
+              ),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade400,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Text(
+                  'Post',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
               ),
             ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(kPaddingLarge, kPaddingMedium, kPaddingLarge, 0),
-            child: _buildContent(textTheme),
-          ),
-          if (post.imageUrls.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            _PostMedia(imageUrls: post.imageUrls),
-          ],
-          Padding(
-            padding: const EdgeInsets.fromLTRB(kPaddingLarge, kPaddingLarge, kPaddingLarge, 0),
-            child: _ReactionSummary(post: post),
-          ),
-          const SizedBox(height: kPaddingSmall),
-          const Divider(height: 1, color: Color(0xFFE0E0E0)),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: kPaddingSmall),
-            child: Row(
-              children: [
-                _ActionButton(
-                  icon: _isLiked ? Icons.thumb_up : Icons.thumb_up_alt_outlined,
-                  label: 'Like',
-                  isActive: _isLiked,
-                  onTap: _isLiking ? null : _handleLike,
+            if (post.title.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  kPaddingLarge,
+                  kPaddingMedium,
+                  kPaddingLarge,
+                  0,
                 ),
-                _ActionButton(
-                  icon: Icons.mode_comment_outlined,
-                  label: 'Comment',
-                  onTap: () => _handleComment(),
+                child: Text(
+                  post.title,
+                  style: kHeadlineSmall.copyWith(
+                    color:
+                        Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : Colors.black87,
+                  ),
                 ),
-                _ActionButton(
-                  icon: Icons.share_outlined,
-                  label: 'Share',
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Share feature coming soon')),
-                    );
-                  },
-                ),
-              ],
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                kPaddingLarge,
+                kPaddingMedium,
+                kPaddingLarge,
+                0,
+              ),
+              child: _buildContent(textTheme),
             ),
-          ),
-          const SizedBox(height: kPaddingSmall),
-        ],
-      ),
+            if (post.imageUrls.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              _PostMedia(imageUrls: post.imageUrls),
+            ],
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                kPaddingLarge,
+                kPaddingLarge,
+                kPaddingLarge,
+                0,
+              ),
+              child: _ReactionSummary(post: post),
+            ),
+            const SizedBox(height: kPaddingSmall),
+            const Divider(height: 1, color: Color(0xFFE0E0E0)),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: kPaddingSmall),
+              child: Row(
+                children: [
+                  _ActionButton(
+                    icon:
+                        _isLiked ? Icons.thumb_up : Icons.thumb_up_alt_outlined,
+                    label: 'Like',
+                    isActive: _isLiked,
+                    onTap: _isLiking ? null : _handleLike,
+                  ),
+                  _ActionButton(
+                    icon: Icons.mode_comment_outlined,
+                    label: 'Comment',
+                    onTap: () => _handleComment(),
+                  ),
+                  _ActionButton(
+                    icon: Icons.share_outlined,
+                    label: 'Share',
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Share feature coming soon'),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: kPaddingSmall),
+          ],
+        ),
       ),
     );
 
     if (!isOwner) return cardContent;
 
     return StreamBuilder<int>(
-      stream: PostsService.getUnreadCommentsCountForPostStream(post.id, post.userId),
+      stream: PostsService.getUnreadCommentsCountForPostStream(
+        post.id,
+        post.userId,
+      ),
       builder: (context, snap) {
         final hasUnread = (snap.data ?? 0) > 0;
         return Stack(
@@ -258,7 +311,12 @@ class _PostCardState extends State<PostCard> {
           content,
           maxLines: _isExpanded ? null : 3,
           overflow: _isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
-          style: textTheme.bodyMedium?.copyWith(color: Colors.black87),
+          style: textTheme.bodyMedium?.copyWith(
+            color:
+                Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey.shade300
+                    : Colors.black87,
+          ),
         ),
         if (_isLongContent)
           TextButton(
@@ -282,7 +340,8 @@ class _PostHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initial = post.userName.isNotEmpty ? post.userName[0].toUpperCase() : 'U';
+    final initial =
+        post.userName.isNotEmpty ? post.userName[0].toUpperCase() : 'U';
     final timestamp = _formatDate(post.createdAt);
 
     return Row(
@@ -293,7 +352,10 @@ class _PostHeader extends StatelessWidget {
           backgroundColor: kFacebookBlue,
           child: Text(
             initial,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
         const SizedBox(width: 10),
@@ -303,7 +365,12 @@ class _PostHeader extends StatelessWidget {
             children: [
               Text(
                 post.userName,
-                style: kHeadlineSmall,
+                style: kHeadlineSmall.copyWith(
+                  color:
+                      Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white
+                          : Colors.black87,
+                ),
               ),
               const SizedBox(height: 2),
               Row(
@@ -312,7 +379,10 @@ class _PostHeader extends StatelessWidget {
                     child: Text(
                       'Barangay Cagbaoto',
                       overflow: TextOverflow.ellipsis,
-                      style: kBodyText.copyWith(color: Colors.grey.shade600, fontSize: 12),
+                      style: kBodyText.copyWith(
+                        color: Colors.grey.shade600,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -320,7 +390,10 @@ class _PostHeader extends StatelessWidget {
                   const SizedBox(width: 4),
                   Text(
                     timestamp,
-                    style: kBodyText.copyWith(color: Colors.grey.shade600, fontSize: 12),
+                    style: kBodyText.copyWith(
+                      color: Colors.grey.shade600,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
@@ -374,7 +447,9 @@ class _PostMedia extends StatelessWidget {
         itemCount: displayed.length,
         itemBuilder: (context, index) {
           final url = displayed[index];
-          final isLast = index == displayed.length - 1 && imageUrls.length > displayed.length;
+          final isLast =
+              index == displayed.length - 1 &&
+              imageUrls.length > displayed.length;
           return Stack(
             fit: StackFit.expand,
             children: [
@@ -387,7 +462,12 @@ class _PostMedia extends StatelessWidget {
                   color: Colors.grey.shade300,
                   child: const Icon(Icons.image_not_supported),
                 ),
-                onTap: () => openFullScreenImages(context, imageUrls, initialIndex: index),
+                onTap:
+                    () => openFullScreenImages(
+                      context,
+                      imageUrls,
+                      initialIndex: index,
+                    ),
               ),
               if (isLast)
                 Container(
@@ -417,7 +497,10 @@ class _ReactionSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textStyle = kBodyText.copyWith(color: Colors.grey.shade600, fontSize: 12);
+    final textStyle = kBodyText.copyWith(
+      color: Colors.grey.shade600,
+      fontSize: 12,
+    );
 
     return Row(
       children: [
@@ -432,7 +515,11 @@ class _ReactionSummary extends StatelessWidget {
                   shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
-                child: const Icon(Icons.thumb_up, size: 10, color: Colors.white),
+                child: const Icon(
+                  Icons.thumb_up,
+                  size: 10,
+                  color: Colors.white,
+                ),
               ),
               const SizedBox(width: 6),
               Text('${post.likesCount}', style: textStyle),
@@ -462,6 +549,7 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Expanded(
       child: InkWell(
         onTap: onTap,
@@ -474,13 +562,23 @@ class _ActionButton extends StatelessWidget {
               Icon(
                 icon,
                 size: 18,
-                color: isActive ? kFacebookBlue : Colors.grey.shade700,
+                color:
+                    isActive
+                        ? kFacebookBlue
+                        : (isDark
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade700),
               ),
               const SizedBox(width: kPaddingSmall),
               Text(
                 label,
                 style: kBodyText.copyWith(
-                  color: isActive ? kFacebookBlue : Colors.grey.shade700,
+                  color:
+                      isActive
+                          ? kFacebookBlue
+                          : (isDark
+                              ? Colors.grey.shade400
+                              : Colors.grey.shade700),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -544,11 +642,12 @@ class _CommentSheetState extends State<_CommentSheet> {
 
     try {
       // Get user name
-      final userDoc = await FirestoreService.instance
-          .collection('users')
-          .doc(currentUser.uid)
-          .get();
-      
+      final userDoc =
+          await FirestoreService.instance
+              .collection('users')
+              .doc(currentUser.uid)
+              .get();
+
       final userName = userDoc.data()?['fullName'] as String? ?? 'User';
 
       await PostsService.addComment(
@@ -560,30 +659,32 @@ class _CommentSheetState extends State<_CommentSheet> {
 
       widget.commentController.clear();
       setState(() => _isPosting = false);
-      
+
       if (mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Comment posted')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Comment posted')));
       }
     } catch (e) {
       setState(() => _isPosting = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       height: MediaQuery.of(context).size.height * 0.7,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(20),
           topRight: Radius.circular(20),
         ),
@@ -605,16 +706,20 @@ class _CommentSheetState extends State<_CommentSheet> {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                const Text(
+                Text(
                   'Comments',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black87,
                   ),
                 ),
                 const Spacer(),
                 IconButton(
-                  icon: const Icon(Icons.close),
+                  icon: Icon(
+                    Icons.close,
+                    color: isDark ? Colors.grey.shade400 : Colors.black54,
+                  ),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
@@ -649,7 +754,8 @@ class _CommentSheetState extends State<_CommentSheet> {
                     widget.initialCommentId != null &&
                     widget.initialCommentId!.isNotEmpty) {
                   final targetIndex = comments.indexWhere(
-                    (c) => (c['commentId'] as String?) == widget.initialCommentId,
+                    (c) =>
+                        (c['commentId'] as String?) == widget.initialCommentId,
                   );
                   if (targetIndex >= 0) {
                     _didInitialScroll = true;
@@ -672,7 +778,8 @@ class _CommentSheetState extends State<_CommentSheet> {
                   itemBuilder: (context, index) {
                     final comment = comments[index];
                     final commentId = comment['commentId'] as String?;
-                    final isTarget = widget.initialCommentId != null &&
+                    final isTarget =
+                        widget.initialCommentId != null &&
                         widget.initialCommentId!.isNotEmpty &&
                         commentId == widget.initialCommentId;
                     return Padding(
@@ -681,7 +788,10 @@ class _CommentSheetState extends State<_CommentSheet> {
                         duration: const Duration(milliseconds: 250),
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: isTarget ? Colors.yellow.shade100 : Colors.transparent,
+                          color:
+                              isTarget
+                                  ? Colors.yellow.shade100
+                                  : Colors.transparent,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
@@ -691,7 +801,8 @@ class _CommentSheetState extends State<_CommentSheet> {
                               radius: 16,
                               backgroundColor: kFacebookBlue,
                               child: Text(
-                                (comment['userName'] as String? ?? 'U')[0].toUpperCase(),
+                                (comment['userName'] as String? ?? 'U')[0]
+                                    .toUpperCase(),
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 12,
@@ -706,15 +817,25 @@ class _CommentSheetState extends State<_CommentSheet> {
                                 children: [
                                   Text(
                                     comment['userName'] as String? ?? 'Unknown',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontWeight: FontWeight.w600,
                                       fontSize: 14,
+                                      color:
+                                          isDark
+                                              ? Colors.white
+                                              : Colors.black87,
                                     ),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
                                     comment['content'] as String? ?? '',
-                                    style: const TextStyle(fontSize: 14),
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color:
+                                          isDark
+                                              ? Colors.grey.shade300
+                                              : Colors.black87,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -732,9 +853,11 @@ class _CommentSheetState extends State<_CommentSheet> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
               border: Border(
-                top: BorderSide(color: Colors.grey.shade200),
+                top: BorderSide(
+                  color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                ),
               ),
             ),
             child: Row(
@@ -742,11 +865,34 @@ class _CommentSheetState extends State<_CommentSheet> {
                 Expanded(
                   child: TextField(
                     controller: widget.commentController,
+                    style: TextStyle(
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
                     decoration: InputDecoration(
                       hintText: 'Write a comment...',
+                      hintStyle: TextStyle(
+                        color:
+                            isDark
+                                ? Colors.grey.shade500
+                                : Colors.grey.shade600,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
+                        borderSide: BorderSide(
+                          color:
+                              isDark
+                                  ? Colors.grey.shade700
+                                  : Colors.grey.shade300,
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide(
+                          color:
+                              isDark
+                                  ? Colors.grey.shade700
+                                  : Colors.grey.shade300,
+                        ),
                       ),
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16,
@@ -758,13 +904,14 @@ class _CommentSheetState extends State<_CommentSheet> {
                 const SizedBox(width: 8),
                 IconButton(
                   onPressed: _isPosting ? null : _postComment,
-                  icon: _isPosting
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.send, color: kFacebookBlue),
+                  icon:
+                      _isPosting
+                          ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                          : const Icon(Icons.send, color: kFacebookBlue),
                 ),
               ],
             ),

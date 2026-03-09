@@ -10,11 +10,7 @@ class TaskEditScreen extends StatefulWidget {
   final TaskModel task;
   final String? contactNumber;
 
-  const TaskEditScreen({
-    super.key,
-    required this.task,
-    this.contactNumber,
-  });
+  const TaskEditScreen({super.key, required this.task, this.contactNumber});
 
   @override
   State<TaskEditScreen> createState() => _TaskEditScreenState();
@@ -40,26 +36,38 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
     _taskContact = widget.contactNumber ?? widget.task.contactNumber ?? '';
   }
 
-  Future<void> _confirmRemoveVolunteer(String volunteerDocId, String volunteerName) async {
+  Future<void> _confirmRemoveVolunteer(
+    String volunteerDocId,
+    String volunteerName,
+  ) async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Remove volunteer?'),
-        content: Text('Remove $volunteerName from this errand? This will unassign them.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text('Cancel', style: TextStyle(color: Colors.grey.shade700)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text(
-              'Remove',
-              style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('Remove volunteer?'),
+            content: Text(
+              'Remove $volunteerName from this errand? This will unassign them.',
             ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(color: Colors.grey.shade700),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text(
+                  'Remove',
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
     );
     if (confirm != true || !mounted) return;
     try {
@@ -88,10 +96,8 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
   Future<void> _openEditPostingSheet() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => CreateTaskScreen(
-          existingTask: widget.task,
-          isEdit: true,
-        ),
+        builder:
+            (_) => CreateTaskScreen(existingTask: widget.task, isEdit: true),
       ),
     );
   }
@@ -99,34 +105,46 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
   Future<void> _confirmDeletePosting() async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete posting?'),
-        content: const Text('This will remove the errand posting. This action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text('Cancel', style: TextStyle(color: Colors.grey.shade700)),
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('Delete posting?'),
+            content: const Text(
+              'This will remove the errand posting. This action cannot be undone.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(color: Colors.grey.shade700),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text(
+                  'Delete',
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
     );
     if (confirm != true || !mounted) return;
     try {
       await TasksService.deleteTask(widget.task.id);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Posting deleted')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Posting deleted')));
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
     }
   }
 
@@ -201,18 +219,22 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
     if (currentUser == null) return;
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => TaskChatScreen(
-          taskId: widget.task.id,
-          taskTitle: widget.task.title,
-          otherPartyName: volunteerName,
-          otherPartyId: volunteerId,
-          currentUserId: currentUser.uid,
-        ),
+        builder:
+            (_) => TaskChatScreen(
+              taskId: widget.task.id,
+              taskTitle: widget.task.title,
+              otherPartyName: volunteerName,
+              otherPartyId: volunteerId,
+              currentUserId: currentUser.uid,
+            ),
       ),
     );
   }
 
-  Future<void> _handleAcceptVolunteer(String volunteerDocId, String volunteerName) async {
+  Future<void> _handleAcceptVolunteer(
+    String volunteerDocId,
+    String volunteerName,
+  ) async {
     if (_isAcceptingVolunteer) return;
 
     final currentUser = FirestoreService.auth.currentUser;
@@ -269,79 +291,97 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.5,
-        minChildSize: 0.3,
-        maxChildSize: 0.85,
-        builder: (_, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
-              const SizedBox(height: 12),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text(
-                  'Volunteers',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black87,
+      builder:
+          (ctx) => DraggableScrollableSheet(
+            initialChildSize: 0.5,
+            minChildSize: 0.3,
+            maxChildSize: 0.85,
+            builder:
+                (_, scrollController) => Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(20),
+                    ),
                   ),
-                ),
-              ),
-              Expanded(
-                child: StreamBuilder<List<Map<String, dynamic>>>(
-                  stream: TasksService.getVolunteersStream(widget.task.id),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    if (snapshot.hasError) {
-                      return Center(
-                        child: Text(
-                          'Error: ${snapshot.error}',
-                          style: const TextStyle(color: Colors.red),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 12),
+                      Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
                         ),
-                      );
-                    }
-                    final volunteers = snapshot.data ?? [];
-                    final pending = volunteers
-                        .where((v) => (v['status'] as String? ?? 'pending') == 'pending')
-                        .toList();
-                    if (pending.isEmpty) {
-                      return Center(
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.all(16),
                         child: Text(
-                          'No pending volunteers',
+                          'Volunteers',
                           style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade600,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black87,
                           ),
                         ),
-                      );
-                    }
-                    return ListView(
-                      controller: scrollController,
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                      children: pending.map((v) => _dropdownPendingItem(v)).toList(),
-                    );
-                  },
+                      ),
+                      Expanded(
+                        child: StreamBuilder<List<Map<String, dynamic>>>(
+                          stream: TasksService.getVolunteersStream(
+                            widget.task.id,
+                          ),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return const Center(
+                                child: CircularProgressIndicator(),
+                              );
+                            }
+                            if (snapshot.hasError) {
+                              return Center(
+                                child: Text(
+                                  'Error: ${snapshot.error}',
+                                  style: const TextStyle(color: Colors.red),
+                                ),
+                              );
+                            }
+                            final volunteers = snapshot.data ?? [];
+                            final pending =
+                                volunteers
+                                    .where(
+                                      (v) =>
+                                          (v['status'] as String? ??
+                                              'pending') ==
+                                          'pending',
+                                    )
+                                    .toList();
+                            if (pending.isEmpty) {
+                              return Center(
+                                child: Text(
+                                  'No pending volunteers',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              );
+                            }
+                            return ListView(
+                              controller: scrollController,
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                              children:
+                                  pending
+                                      .map((v) => _dropdownPendingItem(v))
+                                      .toList(),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
           ),
-        ),
-      ),
     );
   }
 
@@ -368,7 +408,10 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.grey.shade100,
+          color:
+              Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFF2C2C2C)
+                  : Colors.grey.shade100,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
@@ -376,31 +419,40 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
             Expanded(
               child: Text(
                 volunteerName,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: Colors.black87,
+                  color:
+                      Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white
+                          : Colors.black87,
                 ),
               ),
             ),
             IconButton(
-              onPressed: _isAcceptingVolunteer
-                  ? null
-                  : () {
-                      Navigator.pop(context);
-                      _handleAcceptVolunteer(volunteerDocId, volunteerName);
-                    },
-              icon: Icon(Icons.check_circle, color: Colors.green.shade700, size: 26),
+              onPressed:
+                  _isAcceptingVolunteer
+                      ? null
+                      : () {
+                        Navigator.pop(context);
+                        _handleAcceptVolunteer(volunteerDocId, volunteerName);
+                      },
+              icon: Icon(
+                Icons.check_circle,
+                color: Colors.green.shade700,
+                size: 26,
+              ),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
             ),
             IconButton(
-              onPressed: _isAcceptingVolunteer
-                  ? null
-                  : () {
-                      Navigator.pop(context);
-                      _handleRejectVolunteer(volunteerDocId);
-                    },
+              onPressed:
+                  _isAcceptingVolunteer
+                      ? null
+                      : () {
+                        Navigator.pop(context);
+                        _handleRejectVolunteer(volunteerDocId);
+                      },
               icon: Icon(Icons.cancel, color: Colors.red.shade700, size: 26),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
@@ -413,8 +465,10 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F4F4),
+      backgroundColor:
+          isDark ? const Color(0xFF121212) : const Color(0xFFF4F4F4),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
@@ -424,48 +478,75 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
               Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+                    icon: Icon(
+                      Icons.arrow_back_ios_new,
+                      size: 20,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
                     onPressed: () => Navigator.of(context).pop(),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
-                    color: Colors.black87,
                   ),
                   const Spacer(),
                   StreamBuilder<List<Map<String, dynamic>>>(
                     stream: TasksService.getVolunteersStream(widget.task.id),
                     builder: (context, volSnap) {
                       final volunteers = volSnap.data ?? [];
-                      final pendingCount = volunteers
-                          .where((v) => (v['status'] as String? ?? 'pending') == 'pending')
-                          .length;
+                      final pendingCount =
+                          volunteers
+                              .where(
+                                (v) =>
+                                    (v['status'] as String? ?? 'pending') ==
+                                    'pending',
+                              )
+                              .length;
                       return Stack(
                         clipBehavior: Clip.none,
                         children: [
                           Material(
-                            color: Colors.white,
+                            color:
+                                isDark ? const Color(0xFF2C2C2C) : Colors.white,
                             borderRadius: BorderRadius.circular(14),
                             child: InkWell(
                               onTap: () => _showVolunteersDropdown(context),
                               borderRadius: BorderRadius.circular(14),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 10,
+                                ),
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(color: Colors.grey.shade300),
+                                  border: Border.all(
+                                    color:
+                                        isDark
+                                            ? Colors.grey.shade700
+                                            : Colors.grey.shade300,
+                                  ),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Text(
+                                    Text(
                                       'Volunteers',
                                       style: TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
-                                        color: Color(0xFF4C4C4C),
+                                        color:
+                                            isDark
+                                                ? Colors.white
+                                                : const Color(0xFF4C4C4C),
                                       ),
                                     ),
                                     const SizedBox(width: 6),
-                                    Icon(Icons.keyboard_arrow_down, size: 20, color: Colors.grey.shade600),
+                                    Icon(
+                                      Icons.keyboard_arrow_down,
+                                      size: 20,
+                                      color:
+                                          isDark
+                                              ? Colors.grey.shade400
+                                              : Colors.grey.shade600,
+                                    ),
                                   ],
                                 ),
                               ),
@@ -490,50 +571,76 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                   ),
                   const SizedBox(width: 8),
                   PopupMenuButton<String>(
-                    color: Colors.white,
+                    color: isDark ? const Color(0xFF2C2C2C) : Colors.white,
                     icon: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.grey.shade300),
+                        border: Border.all(
+                          color:
+                              isDark
+                                  ? Colors.grey.shade700
+                                  : Colors.grey.shade300,
+                        ),
                       ),
-                      child: const Icon(Icons.more_vert, color: Color(0xFF4C4C4C), size: 20),
+                      child: Icon(
+                        Icons.more_vert,
+                        color: isDark ? Colors.white : const Color(0xFF4C4C4C),
+                        size: 20,
+                      ),
                     ),
                     tooltip: 'Options',
                     onSelected: (value) {
                       if (value == 'edit') _openEditPostingSheet();
                       if (value == 'delete') _confirmDeletePosting();
                     },
-                    itemBuilder: (context) => [
-                      PopupMenuItem(
-                        value: 'edit',
-                        child: ListTile(
-                          leading: const Icon(Icons.edit_outlined, size: 22, color: Color(0xFF20BF6B)),
-                          title: const Text('Edit posting'),
-                          contentPadding: EdgeInsets.zero,
-                          visualDensity: VisualDensity.compact,
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: 'delete',
-                        child: ListTile(
-                          leading: Icon(Icons.delete_outline, size: 22, color: Colors.red.shade700),
-                          title: Text('Delete posting', style: TextStyle(color: Colors.red.shade700)),
-                          contentPadding: EdgeInsets.zero,
-                          visualDensity: VisualDensity.compact,
-                        ),
-                      ),
-                    ],
+                    itemBuilder:
+                        (context) => [
+                          PopupMenuItem(
+                            value: 'edit',
+                            child: ListTile(
+                              leading: const Icon(
+                                Icons.edit_outlined,
+                                size: 22,
+                                color: Color(0xFF20BF6B),
+                              ),
+                              title: Text(
+                                'Edit posting',
+                                style: TextStyle(
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                              ),
+                              contentPadding: EdgeInsets.zero,
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'delete',
+                            child: ListTile(
+                              leading: Icon(
+                                Icons.delete_outline,
+                                size: 22,
+                                color: Colors.red.shade700,
+                              ),
+                              title: Text(
+                                'Delete posting',
+                                style: TextStyle(color: Colors.red.shade700),
+                              ),
+                              contentPadding: EdgeInsets.zero,
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ),
+                        ],
                   ),
                 ],
               ),
               const SizedBox(height: 12),
               // Request Details Card
-              _buildRequestDetailsCard(),
+              _buildRequestDetailsCard(isDark),
               const SizedBox(height: 16),
               // List of Volunteers Card (pending + confirmed with Message)
-              _buildVolunteersCard(),
+              _buildVolunteersCard(isDark),
             ],
           ),
         ),
@@ -541,18 +648,19 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
     );
   }
 
-  Widget _buildRequestDetailsCard() {
+  Widget _buildRequestDetailsCard(bool isDark) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
         ],
       ),
       child: Column(
@@ -561,75 +669,81 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
           // Title
           Text(
             _taskTitle,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: Colors.black87,
+              color: isDark ? Colors.white : Colors.black87,
               height: 1.4,
               letterSpacing: 0.1,
             ),
           ),
           const SizedBox(height: 20),
           // Description Section
-          _buildSectionHeader('Description'),
+          _buildSectionHeader('Description', isDark),
           const SizedBox(height: 10),
           Text(
             _taskDescription,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
-              color: Color(0xFF4C4C4C),
+              color: isDark ? Colors.grey.shade300 : const Color(0xFF4C4C4C),
               height: 1.5,
             ),
           ),
           const SizedBox(height: 20),
           // Contact Section
-          _buildSectionHeader('Contact'),
+          _buildSectionHeader('Contact', isDark),
           const SizedBox(height: 10),
           Text(
-            _taskContact.isNotEmpty ? _taskContact : (widget.contactNumber ?? '09026095205'),
-            style: const TextStyle(
+            _taskContact.isNotEmpty
+                ? _taskContact
+                : (widget.contactNumber ?? '09026095205'),
+            style: TextStyle(
               fontSize: 14,
-              color: Color(0xFF4C4C4C),
+              color: isDark ? Colors.grey.shade300 : const Color(0xFF4C4C4C),
             ),
           ),
           const SizedBox(height: 20),
           // Status Section
-          _buildSectionHeader('Status'),
+          _buildSectionHeader('Status', isDark),
           const SizedBox(height: 10),
           Row(
             children: [
-              Expanded(
-                child: _buildStatusDropdown(),
-              ),
+              Expanded(child: _buildStatusDropdown(isDark)),
               const SizedBox(width: 12),
               ElevatedButton(
                 onPressed: _isUpdatingStatus ? null : _handleSetStatus,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF20BF6B),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
                   minimumSize: const Size(80, 48),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
                   elevation: 0,
                 ),
-                child: _isUpdatingStatus
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                child:
+                    _isUpdatingStatus
+                        ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
+                        )
+                        : const Text(
+                          'Set',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      )
-                    : const Text(
-                        'Set',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
               ),
             ],
           ),
@@ -638,25 +752,28 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
     );
   }
 
-  Widget _buildSectionHeader(String text) {
+  Widget _buildSectionHeader(String text, bool isDark) {
     return Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 14,
         fontWeight: FontWeight.w700,
-        color: Colors.black87,
+        color: isDark ? Colors.white : Colors.black87,
         letterSpacing: 0.2,
       ),
     );
   }
 
-  Widget _buildStatusDropdown() {
+  Widget _buildStatusDropdown(bool isDark) {
     return Container(
       height: 48,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF2C2C2C) : Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade300, width: 1),
+        border: Border.all(
+          color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+          width: 1,
+        ),
       ),
       child: DropdownButtonFormField<TaskStatus>(
         value: _selectedStatus,
@@ -666,18 +783,20 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
         ),
-        items: TaskStatus.values.map((status) {
-          return DropdownMenuItem<TaskStatus>(
-            value: status,
-            child: Text(
-              status.displayName,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.black87,
-              ),
-            ),
-          );
-        }).toList(),
+        dropdownColor: isDark ? const Color(0xFF2C2C2C) : Colors.white,
+        items:
+            TaskStatus.values.map((status) {
+              return DropdownMenuItem<TaskStatus>(
+                value: status,
+                child: Text(
+                  status.displayName,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+              );
+            }).toList(),
         onChanged: (value) {
           if (value != null) {
             setState(() {
@@ -685,11 +804,11 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
             });
           }
         },
-        icon: const Padding(
-          padding: EdgeInsets.only(right: 8),
+        icon: Padding(
+          padding: const EdgeInsets.only(right: 8),
           child: Icon(
             Icons.keyboard_arrow_down,
-            color: Color(0xFF6E6E6E),
+            color: isDark ? Colors.grey.shade400 : const Color(0xFF6E6E6E),
             size: 20,
           ),
         ),
@@ -698,18 +817,19 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
     );
   }
 
-  Widget _buildVolunteersCard() {
+  Widget _buildVolunteersCard(bool isDark) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
         ],
       ),
       child: Column(
@@ -717,18 +837,22 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
                   'List of volunteers',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: Colors.black87,
+                    color: isDark ? Colors.white : Colors.black87,
                   ),
                 ),
               ),
               IconButton(
-                onPressed: () => setState(() => _isRemovingVolunteerMode = !_isRemovingVolunteerMode),
+                onPressed:
+                    () => setState(
+                      () =>
+                          _isRemovingVolunteerMode = !_isRemovingVolunteerMode,
+                    ),
                 icon: Icon(
                   _isRemovingVolunteerMode ? Icons.close : Icons.edit_outlined,
                   color: const Color(0xFF4C4C4C),
@@ -762,34 +886,36 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                 );
               }
               final volunteers = snapshot.data ?? [];
-              final confirmed = volunteers
-                  .where((v) => (v['status'] as String?) == 'accepted')
-                  .toList();
+              final confirmed =
+                  volunteers
+                      .where((v) => (v['status'] as String?) == 'accepted')
+                      .toList();
 
               if (confirmed.isEmpty) {
                 return Padding(
                   padding: const EdgeInsets.all(20.0),
                   child: Text(
                     'No approved volunteers yet',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade600,
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
                   ),
                 );
               }
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: confirmed.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  return Padding(
-                    padding: EdgeInsets.only(
-                      bottom: index < confirmed.length - 1 ? 12 : 0,
-                    ),
-                    child: _buildConfirmedVolunteerItem(entry.value),
-                  );
-                }).toList(),
+                children:
+                    confirmed.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      return Padding(
+                        padding: EdgeInsets.only(
+                          bottom: index < confirmed.length - 1 ? 12 : 0,
+                        ),
+                        child: _buildConfirmedVolunteerItem(
+                          entry.value,
+                          isDark,
+                        ),
+                      );
+                    }).toList(),
               );
             },
           ),
@@ -811,6 +937,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
   }
 
   Widget _buildPendingVolunteerItem(Map<String, dynamic> volunteer) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final volunteerDocId = volunteer['volunteerDocId'] as String;
     final volunteerName = volunteer['volunteerName'] as String? ?? 'Unknown';
     final volunteerId = volunteer['volunteerId'] as String?;
@@ -843,9 +970,9 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
               children: [
                 Text(
                   volunteerName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
-                    color: Colors.black87,
+                    color: isDark ? Colors.white : Colors.black87,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -854,7 +981,8 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                     future: _getVolunteerPhone(volunteerId),
                     builder: (context, snap) {
                       final phone = snap.data;
-                      if (phone == null || phone.isEmpty) return const SizedBox.shrink();
+                      if (phone == null || phone.isEmpty)
+                        return const SizedBox.shrink();
                       return Padding(
                         padding: const EdgeInsets.only(top: 2),
                         child: Text(
@@ -871,17 +999,24 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
             ),
           ),
           IconButton(
-            onPressed: _isAcceptingVolunteer
-                ? null
-                : () => _handleAcceptVolunteer(volunteerDocId, volunteerName),
-            icon: Icon(Icons.check_circle, color: Colors.green.shade700, size: 28),
+            onPressed:
+                _isAcceptingVolunteer
+                    ? null
+                    : () =>
+                        _handleAcceptVolunteer(volunteerDocId, volunteerName),
+            icon: Icon(
+              Icons.check_circle,
+              color: Colors.green.shade700,
+              size: 28,
+            ),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
           ),
           IconButton(
-            onPressed: _isAcceptingVolunteer
-                ? null
-                : () => _handleRejectVolunteer(volunteerDocId),
+            onPressed:
+                _isAcceptingVolunteer
+                    ? null
+                    : () => _handleRejectVolunteer(volunteerDocId),
             icon: Icon(Icons.cancel, color: Colors.red.shade700, size: 28),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
@@ -891,18 +1026,25 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
     );
   }
 
-  Widget _buildConfirmedVolunteerItem(Map<String, dynamic> volunteer) {
+  Widget _buildConfirmedVolunteerItem(
+    Map<String, dynamic> volunteer,
+    bool isDark,
+  ) {
     final volunteerDocId = volunteer['volunteerDocId'] as String? ?? '';
     final volunteerId = volunteer['volunteerId'] as String?;
     final volunteerName = volunteer['volunteerName'] as String? ?? 'Unknown';
-    if (volunteerId == null || volunteerId.isEmpty) return const SizedBox.shrink();
+    if (volunteerId == null || volunteerId.isEmpty) {
+      return const SizedBox.shrink();
+    }
     final ownerId = FirestoreService.auth.currentUser?.uid ?? '';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.green.shade50,
+        color: isDark ? const Color(0xFF2A3A2A) : Colors.green.shade50,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.green.shade200),
+        border: Border.all(
+          color: isDark ? Colors.green.shade800 : Colors.green.shade200,
+        ),
       ),
       child: Row(
         children: [
@@ -910,13 +1052,13 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: Colors.green.shade200,
+              color: isDark ? Colors.green.shade900 : Colors.green.shade200,
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.check_circle,
               size: 22,
-              color: Colors.green.shade700,
+              color: isDark ? Colors.green.shade300 : Colors.green.shade700,
             ),
           ),
           const SizedBox(width: 12),
@@ -926,22 +1068,32 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: Colors.green.shade800,
+                color: isDark ? Colors.green.shade300 : Colors.green.shade800,
               ),
             ),
           ),
           StreamBuilder<int>(
-            stream: TaskChatService.getUnreadCountStream(widget.task.id, ownerId),
+            stream: TaskChatService.getUnreadCountStream(
+              widget.task.id,
+              ownerId,
+            ),
             builder: (context, unreadSnap) {
               final unreadCount = unreadSnap.data ?? 0;
               if (_isRemovingVolunteerMode) {
                 return IconButton(
-                  onPressed: volunteerDocId.isEmpty
-                      ? null
-                      : () => _confirmRemoveVolunteer(volunteerDocId, volunteerName),
+                  onPressed:
+                      volunteerDocId.isEmpty
+                          ? null
+                          : () => _confirmRemoveVolunteer(
+                            volunteerDocId,
+                            volunteerName,
+                          ),
                   icon: Icon(Icons.close, size: 22, color: Colors.red.shade700),
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                  constraints: const BoxConstraints(
+                    minWidth: 44,
+                    minHeight: 44,
+                  ),
                   tooltip: 'Remove volunteer',
                 );
               }
@@ -949,10 +1101,19 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                 clipBehavior: Clip.none,
                 children: [
                   IconButton(
-                    onPressed: () => _openChatWithVolunteer(volunteerId, volunteerName),
-                    icon: const Icon(Icons.message_outlined, size: 22, color: Color(0xFF4C4C4C)),
+                    onPressed:
+                        () =>
+                            _openChatWithVolunteer(volunteerId, volunteerName),
+                    icon: Icon(
+                      Icons.message_outlined,
+                      size: 22,
+                      color: isDark ? Colors.white : const Color(0xFF4C4C4C),
+                    ),
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                    constraints: const BoxConstraints(
+                      minWidth: 44,
+                      minHeight: 44,
+                    ),
                   ),
                   if (unreadCount > 0)
                     Positioned(
@@ -978,14 +1139,14 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
 
   Future<String?> _getVolunteerPhone(String volunteerId) async {
     try {
-      final doc = await FirestoreService.instance
-          .collection('users')
-          .doc(volunteerId)
-          .get();
+      final doc =
+          await FirestoreService.instance
+              .collection('users')
+              .doc(volunteerId)
+              .get();
       return doc.data()?['phoneNumber'] as String?;
     } catch (_) {
       return null;
     }
   }
 }
-

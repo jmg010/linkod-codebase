@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
 import 'optimized_image.dart';
 
-enum ErrandJobStatus {
-  open,
-  ongoing,
-  completed,
-}
+enum ErrandJobStatus { open, ongoing, completed }
 
 class ErrandJobCard extends StatelessWidget {
   final String title;
@@ -20,6 +16,7 @@ class ErrandJobCard extends StatelessWidget {
   final bool showTag;
   final String viewButtonLabel;
   final IconData viewButtonIcon;
+
   /// Optional image URLs for the errand (owner-attached). Shown like product card.
   final List<String> imageUrls;
 
@@ -42,14 +39,19 @@ class ErrandJobCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       margin: EdgeInsets.zero,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color:
+                isDark
+                    ? Colors.black.withOpacity(0.3)
+                    : Colors.black.withOpacity(0.06),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -67,7 +69,10 @@ class ErrandJobCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.purple.shade400,
                       borderRadius: BorderRadius.circular(18),
@@ -84,9 +89,12 @@ class ErrandJobCard extends StatelessWidget {
                   Flexible(
                     child: Text(
                       _formatDate(date),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF6E6E6E),
+                        color:
+                            isDark
+                                ? Colors.grey.shade400
+                                : const Color(0xFF6E6E6E),
                       ),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
@@ -108,10 +116,10 @@ class ErrandJobCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: Colors.black87,
+                      color: isDark ? Colors.white : Colors.black87,
                       height: 1.25,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -142,9 +150,12 @@ class ErrandJobCard extends StatelessWidget {
                         Expanded(
                           child: Text(
                             'Posted by: $postedBy',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12.5,
-                              color: Color(0xFF6E6E6E),
+                              color:
+                                  isDark
+                                      ? Colors.grey.shade400
+                                      : const Color(0xFF6E6E6E),
                             ),
                             overflow: TextOverflow.ellipsis,
                             maxLines: 1,
@@ -157,9 +168,12 @@ class ErrandJobCard extends StatelessWidget {
                   Flexible(
                     child: Text(
                       _formatDate(date),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF6E6E6E),
+                        color:
+                            isDark
+                                ? Colors.grey.shade400
+                                : const Color(0xFF6E6E6E),
                       ),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
@@ -179,9 +193,12 @@ class ErrandJobCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       'Posted by: $postedBy',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12.5,
-                        color: Color(0xFF6E6E6E),
+                        color:
+                            isDark
+                                ? Colors.grey.shade400
+                                : const Color(0xFF6E6E6E),
                       ),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
@@ -193,9 +210,9 @@ class ErrandJobCard extends StatelessWidget {
             // Description
             Text(
               description,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13.5,
-                color: Color(0xFF4C4C4C),
+                color: isDark ? Colors.grey.shade300 : const Color(0xFF4C4C4C),
                 height: 1.4,
               ),
             ),
@@ -209,23 +226,32 @@ class ErrandJobCard extends StatelessWidget {
                   icon: Icon(
                     viewButtonIcon,
                     size: 16,
-                    color: const Color(0xFF4C4C4C),
+                    color: isDark ? Colors.white : const Color(0xFF4C4C4C),
                   ),
                   label: Text(
                     viewButtonLabel,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      color: Color(0xFF4C4C4C),
+                      color: isDark ? Colors.white : const Color(0xFF4C4C4C),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(26),
                     ),
-                    side: const BorderSide(color: Color(0xFFD0D0D0)),
-                    backgroundColor: Colors.white,
+                    side: BorderSide(
+                      color:
+                          isDark
+                              ? Colors.grey.shade700
+                              : const Color(0xFFD0D0D0),
+                    ),
+                    backgroundColor:
+                        isDark ? const Color(0xFF2C2C2C) : Colors.white,
                   ),
                 ),
               )
@@ -237,22 +263,31 @@ class ErrandJobCard extends StatelessWidget {
                   icon: Icon(
                     viewButtonIcon,
                     size: 16,
-                    color: const Color(0xFF4C4C4C),
+                    color: isDark ? Colors.white : const Color(0xFF4C4C4C),
                   ),
                   label: Text(
                     viewButtonLabel,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      color: Color(0xFF4C4C4C),
+                      color: isDark ? Colors.white : const Color(0xFF4C4C4C),
                     ),
                   ),
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(26),
                     ),
-                    side: const BorderSide(color: Color(0xFFD0D0D0)),
-                    backgroundColor: Colors.white,
+                    side: BorderSide(
+                      color:
+                          isDark
+                              ? Colors.grey.shade700
+                              : const Color(0xFFD0D0D0),
+                    ),
+                    backgroundColor:
+                        isDark ? const Color(0xFF2C2C2C) : Colors.white,
                   ),
                 ),
               ),
@@ -322,7 +357,7 @@ class ErrandJobCard extends StatelessWidget {
       'September',
       'October',
       'November',
-      'December'
+      'December',
     ];
     return months[month - 1];
   }
@@ -344,7 +379,11 @@ class _ErrandCardImage extends StatelessWidget {
           width: double.infinity,
           color: Colors.grey.shade100,
           alignment: Alignment.center,
-          child: Icon(Icons.image_outlined, size: 40, color: Colors.grey.shade400),
+          child: Icon(
+            Icons.image_outlined,
+            size: 40,
+            color: Colors.grey.shade400,
+          ),
         ),
       );
     }
@@ -362,7 +401,8 @@ class _ErrandCardImage extends StatelessWidget {
             cacheHeight: 400,
             borderRadius: BorderRadius.circular(14),
             errorWidget: _errorPlaceholder(),
-            onTap: () => openFullScreenImages(context, imageUrls, initialIndex: 0),
+            onTap:
+                () => openFullScreenImages(context, imageUrls, initialIndex: 0),
           ),
         ),
       );
@@ -376,7 +416,12 @@ class _ErrandCardImage extends StatelessWidget {
           itemCount: imageUrls.length,
           itemBuilder: (context, index) {
             return GestureDetector(
-              onTap: () => openFullScreenImages(context, imageUrls, initialIndex: index),
+              onTap:
+                  () => openFullScreenImages(
+                    context,
+                    imageUrls,
+                    initialIndex: index,
+                  ),
               child: OptimizedNetworkImage(
                 imageUrl: imageUrls[index],
                 height: 160,
@@ -397,8 +442,11 @@ class _ErrandCardImage extends StatelessWidget {
     return Container(
       color: Colors.grey.shade200,
       alignment: Alignment.center,
-      child: Icon(Icons.image_not_supported_outlined, size: 40, color: Colors.grey.shade500),
+      child: Icon(
+        Icons.image_not_supported_outlined,
+        size: 40,
+        color: Colors.grey.shade500,
+      ),
     );
   }
 }
-

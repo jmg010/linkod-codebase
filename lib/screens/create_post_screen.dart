@@ -63,7 +63,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   Future<void> _handleImagePicker() async {
     final picker = ImagePicker();
-    final xFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    final xFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
     if (xFile != null && mounted) {
       setState(() => _pickedImages.add(xFile));
       ScaffoldMessenger.of(context).showSnackBar(
@@ -84,15 +87,16 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     }
 
     // Get user data from Firestore
-    final userDoc = await FirestoreService.instance
-        .collection('users')
-        .doc(currentUser.uid)
-        .get();
-    
+    final userDoc =
+        await FirestoreService.instance
+            .collection('users')
+            .doc(currentUser.uid)
+            .get();
+
     if (!userDoc.exists) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('User profile not found')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('User profile not found')));
       return;
     }
 
@@ -102,10 +106,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
     final List<String> imageUrls = [];
     for (var i = 0; i < _pickedImages.length; i++) {
-      final path = _selectedType == CreateType.product
-          ? StorageService.productImagePath(currentUser.uid, i)
-          : StorageService.postImagePath(currentUser.uid, i);
-      final url = await StorageService.instance.uploadImageFromXFile(_pickedImages[i], path);
+      final path =
+          _selectedType == CreateType.product
+              ? StorageService.productImagePath(currentUser.uid, i)
+              : StorageService.postImagePath(currentUser.uid, i);
+      final url = await StorageService.instance.uploadImageFromXFile(
+        _pickedImages[i],
+        path,
+      );
       if (url != null) imageUrls.add(url);
     }
 
@@ -142,7 +150,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           }
 
           // Read auto-approve settings
-          final autoSettings = await AdminSettingsService.getAutoApproveSettings();
+          final autoSettings =
+              await AdminSettingsService.getAutoApproveSettings();
           final shouldAutoApprove = autoSettings['products'] ?? false;
           final initialStatus = shouldAutoApprove ? 'Approved' : 'Pending';
 
@@ -166,9 +175,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(shouldAutoApprove
-                    ? 'Your listing has been posted!'
-                    : 'Your listing is pending admin approval.'),
+                content: Text(
+                  shouldAutoApprove
+                      ? 'Your listing has been posted!'
+                      : 'Your listing is pending admin approval.',
+                ),
               ),
             );
             Navigator.of(context).pop();
@@ -177,9 +188,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
         case CreateType.task:
           // Read auto-approve settings
-          final autoSettings = await AdminSettingsService.getAutoApproveSettings();
+          final autoSettings =
+              await AdminSettingsService.getAutoApproveSettings();
           final shouldAutoApprove = autoSettings['tasks'] ?? false;
-          final initialApprovalStatus = shouldAutoApprove ? 'Approved' : 'Pending';
+          final initialApprovalStatus =
+              shouldAutoApprove ? 'Approved' : 'Pending';
 
           final userPurok = (userData['purok'] as num?)?.toInt() ?? 1;
           final task = TaskModel(
@@ -192,16 +205,19 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             status: TaskStatus.open,
             priority: _selectedPriority,
             contactNumber: userData['phoneNumber'] as String?,
-            approvalStatus: initialApprovalStatus, // Set based on auto-approve flag
+            approvalStatus:
+                initialApprovalStatus, // Set based on auto-approve flag
             location: purokDisplayName(userPurok.clamp(1, 5)),
           );
           await TasksService.createTask(task);
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(shouldAutoApprove
-                    ? 'Your errand has been posted!'
-                    : 'Your errand is pending admin approval.'),
+                content: Text(
+                  shouldAutoApprove
+                      ? 'Your errand has been posted!'
+                      : 'Your errand is pending admin approval.',
+                ),
               ),
             );
             Navigator.of(context).pop();
@@ -210,9 +226,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
       }
     }
   }
@@ -272,17 +288,24 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     final isProduct = _selectedType == CreateType.product;
     final isTask = _selectedType == CreateType.task;
     final isOfficial = widget.userRole == UserRole.official;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Create Post',
-          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: isDark ? Colors.white : Colors.black87,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         elevation: 1,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          icon: Icon(
+            Icons.arrow_back,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
@@ -555,9 +578,17 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                           const SizedBox(height: 8),
                           Container(
                             decoration: BoxDecoration(
-                              color: Colors.grey.shade100,
+                              color:
+                                  isDark
+                                      ? const Color(0xFF2C2C2C)
+                                      : Colors.grey.shade100,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.grey.shade300),
+                              border: Border.all(
+                                color:
+                                    isDark
+                                        ? Colors.grey.shade700
+                                        : Colors.grey.shade300,
+                              ),
                             ),
                             padding: const EdgeInsets.all(12),
                             child: Text(
@@ -626,7 +657,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                           width: 90,
                           height: 90,
                           borderRadius: BorderRadius.circular(8),
-                          onRemove: () => setState(() => _pickedImages.removeAt(i)),
+                          onRemove:
+                              () => setState(() => _pickedImages.removeAt(i)),
                         );
                       },
                     ),

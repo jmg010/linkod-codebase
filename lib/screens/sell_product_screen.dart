@@ -33,19 +33,32 @@ class _SellProductScreenState extends State<SellProductScreen> {
   final _descriptionController = TextEditingController();
   final _contactController = TextEditingController();
   String? _selectedCategory;
+
   /// Purok 1-5 for location (Barangay Cagbaoto). Default 1.
   int _selectedPurok = 1;
   final List<XFile> _pickedImages = [];
+
   /// When editing, URLs already on the product (user can remove).
   List<String> _existingImageUrls = [];
   final PageController _imagePageController = PageController();
   int _imagePageIndex = 0;
+
   /// Pricing unit: kg, pcs, piece, etc.
-  static const List<String> _priceUnitOptions = ['pcs', 'kg', 'piece', 'bunch', 'sack', 'liter', 'pack', 'box'];
+  static const List<String> _priceUnitOptions = [
+    'pcs',
+    'kg',
+    'piece',
+    'bunch',
+    'sack',
+    'liter',
+    'pack',
+    'box',
+  ];
   String _selectedPriceUnit = 'pcs';
 
   bool get _isEdit => widget.isEdit && widget.existingProduct != null;
-  bool get _hasAnyImages => _existingImageUrls.isNotEmpty || _pickedImages.isNotEmpty;
+  bool get _hasAnyImages =>
+      _existingImageUrls.isNotEmpty || _pickedImages.isNotEmpty;
   int get _totalImageCount => _existingImageUrls.length + _pickedImages.length;
 
   bool _isPosting = false;
@@ -77,10 +90,11 @@ class _SellProductScreenState extends State<SellProductScreen> {
     final user = FirestoreService.auth.currentUser;
     if (user == null) return;
     try {
-      final doc = await FirestoreService.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
+      final doc =
+          await FirestoreService.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
       if (!doc.exists || !mounted) return;
       final data = doc.data();
       final phone = data?['phoneNumber'] as String?;
@@ -136,12 +150,15 @@ class _SellProductScreenState extends State<SellProductScreen> {
 
   Future<void> _addMoreImages() async {
     final picker = ImagePicker();
-    final xFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    final xFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
     if (xFile != null && mounted) {
       setState(() => _pickedImages.add(xFile));
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${_totalImageCount} image(s)')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('${_totalImageCount} image(s)')));
     }
   }
 
@@ -157,38 +174,43 @@ class _SellProductScreenState extends State<SellProductScreen> {
         context: context,
         barrierColor: Colors.black,
         barrierDismissible: true,
-        builder: (ctx) => GestureDetector(
-          onTap: () => Navigator.of(ctx).pop(),
-          behavior: HitTestBehavior.opaque,
-          child: Dialog(
-            backgroundColor: Colors.transparent,
-            insetPadding: EdgeInsets.zero,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                GestureDetector(
-                  onTap: () => Navigator.of(ctx).pop(),
-                  child: InteractiveViewer(
-                    minScale: 0.5,
-                    maxScale: 4,
-                    child: Center(
-                      child: Image.memory(bytes, fit: BoxFit.contain),
+        builder:
+            (ctx) => GestureDetector(
+              onTap: () => Navigator.of(ctx).pop(),
+              behavior: HitTestBehavior.opaque,
+              child: Dialog(
+                backgroundColor: Colors.transparent,
+                insetPadding: EdgeInsets.zero,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    GestureDetector(
+                      onTap: () => Navigator.of(ctx).pop(),
+                      child: InteractiveViewer(
+                        minScale: 0.5,
+                        maxScale: 4,
+                        child: Center(
+                          child: Image.memory(bytes, fit: BoxFit.contain),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                SafeArea(
-                  child: Align(
-                    alignment: Alignment.topLeft,
-                    child: IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white, size: 28),
-                      onPressed: () => Navigator.of(ctx).pop(),
+                    SafeArea(
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: IconButton(
+                          icon: const Icon(
+                            Icons.close,
+                            color: Colors.white,
+                            size: 28,
+                          ),
+                          onPressed: () => Navigator.of(ctx).pop(),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
       );
     });
   }
@@ -203,9 +225,9 @@ class _SellProductScreenState extends State<SellProductScreen> {
       return;
     }
     if (_selectedCategory == null || _selectedCategory!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a category')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please select a category')));
       return;
     }
 
@@ -229,15 +251,16 @@ class _SellProductScreenState extends State<SellProductScreen> {
     setState(() => _isPosting = true);
 
     // Get user data from Firestore
-    final userDoc = await FirestoreService.instance
-        .collection('users')
-        .doc(currentUser.uid)
-        .get();
-    
+    final userDoc =
+        await FirestoreService.instance
+            .collection('users')
+            .doc(currentUser.uid)
+            .get();
+
     if (!userDoc.exists) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('User profile not found')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('User profile not found')));
       return;
     }
 
@@ -262,21 +285,23 @@ class _SellProductScreenState extends State<SellProductScreen> {
           'price': price,
           'category': _selectedCategory!,
           'location': purokDisplayName(_selectedPurok),
-          'contactNumber': _contactController.text.trim().isNotEmpty
-              ? _contactController.text.trim()
-              : (userData['phoneNumber'] as String? ?? ''),
+          'contactNumber':
+              _contactController.text.trim().isNotEmpty
+                  ? _contactController.text.trim()
+                  : (userData['phoneNumber'] as String? ?? ''),
           'imageUrls': imageUrls,
           'priceUnit': _selectedPriceUnit,
         });
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Product updated')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Product updated')));
           Navigator.of(context).pop();
         }
       } else {
         // Read auto-approve settings
-        final autoSettings = await AdminSettingsService.getAutoApproveSettings();
+        final autoSettings =
+            await AdminSettingsService.getAutoApproveSettings();
         final shouldAutoApprove = autoSettings['products'] ?? false;
         final initialStatus = shouldAutoApprove ? 'Approved' : 'Pending';
 
@@ -302,20 +327,23 @@ class _SellProductScreenState extends State<SellProductScreen> {
           isAvailable: true,
           imageUrls: imageUrls,
           location: purokDisplayName(_selectedPurok),
-          contactNumber: _contactController.text.trim().isNotEmpty
-              ? _contactController.text.trim()
-              : (userData['phoneNumber'] as String? ?? ''),
+          contactNumber:
+              _contactController.text.trim().isNotEmpty
+                  ? _contactController.text.trim()
+                  : (userData['phoneNumber'] as String? ?? ''),
           status: initialStatus, // Set based on auto-approve flag
         );
 
         await ProductsService.createProduct(product);
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(shouldAutoApprove
-                  ? 'Your listing has been posted!'
-                  : 'Your listing is pending admin approval.'),
+              content: Text(
+                shouldAutoApprove
+                    ? 'Your listing has been posted!'
+                    : 'Your listing is pending admin approval.',
+              ),
             ),
           );
           Navigator.of(context).pop();
@@ -323,9 +351,9 @@ class _SellProductScreenState extends State<SellProductScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
       }
     } finally {
       if (mounted) setState(() => _isPosting = false);
@@ -334,8 +362,10 @@ class _SellProductScreenState extends State<SellProductScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
@@ -348,15 +378,16 @@ class _SellProductScreenState extends State<SellProductScreen> {
                     icon: const Icon(Icons.arrow_back_ios_new, size: 20),
                     padding: EdgeInsets.zero,
                     splashRadius: 22,
+                    color: isDark ? Colors.white : Colors.black87,
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                   const SizedBox(width: 6),
                   Text(
                     _isEdit ? 'Edit product' : 'Post a product',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
-                      color: Colors.black,
+                      color: isDark ? Colors.white : Colors.black,
                     ),
                   ),
                 ],
@@ -365,7 +396,10 @@ class _SellProductScreenState extends State<SellProductScreen> {
               GestureDetector(
                 onTap: () async {
                   final picker = ImagePicker();
-                  final xFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                  final xFile = await picker.pickImage(
+                    source: ImageSource.gallery,
+                    imageQuality: 85,
+                  );
                   if (xFile != null && mounted) {
                     setState(() => _pickedImages.add(xFile));
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -377,165 +411,240 @@ class _SellProductScreenState extends State<SellProductScreen> {
                   height: 190,
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: _hasAnyImages ? Colors.grey.shade100 : const Color(0xFFE3E3E3),
+                    color:
+                        _hasAnyImages
+                            ? (isDark
+                                ? const Color(0xFF1E1E1E)
+                                : Colors.grey.shade100)
+                            : (isDark
+                                ? const Color(0xFF2C2C2C)
+                                : const Color(0xFFE3E3E3)),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: !_hasAnyImages
-                      ? Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SizedBox(
-                              width: 70,
-                              height: 70,
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  const Icon(Icons.image_outlined,
-                                      size: 46, color: Color(0xFF646464)),
-                                  Positioned(
-                                    right: 4,
-                                    top: 6,
-                                    child: Container(
-                                      width: 20,
-                                      height: 20,
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(
-                                          color: Colors.grey.shade400,
-                                        ),
-                                      ),
-                                      child: const Icon(
-                                        Icons.add,
-                                        size: 14,
-                                        color: Colors.black87,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            const Text(
-                              'Tap to add photos',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Color(0xFF4C4C4C),
-                              ),
-                            ),
-                          ],
-                        )
-                      : Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Stack(
-                            clipBehavior: Clip.none,
+                  child:
+                      !_hasAnyImages
+                          ? Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               SizedBox(
-                                height: 166,
-                                width: double.infinity,
-                                child: PageView.builder(
-                                  controller: _imagePageController,
-                                  itemCount: _totalImageCount,
-                                  onPageChanged: (i) => setState(() => _imagePageIndex = i),
-                                  itemBuilder: (context, i) {
-                                    final isUrl = i < _existingImageUrls.length;
-                                    return Stack(
-                                      clipBehavior: Clip.none,
-                                      children: [
-                                        GestureDetector(
-                                          onTap: () => _openImageFullScreen(i),
-                                          child: ClipRRect(
-                                            borderRadius: BorderRadius.circular(8),
-                                            child: isUrl
-                                                ? OptimizedNetworkImage(
-                                                    imageUrl: _existingImageUrls[i],
-                                                    width: double.infinity,
-                                                    height: 166,
-                                                    fit: BoxFit.cover,
-                                                    cacheWidth: 400,
-                                                    cacheHeight: 332,
-                                                    borderRadius: BorderRadius.circular(8),
-                                                  )
-                                                : _XFilePageImage(xFile: _pickedImages[i - _existingImageUrls.length]),
+                                width: 70,
+                                height: 70,
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.image_outlined,
+                                      size: 46,
+                                      color:
+                                          isDark
+                                              ? Colors.grey.shade400
+                                              : const Color(0xFF646464),
+                                    ),
+                                    Positioned(
+                                      right: 4,
+                                      top: 6,
+                                      child: Container(
+                                        width: 20,
+                                        height: 20,
+                                        decoration: BoxDecoration(
+                                          color:
+                                              isDark
+                                                  ? const Color(0xFF4C4C4C)
+                                                  : Colors.white,
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                          border: Border.all(
+                                            color:
+                                                isDark
+                                                    ? Colors.grey.shade600
+                                                    : Colors.grey.shade400,
                                           ),
                                         ),
-                                        Positioned(
-                                          top: 4,
-                                          right: 4,
-                                          child: Material(
-                                            color: Colors.black54,
-                                            shape: const CircleBorder(),
-                                            child: InkWell(
-                                              onTap: () => _removeImageAt(i),
-                                              customBorder: const CircleBorder(),
-                                              child: const Padding(
-                                                padding: EdgeInsets.all(6),
-                                                child: Icon(Icons.close, color: Colors.white, size: 20),
+                                        child: Icon(
+                                          Icons.add,
+                                          size: 14,
+                                          color:
+                                              isDark
+                                                  ? Colors.white
+                                                  : Colors.black87,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'Tap to add photos',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color:
+                                      isDark
+                                          ? Colors.grey.shade400
+                                          : const Color(0xFF4C4C4C),
+                                ),
+                              ),
+                            ],
+                          )
+                          : Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                SizedBox(
+                                  height: 166,
+                                  width: double.infinity,
+                                  child: PageView.builder(
+                                    controller: _imagePageController,
+                                    itemCount: _totalImageCount,
+                                    onPageChanged:
+                                        (i) =>
+                                            setState(() => _imagePageIndex = i),
+                                    itemBuilder: (context, i) {
+                                      final isUrl =
+                                          i < _existingImageUrls.length;
+                                      return Stack(
+                                        clipBehavior: Clip.none,
+                                        children: [
+                                          GestureDetector(
+                                            onTap:
+                                                () => _openImageFullScreen(i),
+                                            child: ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              child:
+                                                  isUrl
+                                                      ? OptimizedNetworkImage(
+                                                        imageUrl:
+                                                            _existingImageUrls[i],
+                                                        width: double.infinity,
+                                                        height: 166,
+                                                        fit: BoxFit.cover,
+                                                        cacheWidth: 400,
+                                                        cacheHeight: 332,
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              8,
+                                                            ),
+                                                      )
+                                                      : _XFilePageImage(
+                                                        xFile:
+                                                            _pickedImages[i -
+                                                                _existingImageUrls
+                                                                    .length],
+                                                      ),
+                                            ),
+                                          ),
+                                          Positioned(
+                                            top: 4,
+                                            right: 4,
+                                            child: Material(
+                                              color: Colors.black54,
+                                              shape: const CircleBorder(),
+                                              child: InkWell(
+                                                onTap: () => _removeImageAt(i),
+                                                customBorder:
+                                                    const CircleBorder(),
+                                                child: const Padding(
+                                                  padding: EdgeInsets.all(6),
+                                                  child: Icon(
+                                                    Icons.close,
+                                                    color: Colors.white,
+                                                    size: 20,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  ),
+                                ),
+                                if (_totalImageCount > 1)
+                                  Positioned(
+                                    left: 0,
+                                    right: 0,
+                                    bottom: 8,
+                                    child: Center(
+                                      child: SingleChildScrollView(
+                                        scrollDirection: Axis.horizontal,
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: List.generate(
+                                            _totalImageCount,
+                                            (i) => Container(
+                                              margin:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 3,
+                                                  ),
+                                              width: 6,
+                                              height: 6,
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                color:
+                                                    _imagePageIndex == i
+                                                        ? const Color(
+                                                          0xFF20BF6B,
+                                                        )
+                                                        : Colors.grey.shade400,
                                               ),
                                             ),
                                           ),
                                         ),
-                                      ],
-                                    );
-                                  },
-                                ),
-                              ),
-                              if (_totalImageCount > 1)
+                                      ),
+                                    ),
+                                  ),
                                 Positioned(
                                   left: 0,
-                                  right: 0,
-                                  bottom: 8,
-                                  child: Center(
-                                    child: SingleChildScrollView(
-                                      scrollDirection: Axis.horizontal,
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: List.generate(
-                                          _totalImageCount,
-                                          (i) => Container(
-                                            margin: const EdgeInsets.symmetric(horizontal: 3),
-                                            width: 6,
-                                            height: 6,
-                                            decoration: BoxDecoration(
-                                              shape: BoxShape.circle,
-                                              color: _imagePageIndex == i
-                                                  ? const Color(0xFF20BF6B)
-                                                  : Colors.grey.shade400,
-                                            ),
-                                          ),
+                                  bottom: 0,
+                                  child: Material(
+                                    elevation: 2,
+                                    color: const Color(0xFF20BF6B),
+                                    shape: const CircleBorder(),
+                                    child: InkWell(
+                                      onTap: _addMoreImages,
+                                      customBorder: const CircleBorder(),
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(12),
+                                        child: Icon(
+                                          Icons.add,
+                                          color: Colors.white,
+                                          size: 28,
                                         ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              Positioned(
-                                left: 0,
-                                bottom: 0,
-                                child: Material(
-                                  elevation: 2,
-                                  color: const Color(0xFF20BF6B),
-                                  shape: const CircleBorder(),
-                                  child: InkWell(
-                                    onTap: _addMoreImages,
-                                    customBorder: const CircleBorder(),
-                                    child: const Padding(
-                                      padding: EdgeInsets.all(12),
-                                      child: Icon(Icons.add, color: Colors.white, size: 28),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
                 ),
               ),
               const SizedBox(height: 20),
-              const Text('Title ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+              Text(
+                'Title ',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
               const SizedBox(height: 6),
-              _buildInputField(controller: _titleController, hint: 'Enter product title'),
+              _buildInputField(
+                controller: _titleController,
+                hint: 'Enter product title',
+              ),
               const SizedBox(height: 14),
-              const Text('Price ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+              Text(
+                'Price ',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
               const SizedBox(height: 6),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -549,27 +658,51 @@ class _SellProductScreenState extends State<SellProductScreen> {
                   ),
                   const SizedBox(width: 10),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFE0E0E0)),
+                      border: Border.all(
+                        color:
+                            isDark
+                                ? Colors.grey.shade700
+                                : const Color(0xFFE0E0E0),
+                      ),
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
                         value: _selectedPriceUnit,
                         isDense: true,
-                        items: _priceUnitOptions.map((u) {
-                          return DropdownMenuItem(value: u, child: Text(u));
-                        }).toList(),
-                        onChanged: (v) => setState(() => _selectedPriceUnit = v ?? 'pcs'),
+                        dropdownColor:
+                            isDark ? const Color(0xFF2C2C2C) : Colors.white,
+                        style: TextStyle(
+                          color: isDark ? Colors.white : Colors.black87,
+                          fontSize: 14,
+                        ),
+                        items:
+                            _priceUnitOptions.map((u) {
+                              return DropdownMenuItem(value: u, child: Text(u));
+                            }).toList(),
+                        onChanged:
+                            (v) =>
+                                setState(() => _selectedPriceUnit = v ?? 'pcs'),
                       ),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 14),
-              const Text('Description ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+              Text(
+                'Description ',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
               const SizedBox(height: 6),
               _buildInputField(
                 controller: _descriptionController,
@@ -577,52 +710,121 @@ class _SellProductScreenState extends State<SellProductScreen> {
                 maxLines: 3,
               ),
               const SizedBox(height: 14),
-              const Text('Category *', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+              Text(
+                'Category *',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
               const SizedBox(height: 6),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFE0E0E0)),
+                  border: Border.all(
+                    color:
+                        isDark ? Colors.grey.shade700 : const Color(0xFFE0E0E0),
+                  ),
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     value: _selectedCategory,
                     isExpanded: true,
-                    hint: const Text('Select category'),
-                    items: MarketplaceCategories.ids.map((id) {
-                      return DropdownMenuItem(
-                        value: id,
-                        child: Text(MarketplaceCategories.label(id)),
-                      );
-                    }).toList(),
+                    dropdownColor:
+                        isDark ? const Color(0xFF2C2C2C) : Colors.white,
+                    style: TextStyle(
+                      color: isDark ? Colors.white : Colors.black87,
+                      fontSize: 14,
+                    ),
+                    hint: Text(
+                      'Select category',
+                      style: TextStyle(
+                        color: isDark ? Colors.grey.shade400 : Colors.black54,
+                      ),
+                    ),
+                    items:
+                        MarketplaceCategories.ids.map((id) {
+                          return DropdownMenuItem(
+                            value: id,
+                            child: Text(MarketplaceCategories.label(id)),
+                          );
+                        }).toList(),
                     onChanged: (v) => setState(() => _selectedCategory = v),
                   ),
                 ),
               ),
               const SizedBox(height: 14),
-              const Text('Location (Purok)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+              Text(
+                'Location (Purok)',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
               const SizedBox(height: 6),
               DropdownButtonFormField<String>(
                 value: purokDisplayName(_selectedPurok),
+                dropdownColor: isDark ? const Color(0xFF2C2C2C) : Colors.white,
+                style: TextStyle(
+                  color: isDark ? Colors.white : Colors.black87,
+                  fontSize: 14,
+                ),
                 decoration: InputDecoration(
                   filled: true,
-                  fillColor: Colors.grey.shade100,
+                  fillColor:
+                      isDark ? const Color(0xFF1E1E1E) : Colors.grey.shade100,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide.none,
+                    borderSide:
+                        isDark
+                            ? BorderSide(color: Colors.grey.shade700)
+                            : BorderSide.none,
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide:
+                        isDark
+                            ? BorderSide(color: Colors.grey.shade700)
+                            : BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 14,
+                  ),
                 ),
-                items: purokLabels.map((label) => DropdownMenuItem(value: label, child: Text(label))).toList(),
+                items:
+                    purokLabels
+                        .map(
+                          (label) => DropdownMenuItem(
+                            value: label,
+                            child: Text(label),
+                          ),
+                        )
+                        .toList(),
                 onChanged: (value) {
-                  if (value != null) setState(() => _selectedPurok = purokFromDisplayName(value));
+                  if (value != null)
+                    setState(
+                      () => _selectedPurok = purokFromDisplayName(value),
+                    );
                 },
               ),
               const SizedBox(height: 14),
-              const Text('Contact Number', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+              Text(
+                'Contact Number',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
               const SizedBox(height: 6),
               _buildInputField(
                 controller: _contactController,
@@ -643,22 +845,25 @@ class _SellProductScreenState extends State<SellProductScreen> {
                     ),
                     elevation: 0,
                   ),
-                  child: _isPosting
-                      ? const SizedBox(
-                          height: 22,
-                          width: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  child:
+                      _isPosting
+                          ? const SizedBox(
+                            height: 22,
+                            width: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          )
+                          : const Text(
+                            'Post',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        )
-                      : const Text(
-                          'Post',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
                 ),
               ),
             ],
@@ -675,22 +880,36 @@ class _SellProductScreenState extends State<SellProductScreen> {
     TextInputType keyboardType = TextInputType.text,
   }) {
     final bool isMultiline = maxLines > 1;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE0E0E0)),
+        border: Border.all(
+          color: isDark ? Colors.grey.shade700 : const Color(0xFFE0E0E0),
+        ),
       ),
       child: TextField(
         controller: controller,
         keyboardType: keyboardType,
         maxLines: isMultiline ? maxLines : 1,
         minLines: isMultiline ? maxLines : 1,
-        style: const TextStyle(fontSize: 14),
-        decoration: const InputDecoration(
+        style: TextStyle(
+          fontSize: 14,
+          color: isDark ? Colors.white : Colors.black87,
+        ),
+        decoration: InputDecoration(
           border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        ).copyWith(hintText: hint),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
+          hintText: hint,
+          hintStyle: TextStyle(
+            color: isDark ? Colors.grey.shade400 : Colors.black54,
+          ),
+        ),
       ),
     );
   }
@@ -713,7 +932,11 @@ class _XFilePageImage extends StatelessWidget {
             child: Container(
               color: Colors.grey.shade300,
               alignment: Alignment.center,
-              child: Icon(Icons.broken_image_outlined, size: 40, color: Colors.grey.shade600),
+              child: Icon(
+                Icons.broken_image_outlined,
+                size: 40,
+                color: Colors.grey.shade600,
+              ),
             ),
           );
         }
@@ -730,4 +953,3 @@ class _XFilePageImage extends StatelessWidget {
     );
   }
 }
-

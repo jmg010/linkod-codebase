@@ -26,10 +26,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   final TextEditingController _messageController = TextEditingController();
   final FocusNode _messageFocusNode = FocusNode();
   bool _isSending = false;
+
   /// Which message threads are expanded to show replies.
   Set<String> expandedMessageIds = {};
+
   /// When set, the next sent message will be a reply to this message ID.
   String? replyingToId;
+
   /// Sender name of the message we're replying to (for the indicator).
   String? replyingToName;
 
@@ -40,7 +43,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   bool _didAddMessageFocusListener = false;
   final TextEditingController _editTitleController = TextEditingController();
   final TextEditingController _editPriceController = TextEditingController();
-  final TextEditingController _editDescriptionController = TextEditingController();
+  final TextEditingController _editDescriptionController =
+      TextEditingController();
   final TextEditingController _editLocationController = TextEditingController();
   final TextEditingController _editContactController = TextEditingController();
 
@@ -48,12 +52,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   void initState() {
     super.initState();
     _currentProduct = widget.product;
-    
+
     // Mark notification as read if opened from notification
     if (widget.notificationId != null) {
       NotificationsService.markAsRead(widget.notificationId!);
     }
-    
+
     // Mark product messages as read when seller opens the screen so the red indicator clears.
     final uid = FirestoreService.auth.currentUser?.uid;
     if (uid != null && widget.product.sellerId == uid) {
@@ -67,7 +71,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   void _onMessageFocusChanged() {
     if (!_messageFocusNode.hasFocus) return;
     final uid = FirestoreService.auth.currentUser?.uid;
-    if (uid != null && _currentProduct.sellerId == uid && !_hasMarkedMessagesRead) {
+    if (uid != null &&
+        _currentProduct.sellerId == uid &&
+        !_hasMarkedMessagesRead) {
       _hasMarkedMessagesRead = true;
       ProductsService.markProductMessagesAsRead(_currentProduct.id, uid);
     }
@@ -117,10 +123,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   Future<void> _openEditProductScreen() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => SellProductScreen(
-          existingProduct: _currentProduct,
-          isEdit: true,
-        ),
+        builder:
+            (_) => SellProductScreen(
+              existingProduct: _currentProduct,
+              isEdit: true,
+            ),
       ),
     );
   }
@@ -132,37 +139,47 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   Future<void> _confirmDelete() async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete product?'),
-        content: const Text(
-          'This will remove the product listing. This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text('Cancel', style: TextStyle(color: Colors.grey.shade700)),
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('Delete product?'),
+            content: const Text(
+              'This will remove the product listing. This action cannot be undone.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(color: Colors.grey.shade700),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text(
+                  'Delete',
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
     );
     if (confirm != true || !mounted) return;
     try {
       await ProductsService.deleteProduct(_currentProduct.id);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Product deleted')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Product deleted')));
         Navigator.of(context).pop(true);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
       }
     }
   }
@@ -173,16 +190,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final location = _editLocationController.text.trim();
     final contact = _editContactController.text.trim();
     if (title.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Title is required')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Title is required')));
       return;
     }
     final price = double.tryParse(_editPriceController.text.trim());
     if (price == null || price < 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a valid price')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Enter a valid price')));
       return;
     }
 
@@ -215,15 +232,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         _isEditing = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Product updated')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Product updated')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
@@ -231,8 +248,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final product = _currentProduct;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: isDark ? const Color(0xFF121212) : Colors.grey.shade100,
       body: SafeArea(
         child: Column(
           children: [
@@ -249,11 +268,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color:
+                              isDark ? const Color(0xFF1E1E1E) : Colors.white,
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
+                              color:
+                                  isDark
+                                      ? Colors.black.withOpacity(0.3)
+                                      : Colors.black.withOpacity(0.05),
                               blurRadius: 8,
                               offset: const Offset(0, 4),
                             ),
@@ -266,76 +289,119 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Expanded(
-                                  child: _isEditing
-                                      ? TextField(
-                                          controller: _editTitleController,
-                                          style: const TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.black,
-                                          ),
-                                          decoration: InputDecoration(
-                                            isDense: true,
-                                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                            border: OutlineInputBorder(
-                                              borderRadius: BorderRadius.circular(8),
+                                  child:
+                                      _isEditing
+                                          ? TextField(
+                                            controller: _editTitleController,
+                                            style: const TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.black,
+                                            ),
+                                            decoration: InputDecoration(
+                                              isDense: true,
+                                              contentPadding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 12,
+                                                  ),
+                                              border: OutlineInputBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                            ),
+                                          )
+                                          : Text(
+                                            product.title,
+                                            style: const TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.black,
                                             ),
                                           ),
-                                        )
-                                      : Text(
-                                          product.title,
-                                          style: const TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.black,
-                                          ),
-                                        ),
                                 ),
                                 if (_isOwner && !_isEditing)
                                   PopupMenuButton<String>(
-                                    color: Colors.white,
+                                    color:
+                                        isDark
+                                            ? const Color(0xFF2C2C2C)
+                                            : Colors.white,
                                     padding: EdgeInsets.zero,
                                     icon: Container(
                                       padding: const EdgeInsets.all(6),
                                       decoration: BoxDecoration(
-                                        color: Colors.white,
+                                        color:
+                                            isDark
+                                                ? const Color(0xFF1E1E1E)
+                                                : Colors.white,
                                         borderRadius: BorderRadius.circular(14),
-                                        border: Border.all(color: Colors.grey.shade300),
+                                        border: Border.all(
+                                          color:
+                                              isDark
+                                                  ? Colors.grey.shade700
+                                                  : Colors.grey.shade300,
+                                        ),
                                       ),
-                                      child: const Icon(Icons.more_vert, color: Color(0xFF4C4C4C), size: 20),
+                                      child: Icon(
+                                        Icons.more_vert,
+                                        color:
+                                            isDark
+                                                ? Colors.white
+                                                : const Color(0xFF4C4C4C),
+                                        size: 20,
+                                      ),
                                     ),
                                     tooltip: 'Options',
                                     onSelected: (value) {
-                                      if (value == 'edit') _openEditProductScreen();
+                                      if (value == 'edit')
+                                        _openEditProductScreen();
                                       if (value == 'delete') _confirmDelete();
                                     },
-                                    itemBuilder: (context) => [
-                                      const PopupMenuItem(
-                                        value: 'edit',
-                                        child: ListTile(
-                                          leading: Icon(Icons.edit_outlined, size: 22, color: Color(0xFF20BF6B)),
-                                          title: Text('Edit'),
-                                          contentPadding: EdgeInsets.zero,
-                                          visualDensity: VisualDensity.compact,
-                                        ),
-                                      ),
-                                      PopupMenuItem(
-                                        value: 'delete',
-                                        child: ListTile(
-                                          leading: Icon(Icons.delete_outline, size: 22, color: Colors.red.shade700),
-                                          title: Text('Delete', style: TextStyle(color: Colors.red.shade700)),
-                                          contentPadding: EdgeInsets.zero,
-                                          visualDensity: VisualDensity.compact,
-                                        ),
-                                      ),
-                                    ],
+                                    itemBuilder:
+                                        (context) => [
+                                          const PopupMenuItem(
+                                            value: 'edit',
+                                            child: ListTile(
+                                              leading: Icon(
+                                                Icons.edit_outlined,
+                                                size: 22,
+                                                color: Color(0xFF20BF6B),
+                                              ),
+                                              title: Text('Edit'),
+                                              contentPadding: EdgeInsets.zero,
+                                              visualDensity:
+                                                  VisualDensity.compact,
+                                            ),
+                                          ),
+                                          PopupMenuItem(
+                                            value: 'delete',
+                                            child: ListTile(
+                                              leading: Icon(
+                                                Icons.delete_outline,
+                                                size: 22,
+                                                color: Colors.red.shade700,
+                                              ),
+                                              title: Text(
+                                                'Delete',
+                                                style: TextStyle(
+                                                  color: Colors.red.shade700,
+                                                ),
+                                              ),
+                                              contentPadding: EdgeInsets.zero,
+                                              visualDensity:
+                                                  VisualDensity.compact,
+                                            ),
+                                          ),
+                                        ],
                                   )
                                 else if (_isEditing) ...[
                                   TextButton(
                                     onPressed: _cancelEditing,
                                     child: Text(
                                       'Cancel',
-                                      style: TextStyle(color: Colors.grey.shade700),
+                                      style: TextStyle(
+                                        color: Colors.grey.shade700,
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(width: 4),
@@ -355,121 +421,137 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             const SizedBox(height: 4),
                             _isEditing
                                 ? TextField(
-                                    controller: _editPriceController,
-                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.black,
-                                    ),
-                                    decoration: InputDecoration(
-                                      prefixText: '₱ ',
-                                      isDense: true,
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(8),
+                                  controller: _editPriceController,
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                        decimal: true,
                                       ),
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black,
+                                  ),
+                                  decoration: InputDecoration(
+                                    prefixText: '₱ ',
+                                    isDense: true,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 12,
                                     ),
-                                  )
-                                : Text(
-                                    _priceDisplay(product),
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.black,
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
                                     ),
                                   ),
+                                )
+                                : Text(
+                                  _priceDisplay(product),
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black,
+                                  ),
+                                ),
                             const SizedBox(height: 16),
                             _buildSectionTitle('Description'),
                             _isEditing
                                 ? TextField(
-                                    controller: _editDescriptionController,
-                                    maxLines: 4,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey.shade700,
-                                      height: 1.4,
-                                    ),
-                                    decoration: InputDecoration(
-                                      isDense: true,
-                                      contentPadding: const EdgeInsets.all(8),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                    ),
-                                  )
-                                : Text(
-                                    product.description,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey.shade700,
-                                      height: 1.4,
+                                  controller: _editDescriptionController,
+                                  maxLines: 4,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey.shade700,
+                                    height: 1.4,
+                                  ),
+                                  decoration: InputDecoration(
+                                    isDense: true,
+                                    contentPadding: const EdgeInsets.all(8),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
                                     ),
                                   ),
+                                )
+                                : Text(
+                                  product.description,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey.shade700,
+                                    height: 1.4,
+                                  ),
+                                ),
                             const SizedBox(height: 16),
                             _buildSectionTitle('Location'),
                             _isEditing
                                 ? TextField(
-                                    controller: _editLocationController,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey.shade700,
+                                  controller: _editLocationController,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey.shade700,
+                                  ),
+                                  decoration: InputDecoration(
+                                    isDense: true,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 12,
                                     ),
-                                    decoration: InputDecoration(
-                                      isDense: true,
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                    ),
-                                  )
-                                : Text(
-                                    product.location,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey.shade700,
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
                                     ),
                                   ),
+                                )
+                                : Text(
+                                  product.location,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey.shade700,
+                                  ),
+                                ),
                             const SizedBox(height: 16),
                             _buildSectionTitle('Contact'),
                             _isEditing
                                 ? TextField(
-                                    controller: _editContactController,
-                                    keyboardType: TextInputType.phone,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey.shade700,
+                                  controller: _editContactController,
+                                  keyboardType: TextInputType.phone,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey.shade700,
+                                  ),
+                                  decoration: InputDecoration(
+                                    isDense: true,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 12,
                                     ),
-                                    decoration: InputDecoration(
-                                      isDense: true,
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                    ),
-                                  )
-                                : Text(
-                                    product.contactNumber.isEmpty
-                                        ? 'Not provided'
-                                        : product.contactNumber,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey.shade700,
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
                                     ),
                                   ),
+                                )
+                                : Text(
+                                  product.contactNumber.isEmpty
+                                      ? 'Not provided'
+                                      : product.contactNumber,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey.shade700,
+                                  ),
+                                ),
                             const SizedBox(height: 16),
                             Row(
                               children: [
-                                const Icon(Icons.storefront_outlined,
-                                    size: 18, color: Color(0xFF20BF6B)),
+                                const Icon(
+                                  Icons.storefront_outlined,
+                                  size: 18,
+                                  color: Color(0xFF20BF6B),
+                                ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
                                     'Seller: ${product.sellerName}',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
-                                      color: Colors.black,
+                                      color:
+                                          isDark ? Colors.white : Colors.black,
                                     ),
                                   ),
                                 ),
@@ -489,11 +571,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color:
+                              isDark ? const Color(0xFF1E1E1E) : Colors.white,
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.04),
+                              color:
+                                  isDark
+                                      ? Colors.black.withOpacity(0.3)
+                                      : Colors.black.withOpacity(0.04),
                               blurRadius: 6,
                               offset: const Offset(0, 3),
                             ),
@@ -502,20 +588,25 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Messages',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.black87,
+                                color: isDark ? Colors.white : Colors.black87,
                               ),
                             ),
                             const SizedBox(height: 14),
                             StreamBuilder<List<MessageModel>>(
-                              stream: ProductsService.getMessagesStream(widget.product.id),
+                              stream: ProductsService.getMessagesStream(
+                                widget.product.id,
+                              ),
                               builder: (context, snapshot) {
-                                if (snapshot.connectionState == ConnectionState.waiting) {
-                                  return const Center(child: CircularProgressIndicator());
+                                if (snapshot.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return const Center(
+                                    child: CircularProgressIndicator(),
+                                  );
                                 }
 
                                 if (snapshot.hasError) {
@@ -523,17 +614,25 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                 }
 
                                 final messages = snapshot.data ?? [];
-                                final topLevel = messages.where((m) => m.parentId == null).toList();
-                                final repliesByParent = <String, List<MessageModel>>{};
+                                final topLevel =
+                                    messages
+                                        .where((m) => m.parentId == null)
+                                        .toList();
+                                final repliesByParent =
+                                    <String, List<MessageModel>>{};
                                 for (final m in messages) {
                                   if (m.parentId != null) {
-                                    repliesByParent.putIfAbsent(m.parentId!, () => []).add(m);
+                                    repliesByParent
+                                        .putIfAbsent(m.parentId!, () => [])
+                                        .add(m);
                                   }
                                 }
 
                                 if (topLevel.isEmpty) {
                                   return Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 16,
+                                    ),
                                     child: Text(
                                       'No messages yet',
                                       style: TextStyle(
@@ -546,109 +645,182 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
                                 return Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: topLevel.map((msg) {
-                                    final replies = repliesByParent[msg.id] ?? [];
-                                    final isExpanded = expandedMessageIds.contains(msg.id);
-                                    final showInlineReply = replyingToId == msg.id;
-                                    return Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        _MessageBubble(
-                                          sender: msg.senderName,
-                                          message: msg.message,
-                                          isSeller: msg.isSeller,
-                                          isReply: false,
-                                          onReply: () {
-                                            setState(() {
-                                              replyingToId = msg.id;
-                                              replyingToName = msg.senderName;
-                                              expandedMessageIds.add(msg.id);
-                                            });
-                                            WidgetsBinding.instance.addPostFrameCallback((_) {
-                                              _messageFocusNode.requestFocus();
-                                            });
-                                          },
-                                        ),
-                                        if (showInlineReply)
-                                          Padding(
-                                            padding: const EdgeInsets.only(top: 8, bottom: 4),
-                                            child: _buildInlineReplyComposer(
-                                              replyingToName: replyingToName ?? '',
-                                              onCancel: () {
+                                  children:
+                                      topLevel.map((msg) {
+                                        final replies =
+                                            repliesByParent[msg.id] ?? [];
+                                        final isExpanded = expandedMessageIds
+                                            .contains(msg.id);
+                                        final showInlineReply =
+                                            replyingToId == msg.id;
+                                        return Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            _MessageBubble(
+                                              sender: msg.senderName,
+                                              message: msg.message,
+                                              isSeller: msg.isSeller,
+                                              isReply: false,
+                                              onReply: () {
                                                 setState(() {
-                                                  replyingToId = null;
-                                                  replyingToName = null;
+                                                  replyingToId = msg.id;
+                                                  replyingToName =
+                                                      msg.senderName;
+                                                  expandedMessageIds.add(
+                                                    msg.id,
+                                                  );
                                                 });
+                                                WidgetsBinding.instance
+                                                    .addPostFrameCallback((_) {
+                                                      _messageFocusNode
+                                                          .requestFocus();
+                                                    });
                                               },
                                             ),
-                                          ),
-                                        if (!showInlineReply && replies.isNotEmpty)
-                                          Transform.translate(
-                                            offset: const Offset(0, -10),
-                                            child: Padding(
-                                              padding: const EdgeInsets.only(left: 14),
-                                              child: TextButton(
-                                              onPressed: () {
-                                                setState(() {
-                                                  if (expandedMessageIds.contains(msg.id)) {
-                                                    expandedMessageIds.remove(msg.id);
-                                                  } else {
-                                                    expandedMessageIds.add(msg.id);
-                                                  }
-                                                });
-                                              },
-                                              style: TextButton.styleFrom(
-                                                padding: const EdgeInsets.symmetric(horizontal: 0),
-                                                minimumSize: Size.zero,
-                                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                                alignment: Alignment.centerLeft,
-                                              ),
-                                              child: Text(
-                                                isExpanded
-                                                    ? 'Hide replies (${replies.length})'
-                                                    : 'View replies (${replies.length})',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: Colors.grey.shade600,
-                                                  fontWeight: FontWeight.w500,
+                                            if (showInlineReply)
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                  top: 8,
+                                                  bottom: 4,
                                                 ),
+                                                child:
+                                                    _buildInlineReplyComposer(
+                                                      replyingToName:
+                                                          replyingToName ?? '',
+                                                      onCancel: () {
+                                                        setState(() {
+                                                          replyingToId = null;
+                                                          replyingToName = null;
+                                                        });
+                                                      },
+                                                    ),
                                               ),
-                                            ),
-                                          ),
-                                        ),
-                                        if (isExpanded && replies.isNotEmpty)
-                                          Padding(
-                                            padding: const EdgeInsets.only(left: 32.0),
-                                            child: Container(
-                                              decoration: BoxDecoration(
-                                                border: Border(
-                                                  left: BorderSide(
-                                                    color: Colors.grey.shade300,
-                                                    width: 2,
+                                            if (!showInlineReply &&
+                                                replies.isNotEmpty)
+                                              Transform.translate(
+                                                offset: const Offset(0, -10),
+                                                child: Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                        left: 14,
+                                                      ),
+                                                  child: TextButton(
+                                                    onPressed: () {
+                                                      setState(() {
+                                                        if (expandedMessageIds
+                                                            .contains(msg.id)) {
+                                                          expandedMessageIds
+                                                              .remove(msg.id);
+                                                        } else {
+                                                          expandedMessageIds
+                                                              .add(msg.id);
+                                                        }
+                                                      });
+                                                    },
+                                                    style: TextButton.styleFrom(
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 0,
+                                                          ),
+                                                      minimumSize: Size.zero,
+                                                      tapTargetSize:
+                                                          MaterialTapTargetSize
+                                                              .shrinkWrap,
+                                                      alignment:
+                                                          Alignment.centerLeft,
+                                                    ),
+                                                    child: Text(
+                                                      isExpanded
+                                                          ? 'Hide replies (${replies.length})'
+                                                          : 'View replies (${replies.length})',
+                                                      style: TextStyle(
+                                                        fontSize: 12,
+                                                        color:
+                                                            Colors
+                                                                .grey
+                                                                .shade600,
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                      ),
+                                                    ),
                                                   ),
                                                 ),
-                                                color: Colors.grey.shade50,
-                                                borderRadius: const BorderRadius.only(
-                                                  bottomLeft: Radius.circular(8),
-                                                  bottomRight: Radius.circular(8),
+                                              ),
+                                            if (isExpanded &&
+                                                replies.isNotEmpty)
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                  left: 32.0,
+                                                ),
+                                                child: Container(
+                                                  decoration: BoxDecoration(
+                                                    border: Border(
+                                                      left: BorderSide(
+                                                        color:
+                                                            isDark
+                                                                ? Colors
+                                                                    .grey
+                                                                    .shade700
+                                                                : Colors
+                                                                    .grey
+                                                                    .shade300,
+                                                        width: 2,
+                                                      ),
+                                                    ),
+                                                    color:
+                                                        isDark
+                                                            ? const Color(
+                                                              0xFF121212,
+                                                            )
+                                                            : Colors
+                                                                .grey
+                                                                .shade50,
+                                                    borderRadius:
+                                                        const BorderRadius.only(
+                                                          bottomLeft:
+                                                              Radius.circular(
+                                                                8,
+                                                              ),
+                                                          bottomRight:
+                                                              Radius.circular(
+                                                                8,
+                                                              ),
+                                                        ),
+                                                  ),
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                        left: 10,
+                                                        top: 4,
+                                                        bottom: 4,
+                                                      ),
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .stretch,
+                                                    children:
+                                                        replies
+                                                            .map(
+                                                              (
+                                                                r,
+                                                              ) => _MessageBubble(
+                                                                sender:
+                                                                    r.senderName,
+                                                                message:
+                                                                    r.message,
+                                                                isSeller:
+                                                                    r.isSeller,
+                                                                isReply: true,
+                                                              ),
+                                                            )
+                                                            .toList(),
+                                                  ),
                                                 ),
                                               ),
-                                              padding: const EdgeInsets.only(left: 10, top: 4, bottom: 4),
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                                children: replies.map((r) => _MessageBubble(
-                                                  sender: r.senderName,
-                                                  message: r.message,
-                                                  isSeller: r.isSeller,
-                                                  isReply: true,
-                                                )).toList(),
-                                              ),
-                                            ),
-                                          ),
-                                        const SizedBox(height: 8),
-                                      ],
-                                    );
-                                  }).toList(),
+                                            const SizedBox(height: 8),
+                                          ],
+                                        );
+                                      }).toList(),
                                 );
                               },
                             ),
@@ -702,11 +874,17 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       child: SafeArea(
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.85),
+            color:
+                Theme.of(context).brightness == Brightness.dark
+                    ? Colors.black.withOpacity(0.7)
+                    : Colors.white.withOpacity(0.85),
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color:
+                    Theme.of(context).brightness == Brightness.dark
+                        ? Colors.black.withOpacity(0.5)
+                        : Colors.black.withOpacity(0.1),
                 blurRadius: 4,
                 offset: const Offset(0, 2),
               ),
@@ -726,21 +904,20 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     return Container(
       color: Colors.grey.shade300,
       alignment: Alignment.center,
-      child: Icon(
-        Icons.image,
-        size: 48,
-        color: Colors.grey.shade500,
-      ),
+      child: Icon(Icons.image, size: 48, color: Colors.grey.shade500),
     );
   }
 
   Widget _buildSectionTitle(String text) {
     return Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 14,
         fontWeight: FontWeight.w700,
-        color: Colors.black87,
+        color:
+            Theme.of(context).brightness == Brightness.dark
+                ? Colors.white
+                : Colors.black87,
       ),
     );
   }
@@ -760,11 +937,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
     try {
       // Get user name
-      final userDoc = await FirestoreService.instance
-          .collection('users')
-          .doc(currentUser.uid)
-          .get();
-      
+      final userDoc =
+          await FirestoreService.instance
+              .collection('users')
+              .doc(currentUser.uid)
+              .get();
+
       final userName = userDoc.data()?['fullName'] as String? ?? 'User';
       final isSeller = currentUser.uid == widget.product.sellerId;
 
@@ -778,7 +956,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       );
 
       if (isSeller) {
-        ProductsService.markProductMessagesAsRead(widget.product.id, currentUser.uid);
+        ProductsService.markProductMessagesAsRead(
+          widget.product.id,
+          currentUser.uid,
+        );
       }
 
       _messageController.clear();
@@ -793,32 +974,38 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     } catch (e) {
       setState(() => _isSending = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
       }
     }
   }
 
   Widget _buildMessageComposer() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Row(
       children: [
         Expanded(
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade300),
+              border: Border.all(
+                color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+              ),
             ),
             child: TextField(
               controller: _messageController,
               focusNode: _messageFocusNode,
-              decoration: const InputDecoration(
+              style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+              decoration: InputDecoration(
                 border: InputBorder.none,
                 hintText: 'Drop a message',
                 hintStyle: TextStyle(
-                  color: Color(0xFF9E9E9E),
+                  color:
+                      isDark ? Colors.grey.shade500 : const Color(0xFF9E9E9E),
                 ),
               ),
             ),
@@ -835,16 +1022,17 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               borderRadius: BorderRadius.circular(14),
             ),
           ),
-          child: _isSending
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-              : const Text('Send'),
+          child:
+              _isSending
+                  ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                  : const Text('Send'),
         ),
       ],
     );
@@ -854,12 +1042,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     required String replyingToName,
     required VoidCallback onCancel,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: isDark ? const Color(0xFF1A1A1A) : Colors.grey.shade50,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(
+          color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -868,19 +1060,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             children: [
               Text(
                 'Replying to $replyingToName',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade700,
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
               ),
               const SizedBox(width: 6),
               GestureDetector(
                 onTap: onCancel,
-                child: Icon(
-                  Icons.close,
-                  size: 16,
-                  color: Colors.grey.shade600,
-                ),
+                child: Icon(Icons.close, size: 16, color: Colors.grey.shade600),
               ),
             ],
           ),
@@ -891,21 +1076,30 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: isDark ? const Color(0xFF2C2C2C) : Colors.white,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade300),
+                    border: Border.all(
+                      color:
+                          isDark ? Colors.grey.shade600 : Colors.grey.shade300,
+                    ),
                   ),
                   child: TextField(
                     controller: _messageController,
                     focusNode: _messageFocusNode,
-                    decoration: const InputDecoration(
+                    style: TextStyle(
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                    decoration: InputDecoration(
                       border: InputBorder.none,
                       hintText: 'Write a reply...',
                       hintStyle: TextStyle(
-                        color: Color(0xFF9E9E9E),
+                        color:
+                            isDark
+                                ? Colors.grey.shade400
+                                : const Color(0xFF9E9E9E),
                         fontSize: 14,
                       ),
-                      contentPadding: EdgeInsets.symmetric(vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
                     ),
                   ),
                 ),
@@ -916,21 +1110,25 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF20BF6B),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: _isSending
-                    ? const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text('Reply'),
+                child:
+                    _isSending
+                        ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                        : const Text('Reply'),
               ),
             ],
           ),
@@ -957,6 +1155,8 @@ class _MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       width: double.infinity,
       margin: EdgeInsets.only(
@@ -968,7 +1168,10 @@ class _MessageBubble extends StatelessWidget {
         vertical: isReply ? 8 : 10,
       ),
       decoration: BoxDecoration(
-        color: isReply ? Colors.grey.shade100 : const Color(0xFFEDEDED),
+        color:
+            isReply
+                ? (isDark ? const Color(0xFF2C2C2C) : Colors.grey.shade100)
+                : (isDark ? const Color(0xFF1E1E1E) : const Color(0xFFEDEDED)),
         borderRadius: BorderRadius.circular(isReply ? 12 : 16),
       ),
       child: Row(
@@ -983,9 +1186,12 @@ class _MessageBubble extends StatelessWidget {
                   style: TextStyle(
                     fontSize: isReply ? 12 : 13,
                     fontWeight: FontWeight.w600,
-                    color: isSeller
-                        ? const Color(0xFF20BF6B)
-                        : Colors.grey.shade800,
+                    color:
+                        isSeller
+                            ? const Color(0xFF20BF6B)
+                            : (isDark
+                                ? Colors.grey.shade300
+                                : Colors.grey.shade800),
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -993,7 +1199,7 @@ class _MessageBubble extends StatelessWidget {
                   message,
                   style: TextStyle(
                     fontSize: isReply ? 12 : 13,
-                    color: Colors.grey.shade800,
+                    color: isDark ? Colors.grey.shade300 : Colors.grey.shade800,
                   ),
                 ),
               ],
@@ -1015,7 +1221,10 @@ class _MessageBubble extends StatelessWidget {
                   ),
                   elevation: 0,
                 ),
-                child: const Text('Reply', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                child: const Text(
+                  'Reply',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                ),
               ),
             ),
           ],
@@ -1035,7 +1244,12 @@ class _ProductImageCarousel extends StatefulWidget {
   });
 
   final List<String> imageUrls;
-  final void Function(BuildContext context, List<String> urls, {int initialIndex}) onTap;
+  final void Function(
+    BuildContext context,
+    List<String> urls, {
+    int initialIndex,
+  })
+  onTap;
   final Widget imagePlaceholder;
   final Widget backButton;
 
@@ -1078,7 +1292,12 @@ class _ProductImageCarouselState extends State<_ProductImageCarousel> {
               onPageChanged: (index) => setState(() => _currentIndex = index),
               itemBuilder: (context, index) {
                 return GestureDetector(
-                  onTap: () => widget.onTap(context, urls, initialIndex: _currentIndex),
+                  onTap:
+                      () => widget.onTap(
+                        context,
+                        urls,
+                        initialIndex: _currentIndex,
+                      ),
                   child: OptimizedNetworkImage(
                     imageUrl: urls[index],
                     height: 180,
@@ -1108,9 +1327,10 @@ class _ProductImageCarouselState extends State<_ProductImageCarousel> {
                   height: 8,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: _currentIndex == i
-                        ? Colors.white
-                        : Colors.white.withOpacity(0.4),
+                    color:
+                        _currentIndex == i
+                            ? Colors.white
+                            : Colors.white.withOpacity(0.4),
                   ),
                 ),
               ),

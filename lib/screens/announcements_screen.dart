@@ -13,8 +13,10 @@ class AnnouncementsScreen extends StatefulWidget {
   State<AnnouncementsScreen> createState() => AnnouncementsScreenState();
 }
 
-class AnnouncementsScreenState extends State<AnnouncementsScreen> with SingleTickerProviderStateMixin {
+class AnnouncementsScreenState extends State<AnnouncementsScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final ScrollController _scrollController = ScrollController();
   int _selectedTabIndex = 0;
   Set<String> _readAnnouncementIds = {};
   List<String> _userCategories = [];
@@ -37,7 +39,18 @@ class AnnouncementsScreenState extends State<AnnouncementsScreen> with SingleTic
   @override
   void dispose() {
     _tabController.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void scrollToTop() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   Future<void> _loadUserCategories() async {
@@ -46,22 +59,24 @@ class AnnouncementsScreenState extends State<AnnouncementsScreen> with SingleTic
 
     try {
       // Per schema: users collection uses Firebase Auth UID as document ID
-      final userDoc = await FirestoreService.instance
-          .collection('users')
-          .doc(currentUser.uid)
-          .get();
-      
+      final userDoc =
+          await FirestoreService.instance
+              .collection('users')
+              .doc(currentUser.uid)
+              .get();
+
       if (!mounted) return;
-      
+
       if (userDoc.exists) {
         final data = userDoc.data();
         final categoryString = data?['category'] as String? ?? '';
         setState(() {
-          _userCategories = categoryString
-              .split(',')
-              .map((c) => c.trim())
-              .where((c) => c.isNotEmpty)
-              .toList();
+          _userCategories =
+              categoryString
+                  .split(',')
+                  .map((c) => c.trim())
+                  .where((c) => c.isNotEmpty)
+                  .toList();
         });
       }
     } catch (e) {
@@ -74,7 +89,9 @@ class AnnouncementsScreenState extends State<AnnouncementsScreen> with SingleTic
     if (currentUser == null) return;
 
     try {
-      final readIds = await AnnouncementsService.getReadAnnouncementIds(currentUser.uid);
+      final readIds = await AnnouncementsService.getReadAnnouncementIds(
+        currentUser.uid,
+      );
       if (!mounted) return;
       setState(() {
         _readAnnouncementIds = readIds;
@@ -109,148 +126,186 @@ class AnnouncementsScreenState extends State<AnnouncementsScreen> with SingleTic
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: isDark ? const Color(0xFF121212) : Colors.grey.shade100,
       body: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Title and Search icon row with white background
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                            const Text(
-                              'Announcements',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.black87,
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.search, color: Color(0xFF6E6E6E), size: 26),
-                              onPressed: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => const SearchScreen(mode: SearchMode.announcements),
-                                  ),
-                                );
-                              },
-                            ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 6),
-              child: Row(
-                children: [
-                  _SegmentedToggle(
-                    label: 'All',
-                    isSelected: _selectedTabIndex == 0,
-                    onTap: () {
-                      setState(() {
-                        _selectedTabIndex = 0;
-                        _tabController.animateTo(0);
-                      });
-                    },
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Title and Search icon row with white background
+          Container(
+            color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Announcements',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : Colors.black87,
                   ),
-                  const SizedBox(width: 24),
-                  _SegmentedToggle(
-                    label: 'For me',
-                    isSelected: _selectedTabIndex == 1,
-                    onTap: () {
-                      setState(() {
-                        _selectedTabIndex = 1;
-                        _tabController.animateTo(1);
-                      });
-                    },
+                ),
+                IconButton(
+                  icon: Icon(
+                    Icons.search,
+                    color:
+                        isDark ? Colors.grey.shade400 : const Color(0xFF6E6E6E),
+                    size: 26,
                   ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: StreamBuilder<List<Map<String, dynamic>>>(
-                stream: _selectedTabIndex == 0
-                    ? AnnouncementsService.getAnnouncementsStream()
-                    : AnnouncementsService.getAnnouncementsForUserStream(_userCategories),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  if (snapshot.hasError) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Error loading announcements',
-                            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-                          ),
-                        ],
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder:
+                            (_) => const SearchScreen(
+                              mode: SearchMode.announcements,
+                            ),
                       ),
                     );
-                  }
-
-                  final announcements = snapshot.data ?? [];
-
-                  if (announcements.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.campaign, size: 64, color: Colors.grey[400]),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No announcements yet',
-                            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-                          ),
-                        ],
+                  },
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 6),
+            child: Row(
+              children: [
+                _SegmentedToggle(
+                  label: 'All',
+                  isSelected: _selectedTabIndex == 0,
+                  onTap: () {
+                    setState(() {
+                      _selectedTabIndex = 0;
+                      _tabController.animateTo(0);
+                    });
+                  },
+                ),
+                const SizedBox(width: 24),
+                _SegmentedToggle(
+                  label: 'For me',
+                  isSelected: _selectedTabIndex == 1,
+                  onTap: () {
+                    setState(() {
+                      _selectedTabIndex = 1;
+                      _tabController.animateTo(1);
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+              stream:
+                  _selectedTabIndex == 0
+                      ? AnnouncementsService.getAnnouncementsStream()
+                      : AnnouncementsService.getAnnouncementsForUserStream(
+                        _userCategories,
                       ),
-                    );
-                  }
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-                  return ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-                    physics: const ClampingScrollPhysics(),
-                    itemCount: announcements.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 16),
-                    itemBuilder: (context, index) {
-                      final announcement = announcements[index];
-                      final announcementId = announcement['id'] as String;
-                      final isRead = _readAnnouncementIds.contains(announcementId);
-                      final viewCount = announcement['viewCount'] as int? ?? 0;
-                      
-                      final imageUrlsRaw = announcement['imageUrls'] as List<dynamic>?;
-                      final imageUrls = imageUrlsRaw?.whereType<String>().toList();
-                      return AnnouncementCard(
-                        title: announcement['title'] as String? ?? '',
-                        description: announcement['content'] as String? ?? announcement['description'] as String? ?? '',
-                        postedBy: announcement['postedBy'] as String? ?? 'Barangay Official',
-                        postedByPosition: announcement['postedByPosition'] as String?,
-                        date: announcement['date'] as DateTime? ?? announcement['createdAt'] as DateTime,
-                        category: announcement['category'] as String?,
-                        unreadCount: viewCount,
-                        isRead: isRead,
-                        announcementId: announcementId,
-                        imageUrls: imageUrls?.isNotEmpty == true ? imageUrls : null,
-                        onMarkAsReadPressed: () {
-                          _markAsRead(announcementId);
-                        },
-                      );
-                    },
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error loading announcements',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
                   );
-                },
-              ),
+                }
+
+                final announcements = snapshot.data ?? [];
+
+                if (announcements.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.campaign, size: 64, color: Colors.grey[400]),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No announcements yet',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.separated(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                  physics: const ClampingScrollPhysics(),
+                  itemCount: announcements.length,
+                  separatorBuilder:
+                      (context, index) => const SizedBox(height: 16),
+                  itemBuilder: (context, index) {
+                    final announcement = announcements[index];
+                    final announcementId = announcement['id'] as String;
+                    final isRead = _readAnnouncementIds.contains(
+                      announcementId,
+                    );
+                    final viewCount = announcement['viewCount'] as int? ?? 0;
+
+                    final imageUrlsRaw =
+                        announcement['imageUrls'] as List<dynamic>?;
+                    final imageUrls =
+                        imageUrlsRaw?.whereType<String>().toList();
+                    return AnnouncementCard(
+                      title: announcement['title'] as String? ?? '',
+                      description:
+                          announcement['content'] as String? ??
+                          announcement['description'] as String? ??
+                          '',
+                      postedBy:
+                          announcement['postedBy'] as String? ??
+                          'Barangay Official',
+                      postedByPosition:
+                          announcement['postedByPosition'] as String?,
+                      date:
+                          announcement['date'] as DateTime? ??
+                          announcement['createdAt'] as DateTime,
+                      category: announcement['category'] as String?,
+                      unreadCount: viewCount,
+                      isRead: isRead,
+                      announcementId: announcementId,
+                      imageUrls:
+                          imageUrls?.isNotEmpty == true ? imageUrls : null,
+                      onMarkAsReadPressed: () {
+                        _markAsRead(announcementId);
+                      },
+                    );
+                  },
+                );
+              },
             ),
-          ],
-        ),
-      );
-    }
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _SegmentedToggle extends StatelessWidget {
@@ -266,8 +321,10 @@ class _SegmentedToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color activeColor = Colors.black87;
-    final Color inactiveColor = const Color(0xFF6E6E6E);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final Color activeColor = isDark ? Colors.white : Colors.black87;
+    final Color inactiveColor =
+        isDark ? Colors.grey.shade500 : const Color(0xFF6E6E6E);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,

@@ -13,10 +13,13 @@ class LinkodNavbar extends StatelessWidget {
   final NavDestination currentDestination;
   final ValueChanged<NavDestination>? onDestinationChanged;
   final bool hasUnreadAnnouncements;
+
   /// Number of notifications for owner's errand/task posts (e.g. pending volunteers, unread task chat).
   final int errandNotificationCount;
+
   /// Number of unread comments on owner's feed posts.
   final int postCommentsNotificationCount;
+
   /// Number of unread messages on owner's marketplace products.
   final int marketplaceNotificationCount;
 
@@ -33,12 +36,17 @@ class LinkodNavbar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusBarHeight = MediaQuery.of(context).padding.top;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color:
+                isDark
+                    ? Colors.black.withOpacity(0.3)
+                    : Colors.black.withOpacity(0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -77,29 +85,40 @@ class LinkodNavbar extends StatelessWidget {
                 icon: Icons.campaign,
                 label: 'Announcement',
                 isActive: currentDestination == NavDestination.announcements,
-                onTap: () => onDestinationChanged?.call(NavDestination.announcements),
-                showAlert: hasUnreadAnnouncements && postCommentsNotificationCount == 0,
+                onTap:
+                    () => onDestinationChanged?.call(
+                      NavDestination.announcements,
+                    ),
+                showAlert:
+                    hasUnreadAnnouncements &&
+                    postCommentsNotificationCount == 0,
                 notificationCount: postCommentsNotificationCount,
               ),
               _NavIcon(
                 icon: Icons.storefront,
                 label: 'Marketplace',
                 isActive: currentDestination == NavDestination.marketplace,
-                onTap: () => onDestinationChanged?.call(NavDestination.marketplace),
+                onTap:
+                    () =>
+                        onDestinationChanged?.call(NavDestination.marketplace),
                 notificationCount: marketplaceNotificationCount,
               ),
               _NavIcon(
                 icon: Icons.handshake,
                 label: 'Errands',
                 isActive: currentDestination == NavDestination.errandJobPost,
-                onTap: () => onDestinationChanged?.call(NavDestination.errandJobPost),
+                onTap:
+                    () => onDestinationChanged?.call(
+                      NavDestination.errandJobPost,
+                    ),
                 notificationCount: errandNotificationCount,
               ),
               _NavIcon(
                 icon: Icons.dashboard,
                 label: 'Bulletin Board',
                 isActive: currentDestination == NavDestination.bulletin,
-                onTap: () => onDestinationChanged?.call(NavDestination.bulletin),
+                onTap:
+                    () => onDestinationChanged?.call(NavDestination.bulletin),
               ),
               _NavIcon(
                 icon: Icons.menu,
@@ -136,8 +155,11 @@ class _NavIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final showCount = notificationCount > 0;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return GestureDetector(
       onTap: onTap,
+      onDoubleTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
@@ -157,7 +179,12 @@ class _NavIcon extends StatelessWidget {
                 Icon(
                   icon,
                   size: 26,
-                  color: isActive ? const Color(0xFF20BF6B) : Colors.grey.shade600,
+                  color:
+                      isActive
+                          ? const Color(0xFF20BF6B)
+                          : (isDark
+                              ? Colors.grey.shade400
+                              : Colors.grey.shade600),
                 ),
                 if (showAlert && !showCount)
                   Positioned(
@@ -186,8 +213,14 @@ class _NavIcon extends StatelessWidget {
                     right: -4,
                     top: -4,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                      constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 2,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 18,
+                        minHeight: 18,
+                      ),
                       decoration: const BoxDecoration(
                         color: Colors.red,
                         shape: BoxShape.rectangle,
@@ -213,7 +246,12 @@ class _NavIcon extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-                  color: isActive ? const Color(0xFF20BF6B) : Colors.grey.shade600,
+                  color:
+                      isActive
+                          ? const Color(0xFF20BF6B)
+                          : (isDark
+                              ? Colors.grey.shade400
+                              : Colors.grey.shade600),
                 ),
               ),
             ],
@@ -223,4 +261,3 @@ class _NavIcon extends StatelessWidget {
     );
   }
 }
-

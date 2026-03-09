@@ -17,8 +17,8 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     {
       'sender': 'bot',
       'text':
-          "Hello! I'm the LINKod Assistant 🤖. Ask me about announcements, the marketplace, or barangay services, and I'll point you in the right direction."
-    }
+          "Hello! I'm the LINKod Assistant 🤖. Ask me about announcements, the marketplace, or barangay services, and I'll point you in the right direction.",
+    },
   ];
   bool _isTyping = false;
 
@@ -70,17 +70,25 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         elevation: 1,
-        title: const Text(
+        title: Text(
           'Barangay Assistant',
-          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            color: isDark ? Colors.white : Colors.black87,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.black87),
+          icon: Icon(
+            Icons.close,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -90,11 +98,14 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             Expanded(
               child: ListView.builder(
                 controller: _scrollController,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 itemCount: _messages.length + (_isTyping ? 1 : 0),
                 itemBuilder: (context, index) {
                   if (_isTyping && index == _messages.length) {
-                    return _buildTypingIndicator(colorScheme);
+                    return _buildTypingIndicator(colorScheme, isDark);
                   }
                   final message = _messages[index];
                   final isUser = message['sender'] == 'user';
@@ -102,11 +113,15 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     child: Column(
                       crossAxisAlignment:
-                          isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                          isUser
+                              ? CrossAxisAlignment.end
+                              : CrossAxisAlignment.start,
                       children: [
                         Row(
                           mainAxisAlignment:
-                              isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+                              isUser
+                                  ? MainAxisAlignment.end
+                                  : MainAxisAlignment.start,
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             if (!isUser) ...[
@@ -128,9 +143,12 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                                   vertical: 12,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: isUser
-                                      ? kFacebookBlue
-                                      : Colors.grey.shade200,
+                                  color:
+                                      isUser
+                                          ? kFacebookBlue
+                                          : (isDark
+                                              ? const Color(0xFF2C2C2C)
+                                              : Colors.grey.shade200),
                                   borderRadius: BorderRadius.only(
                                     topLeft: Radius.circular(isUser ? 16 : 6),
                                     topRight: Radius.circular(isUser ? 6 : 16),
@@ -140,9 +158,16 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                                 ),
                                 child: Text(
                                   message['text'] ?? '',
-                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                        color: isUser ? Colors.white : Colors.black87,
-                                      ),
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.bodyMedium?.copyWith(
+                                    color:
+                                        isUser
+                                            ? Colors.white
+                                            : (isDark
+                                                ? Colors.white
+                                                : Colors.black87),
+                                  ),
                                 ),
                               ),
                             ),
@@ -152,10 +177,12 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                         const SizedBox(height: 4),
                         Text(
                           _formatTimestamp(),
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                color: Colors.grey.shade500,
-                                fontSize: 10,
-                              ),
+                          style: Theme.of(
+                            context,
+                          ).textTheme.labelSmall?.copyWith(
+                            color: Colors.grey.shade500,
+                            fontSize: 10,
+                          ),
                         ),
                       ],
                     ),
@@ -165,9 +192,11 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             ),
             Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
                 border: Border(
-                  top: BorderSide(color: Colors.grey.shade200),
+                  top: BorderSide(
+                    color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                  ),
                 ),
               ),
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
@@ -178,10 +207,34 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                       controller: _messageController,
                       textInputAction: TextInputAction.send,
                       onSubmitted: (_) => _sendMessage(),
-                      decoration: const InputDecoration(
+                      style: TextStyle(
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                      decoration: InputDecoration(
                         hintText: 'Type your question here...',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.chat_bubble_outline),
+                        hintStyle: TextStyle(
+                          color: isDark ? Colors.grey.shade500 : Colors.black54,
+                        ),
+                        border: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color:
+                                isDark
+                                    ? Colors.grey.shade700
+                                    : Colors.grey.shade400,
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color:
+                                isDark
+                                    ? Colors.grey.shade700
+                                    : Colors.grey.shade400,
+                          ),
+                        ),
+                        prefixIcon: Icon(
+                          Icons.chat_bubble_outline,
+                          color: isDark ? Colors.grey.shade400 : null,
+                        ),
                       ),
                     ),
                   ),
@@ -206,7 +259,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     );
   }
 
-  Widget _buildTypingIndicator(ColorScheme colorScheme) {
+  Widget _buildTypingIndicator(ColorScheme colorScheme, bool isDark) {
     return Align(
       alignment: Alignment.centerLeft,
       child: Padding(
@@ -228,7 +281,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.grey.shade200,
+                color: isDark ? const Color(0xFF2C2C2C) : Colors.grey.shade200,
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(16),
                   topRight: Radius.circular(16),
@@ -284,9 +337,14 @@ class _TypingDotState extends State<_TypingDot>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return FadeTransition(
       opacity: DelayTween(delay: widget.delay).animate(_controller),
-      child: const Icon(Icons.circle, size: 8, color: Colors.black45),
+      child: Icon(
+        Icons.circle,
+        size: 8,
+        color: isDark ? Colors.grey.shade300 : Colors.black45,
+      ),
     );
   }
 }

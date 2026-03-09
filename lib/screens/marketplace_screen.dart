@@ -18,7 +18,10 @@ class MarketplaceScreen extends StatefulWidget {
 
 class MarketplaceScreenState extends State<MarketplaceScreen> {
   static const String _filterAll = 'All';
-  List<String> get _categoryFilters => [_filterAll, ...MarketplaceCategories.ids];
+  List<String> get _categoryFilters => [
+    _filterAll,
+    ...MarketplaceCategories.ids,
+  ];
   String _selectedCategory = 'All';
 
   static const int _initialPageSize = 15;
@@ -41,7 +44,9 @@ class MarketplaceScreenState extends State<MarketplaceScreen> {
   static bool _isFromToday(DateTime? date) {
     if (date == null) return false;
     final now = DateTime.now();
-    return date.year == now.year && date.month == now.month && date.day == now.day;
+    return date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day;
   }
 
   @override
@@ -57,6 +62,16 @@ class MarketplaceScreenState extends State<MarketplaceScreen> {
     super.dispose();
   }
 
+  void scrollToTop() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
   void _onScroll() {
     if (!_scrollController.hasClients) return;
     final maxScroll = _scrollController.position.maxScrollExtent;
@@ -68,7 +83,10 @@ class MarketplaceScreenState extends State<MarketplaceScreen> {
   void _loadMoreIfNeeded() {
     if (_displayCount >= _totalProductCount) return;
     setState(() {
-      _displayCount = (_displayCount + _loadMorePageSize).clamp(0, _totalProductCount);
+      _displayCount = (_displayCount + _loadMorePageSize).clamp(
+        0,
+        _totalProductCount,
+      );
     });
   }
 
@@ -80,6 +98,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   Future<void> _showCategoryPicker() async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final selected = await showModalBottomSheet<String>(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -96,14 +115,18 @@ class MarketplaceScreenState extends State<MarketplaceScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
                 child: Row(
                   children: [
-                    const Icon(Icons.category_outlined, size: 20, color: Color(0xFF30383F)),
+                    Icon(
+                      Icons.category_outlined,
+                      size: 20,
+                      color: isDark ? Colors.white : const Color(0xFF30383F),
+                    ),
                     const SizedBox(width: 8),
-                    const Text(
+                    Text(
                       'Change Category',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: Colors.black87,
+                        color: isDark ? Colors.white : Colors.black87,
                       ),
                     ),
                   ],
@@ -117,16 +140,23 @@ class MarketplaceScreenState extends State<MarketplaceScreen> {
                   itemBuilder: (context, index) {
                     final cat = items[index];
                     final isSelected = cat == _selectedCategory;
-                    final label = cat == _filterAll
-                        ? 'All categories'
-                        : MarketplaceCategories.label(cat);
+                    final label =
+                        cat == _filterAll
+                            ? 'All categories'
+                            : MarketplaceCategories.label(cat);
                     return ListTile(
                       title: Text(
                         label,
                         style: TextStyle(
                           fontSize: 15,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                          color: isSelected ? const Color(0xFF20BF6B) : Colors.black87,
+                          fontWeight:
+                              isSelected ? FontWeight.w600 : FontWeight.w400,
+                          color:
+                              isSelected
+                                  ? const Color(0xFF20BF6B)
+                                  : isDark
+                                  ? Colors.white
+                                  : Colors.black87,
                         ),
                       ),
                       onTap: () => Navigator.of(context).pop(cat),
@@ -150,270 +180,334 @@ class MarketplaceScreenState extends State<MarketplaceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: isDark ? const Color(0xFF121212) : Colors.grey.shade100,
       body: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Title and Search icon row with white background
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                      const Text(
-                        'Marketplace',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black87,
-                        ),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Title and Search icon row with white background
+          Container(
+            color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Marketplace',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(
+                    Icons.search,
+                    color:
+                        isDark ? Colors.grey.shade400 : const Color(0xFF6E6E6E),
+                    size: 26,
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder:
+                            (_) =>
+                                const SearchScreen(mode: SearchMode.products),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.search, color: Color(0xFF6E6E6E), size: 26),
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const SearchScreen(mode: SearchMode.products),
-                            ),
-                          );
-                        },
-                  ),
-                ],
-              ),
+                    );
+                  },
+                ),
+              ],
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-              child: Row(
-                children: [
-                  _PrimaryPillButton(
-                    label: 'Sell',
-                    icon: Icons.edit_outlined,
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const SellProductScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(width: 12),
-                  Builder(
-                    builder: (context) {
-                      final uid = FirestoreService.currentUserId;
-                      if (uid != null && _cachedMarketplaceBadgeUid != uid) {
-                        _cachedMarketplaceBadgeUid = uid;
-                        // Use combined stream for both seller products and interacted posts
-                        _cachedMarketplaceBadgeStream = ProductsService.getTotalProductActivityUnreadStream(uid);
-                      }
-                      return _MyProductButtonWithUnreadDot(
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => MyProductsScreen(),
-                            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+            child: Row(
+              children: [
+                _PrimaryPillButton(
+                  label: 'Sell',
+                  icon: Icons.edit_outlined,
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const SellProductScreen(),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(width: 12),
+                Builder(
+                  builder: (context) {
+                    final uid = FirestoreService.currentUserId;
+                    if (uid != null && _cachedMarketplaceBadgeUid != uid) {
+                      _cachedMarketplaceBadgeUid = uid;
+                      // Use combined stream for both seller products and interacted posts
+                      _cachedMarketplaceBadgeStream =
+                          ProductsService.getTotalProductActivityUnreadStream(
+                            uid,
                           );
-                        },
-                        unreadCountStream: uid != null ? _cachedMarketplaceBadgeStream : null,
-                      );
-                    },
+                    }
+                    return _MyProductButtonWithUnreadDot(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => MyProductsScreen()),
+                        );
+                      },
+                      unreadCountStream:
+                          uid != null ? _cachedMarketplaceBadgeStream : null,
+                    );
+                  },
+                ),
+                const SizedBox(width: 12),
+                Flexible(
+                  child: _SecondaryPillButton(
+                    label: _categoryButtonLabel,
+                    icon: Icons.category_outlined,
+                    onPressed: _showCategoryPicker,
                   ),
-                  const SizedBox(width: 12),
-                  Flexible(
-                    child: _SecondaryPillButton(
-                      label: _categoryButtonLabel,
-                      icon: Icons.category_outlined,
-                      onPressed: _showCategoryPicker,
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: StreamBuilder<List<ProductModel>>(
+              stream: ProductsService.getProductsStream(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error loading products',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: StreamBuilder<List<ProductModel>>(
-                stream: ProductsService.getProductsStream(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
+                  );
+                }
 
-                  if (snapshot.hasError) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Error loading products',
-                            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                final allProducts = snapshot.data ?? [];
+                final currentUserId = FirestoreService.currentUserId;
+                final feedProducts =
+                    currentUserId != null
+                        ? allProducts
+                            .where((p) => p.sellerId != currentUserId)
+                            .toList()
+                        : allProducts;
+                final filtered = _filterByCategory(feedProducts);
+                final now = DateTime.now();
+                final today = DateTime(now.year, now.month, now.day);
+                final todayProducts =
+                    filtered.where((p) {
+                      final d = p.createdAt;
+                      return d.year == today.year &&
+                          d.month == today.month &&
+                          d.day == today.day;
+                    }).toList();
+                final restProducts =
+                    filtered.where((p) => !_isFromToday(p.createdAt)).toList();
+                final orderedProducts = [...todayProducts, ...restProducts];
+                _totalProductCount = orderedProducts.length;
+
+                if (orderedProducts.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.shopping_basket_outlined,
+                          size: 64,
+                          color: Colors.grey.shade400,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No products available',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: Colors.grey.shade600),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                final visibleCount = _displayCount.clamp(
+                  0,
+                  orderedProducts.length,
+                );
+                final showLoadMore = visibleCount < orderedProducts.length;
+                final hasTodaysPicks = todayProducts.isNotEmpty;
+                final visibleRestCount = (visibleCount - todayProducts.length)
+                    .clamp(0, restProducts.length);
+
+                return ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                  physics: const ClampingScrollPhysics(),
+                  itemCount: 2 + visibleRestCount + (showLoadMore ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    if (index == 0) {
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color:
+                              isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFF00A651).withOpacity(0.4),
+                            width: 1.5,
                           ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  final allProducts = snapshot.data ?? [];
-                  final currentUserId = FirestoreService.currentUserId;
-                  final feedProducts = currentUserId != null
-                      ? allProducts.where((p) => p.sellerId != currentUserId).toList()
-                      : allProducts;
-                  final filtered = _filterByCategory(feedProducts);
-                  final now = DateTime.now();
-                  final today = DateTime(now.year, now.month, now.day);
-                  final todayProducts = filtered.where((p) {
-                    final d = p.createdAt;
-                    return d.year == today.year && d.month == today.month && d.day == today.day;
-                  }).toList();
-                  final restProducts = filtered.where((p) => !_isFromToday(p.createdAt)).toList();
-                  final orderedProducts = [...todayProducts, ...restProducts];
-                  _totalProductCount = orderedProducts.length;
-
-                  if (orderedProducts.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.shopping_basket_outlined,
-                              size: 64, color: Colors.grey.shade400),
-                          const SizedBox(height: 12),
-                          Text(
-                            'No products available',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(color: Colors.grey.shade600),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  final visibleCount = _displayCount.clamp(0, orderedProducts.length);
-                  final showLoadMore = visibleCount < orderedProducts.length;
-                  final hasTodaysPicks = todayProducts.isNotEmpty;
-                  final visibleRestCount = (visibleCount - todayProducts.length).clamp(0, restProducts.length);
-
-                  return ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-                    physics: const ClampingScrollPhysics(),
-                    itemCount: 2 + visibleRestCount + (showLoadMore ? 1 : 0),
-                    itemBuilder: (context, index) {
-                      if (index == 0) {
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFF00A651).withOpacity(0.4), width: 1.5),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.06),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-                                child: Text(
-                                  "Today's Picks",
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: const Color(0xFF00A651),
-                                  ),
-                                ),
-                              ),
-                              if (todayProducts.isEmpty)
-                                const Padding(
-                                  padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
-                                  child: Text('No new postings today.', style: TextStyle(fontSize: 14, color: Colors.black54)),
-                                )
-                              else
-                                ...todayProducts.map((product) => Padding(
-                                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                                  child: ProductCard(
-                                    product: product,
-                                    onInteract: () {
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) => ProductDetailScreen(
-                                            product: product,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                )),
-                            ],
-                          ),
-                        );
-                      }
-                      if (index == 1) {
-                        return Padding(
-                          padding: const EdgeInsets.fromLTRB(0, 4, 0, 12),
-                          child: Text(
-                            'Older',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey.shade700,
+                          boxShadow: [
+                            BoxShadow(
+                              color:
+                                  isDark
+                                      ? Colors.black.withOpacity(0.3)
+                                      : Colors.black.withOpacity(0.06),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
                             ),
-                          ),
-                        );
-                      }
-                      if (showLoadMore && index == 2 + visibleRestCount) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          child: Center(
-                            child: GestureDetector(
-                              onTap: _loadMoreIfNeeded,
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                16,
+                                14,
+                                16,
+                                12,
+                              ),
                               child: Text(
-                                'Load more',
+                                "Today's Picks",
                                 style: TextStyle(
-                                  fontSize: 14,
+                                  fontSize: 16,
                                   fontWeight: FontWeight.w600,
                                   color: const Color(0xFF00A651),
                                 ),
                               ),
                             ),
-                          ),
-                        );
-                      }
-                      final product = restProducts[index - 2];
-                      return Padding(
-                        padding: EdgeInsets.only(
-                          bottom: index - 2 < visibleRestCount - 1 ? 16 : 0,
-                        ),
-                        child: ProductCard(
-                          product: product,
+                            if (todayProducts.isEmpty)
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  16,
+                                  0,
+                                  16,
+                                  12,
+                                ),
+                                child: Text(
+                                  'No new postings today.',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color:
+                                        isDark ? Colors.white : Colors.black54,
+                                  ),
+                                ),
+                              )
+                            else
+                              ...todayProducts.map(
+                                (product) => Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    12,
+                                    0,
+                                    12,
+                                    12,
+                                  ),
+                                  child: ProductCard(
+                                    product: product,
                                     onInteract: () {
                                       Navigator.of(context).push(
                                         MaterialPageRoute(
-                                          builder: (_) => ProductDetailScreen(
-                                            product: product,
-                                          ),
+                                          builder:
+                                              (_) => ProductDetailScreen(
+                                                product: product,
+                                              ),
                                         ),
                                       );
                                     },
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       );
-                    },
-                  );
-                },
-              ),
+                    }
+                    if (index == 1) {
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(0, 4, 0, 12),
+                        child: Text(
+                          'Older',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color:
+                                isDark
+                                    ? Colors.grey.shade400
+                                    : Colors.grey.shade700,
+                          ),
+                        ),
+                      );
+                    }
+                    if (showLoadMore && index == 2 + visibleRestCount) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        child: Center(
+                          child: GestureDetector(
+                            onTap: _loadMoreIfNeeded,
+                            child: Text(
+                              'Load more',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF00A651),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+                    final product = restProducts[index - 2];
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        bottom: index - 2 < visibleRestCount - 1 ? 16 : 0,
+                      ),
+                      child: ProductCard(
+                        product: product,
+                        onInteract: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder:
+                                  (_) => ProductDetailScreen(product: product),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                );
+              },
             ),
-          ],
-        ),
-      );
-    }
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _MyProductButtonWithUnreadDot extends StatelessWidget {
@@ -454,7 +548,10 @@ class _MyProductButtonWithUnreadDot extends StatelessWidget {
                 right: 0,
                 top: -2,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 1,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.red,
                     borderRadius: BorderRadius.circular(10),
@@ -500,19 +597,14 @@ class _PrimaryPillButton extends StatelessWidget {
       icon: Icon(icon, size: 16),
       label: Text(
         label,
-        style: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-        ),
+        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
       ),
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color(0xFF20BF6B),
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         minimumSize: const Size(0, 36),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(28),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
         elevation: 0,
       ),
     );
@@ -532,25 +624,28 @@ class _SecondaryPillButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final color = isDark ? Colors.white : const Color(0xFF30383F);
+
     return OutlinedButton.icon(
       onPressed: onPressed,
-      icon: Icon(icon, size: 16, color: const Color(0xFF30383F)),
+      icon: Icon(icon, size: 16, color: color),
       label: Text(
         label,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
-          color: Color(0xFF30383F),
+          color: color,
         ),
       ),
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         minimumSize: const Size(0, 36),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(28),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        side: BorderSide(
+          color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
         ),
-        side: BorderSide(color: Colors.grey.shade300),
       ),
     );
   }

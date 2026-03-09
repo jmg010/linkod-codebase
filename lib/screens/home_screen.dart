@@ -21,10 +21,7 @@ import 'create_post_screen.dart';
 class HomeScreen extends StatefulWidget {
   final UserRole userRole;
 
-  const HomeScreen({
-    super.key,
-    required this.userRole,
-  });
+  const HomeScreen({super.key, required this.userRole});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -40,6 +37,10 @@ class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<MarketplaceScreenState> _marketplaceKey =
       GlobalKey<MarketplaceScreenState>();
   final GlobalKey<TasksScreenState> _tasksKey = GlobalKey<TasksScreenState>();
+  final GlobalKey<HomeFeedScreenState> _homeFeedKey =
+      GlobalKey<HomeFeedScreenState>();
+  final GlobalKey<BulletinBoardScreenState> _bulletinKey =
+      GlobalKey<BulletinBoardScreenState>();
   bool _hasUnreadAnnouncements = false;
   String? _cachedErrandUid;
   Stream<int>? _cachedErrandStream;
@@ -71,6 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   late final List<Widget> _screens = [
     HomeFeedScreen(
+      key: _homeFeedKey,
       onUnreadAnnouncementsChanged: (hasUnread) {
         if (_hasUnreadAnnouncements != hasUnread) {
           setState(() {
@@ -82,7 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
     AnnouncementsScreen(key: _announcementsKey), // Index 1: Announcements
     MarketplaceScreen(key: _marketplaceKey), // Index 2: Marketplace
     TasksScreen(key: _tasksKey), // Index 3: Errand/Job Post
-    const BulletinBoardScreen(), // Index 4: Bulletin Board
+    BulletinBoardScreen(key: _bulletinKey), // Index 4: Bulletin Board
     MenuScreen(userRole: widget.userRole), // Index 5: Menu/Profile
   ];
 
@@ -141,11 +143,11 @@ class _HomeScreenState extends State<HomeScreen> {
       case NavDestination.announcements:
         targetIndex = _announcementsIndex;
         break;
-        case NavDestination.menu:
-          targetIndex = _profileIndex;
-          break;
+      case NavDestination.menu:
+        targetIndex = _profileIndex;
+        break;
     }
-    
+
     if (_currentIndex != targetIndex) {
       setState(() {
         _currentNavDestination = destination;
@@ -157,16 +159,38 @@ class _HomeScreenState extends State<HomeScreen> {
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
+    } else {
+      // User tapped the already active tab -> Scroll to top / Refresh
+      switch (destination) {
+        case NavDestination.home:
+          _homeFeedKey.currentState?.scrollToTop();
+          break;
+        case NavDestination.announcements:
+          _announcementsKey.currentState?.scrollToTop();
+          break;
+        case NavDestination.marketplace:
+          _marketplaceKey.currentState?.scrollToTop();
+          break;
+        case NavDestination.errandJobPost:
+          _tasksKey.currentState?.scrollToTop();
+          break;
+        case NavDestination.bulletin:
+          _bulletinKey.currentState?.scrollToTop();
+          break;
+        case NavDestination.menu:
+          // Menu doesn't really have a scrollable timeline to top
+          break;
+      }
     }
   }
 
   Future<void> _openCreatePost() async {
     final result = await Navigator.of(context).push(
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            CreatePostScreen(userRole: widget.userRole),
-        transitionsBuilder:
-            (context, animation, secondaryAnimation, child) {
+        pageBuilder:
+            (context, animation, secondaryAnimation) =>
+                CreatePostScreen(userRole: widget.userRole),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final curvedAnimation = CurvedAnimation(
             parent: animation,
             curve: Curves.easeOutCubic,
@@ -240,8 +264,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showSnack(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Stream<int> _getErrandNotificationCountStream() {
@@ -289,7 +314,8 @@ class _HomeScreenState extends State<HomeScreen> {
       _cachedPostCommentsUid = uid;
       _cachedPostCommentsStream = _getPostCommentsNotificationCountStream();
     }
-    final postCommentsStream = _cachedPostCommentsStream ?? Stream<int>.value(0);
+    final postCommentsStream =
+        _cachedPostCommentsStream ?? Stream<int>.value(0);
 
     if (_cachedMarketplaceUid != uid) {
       _cachedMarketplaceUid = uid;
@@ -356,17 +382,18 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      floatingActionButton: widget.userRole == UserRole.official
-          ? FloatingActionButton(
-              heroTag: 'create_fab',
-              onPressed: _openCreatePost,
-              backgroundColor: kFacebookBlue,
-              foregroundColor: Colors.white,
-              elevation: 4,
-              tooltip: 'Create Announcement',
-              child: const Icon(Icons.add),
-            )
-          : null,
+      floatingActionButton:
+          widget.userRole == UserRole.official
+              ? FloatingActionButton(
+                heroTag: 'create_fab',
+                onPressed: _openCreatePost,
+                backgroundColor: kFacebookBlue,
+                foregroundColor: Colors.white,
+                elevation: 4,
+                tooltip: 'Create Announcement',
+                child: const Icon(Icons.add),
+              )
+              : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }

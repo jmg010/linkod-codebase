@@ -34,10 +34,12 @@ class _MyPostsScreenState extends State<MyPostsScreen>
   @override
   Widget build(BuildContext context) {
     final currentUserId = FirestoreService.currentUserId;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (currentUserId == null) {
       return Scaffold(
-        backgroundColor: const Color(0xFFF4F4F4),
+        backgroundColor:
+            isDark ? const Color(0xFF121212) : const Color(0xFFF4F4F4),
         body: SafeArea(
           child: Center(
             child: Column(
@@ -45,9 +47,12 @@ class _MyPostsScreenState extends State<MyPostsScreen>
               children: [
                 const Icon(Icons.error_outline, size: 48, color: Colors.red),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'Please log in to view your posts',
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey,
+                  ),
                 ),
               ],
             ),
@@ -57,7 +62,8 @@ class _MyPostsScreenState extends State<MyPostsScreen>
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F4F4),
+      backgroundColor:
+          isDark ? const Color(0xFF121212) : const Color(0xFFF4F4F4),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -68,31 +74,43 @@ class _MyPostsScreenState extends State<MyPostsScreen>
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+                    icon: Icon(
+                      Icons.arrow_back_ios_new,
+                      size: 20,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
                     onPressed: () => Navigator.of(context).pop(),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
                   const SizedBox(width: 8),
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'Post Activity',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
-                        color: Colors.black87,
+                        color: isDark ? Colors.white : Colors.black87,
                       ),
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.search, color: Color(0xFF6E6E6E)),
+                    icon: Icon(
+                      Icons.search,
+                      color:
+                          isDark
+                              ? Colors.grey.shade400
+                              : const Color(0xFF6E6E6E),
+                    ),
                     splashRadius: 22,
                     onPressed: () {
                       final uid = FirestoreService.currentUserId;
                       if (uid == null) return;
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => const SearchScreen(mode: SearchMode.myTasks),
+                          builder:
+                              (_) =>
+                                  const SearchScreen(mode: SearchMode.myTasks),
                         ),
                       );
                     },
@@ -132,10 +150,7 @@ class _TabBarWithBadge extends StatelessWidget {
   final TabController tabController;
   final String userId;
 
-  const _TabBarWithBadge({
-    required this.tabController,
-    required this.userId,
-  });
+  const _TabBarWithBadge({required this.tabController, required this.userId});
 
   @override
   Widget build(BuildContext context) {
@@ -149,10 +164,11 @@ class _TabBarWithBadge extends StatelessWidget {
           builder: (context, assignedSnapshot) {
             final myPostsUnread = requesterSnapshot.data ?? 0;
             final interactedUnread = assignedSnapshot.data ?? 0;
+            final isDark = Theme.of(context).brightness == Brightness.dark;
 
             return Container(
               decoration: BoxDecoration(
-                color: Colors.grey.shade200,
+                color: isDark ? const Color(0xFF1E1E1E) : Colors.grey.shade200,
                 borderRadius: BorderRadius.circular(24),
               ),
               child: AnimatedBuilder(
@@ -174,7 +190,8 @@ class _TabBarWithBadge extends StatelessWidget {
                         child: _TabButton(
                           label: 'INTERACTED POSTS',
                           isSelected: tabController.index == 1,
-                          badgeCount: interactedUnread > 0 ? interactedUnread : null,
+                          badgeCount:
+                              interactedUnread > 0 ? interactedUnread : null,
                           onTap: () => tabController.animateTo(1),
                         ),
                       ),
@@ -206,22 +223,27 @@ class _TabButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
+          color:
+              isSelected
+                  ? (isDark ? const Color(0xFF2C2C2C) : Colors.white)
+                  : Colors.transparent,
           borderRadius: BorderRadius.circular(24),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
+          boxShadow:
+              isSelected
+                  ? [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                  : null,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -232,7 +254,12 @@ class _TabButton extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: isSelected ? const Color(0xFF20BF6B) : Colors.grey.shade600,
+                color:
+                    isSelected
+                        ? const Color(0xFF20BF6B)
+                        : (isDark
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade600),
               ),
             ),
             if (badgeCount != null && badgeCount! > 0) ...[
@@ -243,10 +270,7 @@ class _TabButton extends StatelessWidget {
                   color: Colors.red,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                constraints: const BoxConstraints(
-                  minWidth: 18,
-                  minHeight: 18,
-                ),
+                constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
                 child: Center(
                   child: Text(
                     badgeCount! > 99 ? '99+' : badgeCount.toString(),
@@ -285,6 +309,7 @@ class _MyPostsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return StreamBuilder<List<TaskModel>>(
       stream: TasksService.getRequesterTasksStream(userId),
       builder: (context, snapshot) {
@@ -300,7 +325,10 @@ class _MyPostsTab extends StatelessWidget {
                 const SizedBox(height: 16),
                 Text(
                   'Error: ${snapshot.error}',
-                  style: const TextStyle(fontSize: 16, color: Colors.grey),
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey,
+                  ),
                 ),
               ],
             ),
@@ -318,7 +346,7 @@ class _MyPostsTab extends StatelessWidget {
                   'No posts yet',
                   style: TextStyle(
                     fontSize: 16,
-                    color: Colors.grey.shade600,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
                   ),
                 ),
               ],
@@ -352,10 +380,11 @@ class _MyPostsTab extends StatelessWidget {
                   onViewPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => TaskEditScreen(
-                          task: task,
-                          contactNumber: task.contactNumber ?? '',
-                        ),
+                        builder:
+                            (_) => TaskEditScreen(
+                              task: task,
+                              contactNumber: task.contactNumber ?? '',
+                            ),
                       ),
                     );
                   },
@@ -388,6 +417,7 @@ class _InteractedPostsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return StreamBuilder<List<MapEntry<TaskModel, int>>>(
       stream: TasksService.getUserInteractedTasksStream(userId),
       builder: (context, snapshot) {
@@ -415,14 +445,17 @@ class _InteractedPostsTab extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.history_outlined,
-                    size: 60, color: Colors.grey.shade400),
+                Icon(
+                  Icons.history_outlined,
+                  size: 60,
+                  color: Colors.grey.shade400,
+                ),
                 const SizedBox(height: 12),
                 Text(
                   'No interacted posts yet',
                   style: TextStyle(
                     fontSize: 16,
-                    color: Colors.grey.shade600,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -430,7 +463,7 @@ class _InteractedPostsTab extends StatelessWidget {
                   'Posts you volunteer for will appear here',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.grey.shade500,
+                    color: isDark ? Colors.grey.shade500 : Colors.grey.shade500,
                   ),
                 ),
               ],
@@ -460,10 +493,11 @@ class _InteractedPostsTab extends StatelessWidget {
                 TaskChatService.markChatRead(task.id, userId);
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => TaskDetailScreen(
-                      task: task,
-                      contactNumber: task.contactNumber ?? '',
-                    ),
+                    builder:
+                        (_) => TaskDetailScreen(
+                          task: task,
+                          contactNumber: task.contactNumber ?? '',
+                        ),
                   ),
                 );
               },
@@ -500,17 +534,19 @@ class _MyPostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: EdgeInsets.zero,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
         ],
       ),
       child: Padding(
@@ -524,9 +560,10 @@ class _MyPostCard extends StatelessWidget {
               children: [
                 Text(
                   _formatDate(date),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF6E6E6E),
+                    color:
+                        isDark ? Colors.grey.shade400 : const Color(0xFF6E6E6E),
                   ),
                 ),
                 if (status != null && status != ErrandJobStatus.open) ...[
@@ -543,10 +580,10 @@ class _MyPostCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: Colors.black87,
+                      color: isDark ? Colors.white : Colors.black87,
                       height: 1.25,
                     ),
                   ),
@@ -561,17 +598,19 @@ class _MyPostCard extends StatelessWidget {
             // Posted by
             Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.person_outline,
                   size: 14,
-                  color: Color(0xFF6E6E6E),
+                  color:
+                      isDark ? Colors.grey.shade400 : const Color(0xFF6E6E6E),
                 ),
                 const SizedBox(width: 4),
                 Text(
                   'Posted by: $postedBy',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12.5,
-                    color: Color(0xFF6E6E6E),
+                    color:
+                        isDark ? Colors.grey.shade400 : const Color(0xFF6E6E6E),
                   ),
                 ),
               ],
@@ -594,12 +633,21 @@ class _MyPostCard extends StatelessWidget {
                 child: OutlinedButton(
                   onPressed: onViewPressed,
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(26),
                     ),
-                    side: const BorderSide(color: Color(0xFFD0D0D0)),
-                    backgroundColor: Colors.white,
+                    side: BorderSide(
+                      color:
+                          isDark
+                              ? Colors.grey.shade700
+                              : const Color(0xFFD0D0D0),
+                    ),
+                    backgroundColor:
+                        isDark ? const Color(0xFF2C2C2C) : Colors.white,
                   ),
                   child: Stack(
                     clipBehavior: Clip.none,
@@ -607,17 +655,21 @@ class _MyPostCard extends StatelessWidget {
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.edit_outlined,
                             size: 16,
-                            color: Color(0xFF4C4C4C),
+                            color:
+                                isDark ? Colors.white : const Color(0xFF4C4C4C),
                           ),
                           const SizedBox(width: 8),
-                          const Text(
+                          Text(
                             'Edit',
                             style: TextStyle(
                               fontSize: 13,
-                              color: Color(0xFF4C4C4C),
+                              color:
+                                  isDark
+                                      ? Colors.white
+                                      : const Color(0xFF4C4C4C),
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -628,7 +680,10 @@ class _MyPostCard extends StatelessWidget {
                           right: -12,
                           top: -4,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 1,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.red,
                               borderRadius: BorderRadius.circular(8),
@@ -639,7 +694,9 @@ class _MyPostCard extends StatelessWidget {
                             ),
                             child: Center(
                               child: Text(
-                                unreadCount > 99 ? '99+' : unreadCount.toString(),
+                                unreadCount > 99
+                                    ? '99+'
+                                    : unreadCount.toString(),
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 9,
@@ -660,12 +717,21 @@ class _MyPostCard extends StatelessWidget {
                 child: OutlinedButton(
                   onPressed: onViewPressed,
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(26),
                     ),
-                    side: const BorderSide(color: Color(0xFFD0D0D0)),
-                    backgroundColor: Colors.white,
+                    side: BorderSide(
+                      color:
+                          isDark
+                              ? Colors.grey.shade700
+                              : const Color(0xFFD0D0D0),
+                    ),
+                    backgroundColor:
+                        isDark ? const Color(0xFF2C2C2C) : Colors.white,
                   ),
                   child: Stack(
                     clipBehavior: Clip.none,
@@ -673,17 +739,21 @@ class _MyPostCard extends StatelessWidget {
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.visibility_outlined,
                             size: 16,
-                            color: Color(0xFF4C4C4C),
+                            color:
+                                isDark ? Colors.white : const Color(0xFF4C4C4C),
                           ),
                           const SizedBox(width: 8),
-                          const Text(
+                          Text(
                             'View',
                             style: TextStyle(
                               fontSize: 13,
-                              color: Color(0xFF4C4C4C),
+                              color:
+                                  isDark
+                                      ? Colors.white
+                                      : const Color(0xFF4C4C4C),
                             ),
                           ),
                         ],
@@ -693,7 +763,10 @@ class _MyPostCard extends StatelessWidget {
                           right: -12,
                           top: -4,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 1,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.red,
                               borderRadius: BorderRadius.circular(8),
@@ -704,7 +777,9 @@ class _MyPostCard extends StatelessWidget {
                             ),
                             child: Center(
                               child: Text(
-                                unreadCount > 99 ? '99+' : unreadCount.toString(),
+                                unreadCount > 99
+                                    ? '99+'
+                                    : unreadCount.toString(),
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 9,
@@ -784,7 +859,7 @@ class _MyPostCard extends StatelessWidget {
       'September',
       'October',
       'November',
-      'December'
+      'December',
     ];
     return months[month - 1];
   }
@@ -814,17 +889,19 @@ class _InteractedPostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: EdgeInsets.zero,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
         ],
       ),
       child: Padding(
@@ -838,9 +915,10 @@ class _InteractedPostCard extends StatelessWidget {
               children: [
                 Text(
                   _formatDate(date),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF6E6E6E),
+                    color:
+                        isDark ? Colors.grey.shade400 : const Color(0xFF6E6E6E),
                   ),
                 ),
                 if (status != null && status != ErrandJobStatus.open) ...[
@@ -857,10 +935,10 @@ class _InteractedPostCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: Colors.black87,
+                      color: isDark ? Colors.white : Colors.black87,
                       height: 1.25,
                     ),
                   ),
@@ -875,28 +953,29 @@ class _InteractedPostCard extends StatelessWidget {
             // Posted by
             Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.person_outline,
                   size: 14,
-                  color: Color(0xFF6E6E6E),
+                  color:
+                      isDark ? Colors.grey.shade400 : const Color(0xFF6E6E6E),
                 ),
                 const SizedBox(width: 4),
                 Text(
                   'Posted by: $postedBy',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12.5,
-                    color: Color(0xFF6E6E6E),
+                    color:
+                        isDark ? Colors.grey.shade400 : const Color(0xFF6E6E6E),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 10),
-            // Description
             Text(
               description,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13.5,
-                color: Color(0xFF4C4C4C),
+                color: isDark ? Colors.grey.shade300 : const Color(0xFF4C4C4C),
                 height: 1.4,
               ),
             ),
@@ -907,12 +986,19 @@ class _InteractedPostCard extends StatelessWidget {
               child: OutlinedButton(
                 onPressed: onViewPressed,
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(26),
                   ),
-                  side: const BorderSide(color: Color(0xFFD0D0D0)),
-                  backgroundColor: Colors.white,
+                  side: BorderSide(
+                    color:
+                        isDark ? Colors.grey.shade700 : const Color(0xFFD0D0D0),
+                  ),
+                  backgroundColor:
+                      isDark ? const Color(0xFF2C2C2C) : Colors.white,
                 ),
                 child: Stack(
                   clipBehavior: Clip.none,
@@ -920,17 +1006,19 @@ class _InteractedPostCard extends StatelessWidget {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.visibility_outlined,
                           size: 16,
-                          color: Color(0xFF4C4C4C),
+                          color:
+                              isDark ? Colors.white : const Color(0xFF4C4C4C),
                         ),
                         const SizedBox(width: 8),
-                        const Text(
+                        Text(
                           'View',
                           style: TextStyle(
                             fontSize: 13,
-                            color: Color(0xFF4C4C4C),
+                            color:
+                                isDark ? Colors.white : const Color(0xFF4C4C4C),
                           ),
                         ),
                       ],
@@ -940,7 +1028,10 @@ class _InteractedPostCard extends StatelessWidget {
                         right: -12,
                         top: -4,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 1,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.red,
                             borderRadius: BorderRadius.circular(8),
@@ -1031,9 +1122,8 @@ class _InteractedPostCard extends StatelessWidget {
       'September',
       'October',
       'November',
-      'December'
+      'December',
     ];
     return months[month - 1];
   }
 }
-

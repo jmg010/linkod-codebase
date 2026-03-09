@@ -13,11 +13,9 @@ import '../widgets/post_card.dart';
 import '../widgets/product_card.dart';
 import '../widgets/errand_job_card.dart';
 import '../widgets/announcement_card.dart';
-import 'post_detail_screen.dart';
 import 'product_detail_screen.dart';
 import 'task_detail_screen.dart';
 import 'task_edit_screen.dart';
-import 'announcement_detail_screen.dart';
 
 enum SearchMode {
   home,
@@ -41,11 +39,12 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _queryController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
+
   /// Only set after user presses search icon or Enter; null = not searched yet.
   String? _searchQuery;
   static const int _maxRecentSearches = 10;
   List<String> _recentSearches = [];
-  
+
   // Pagination variables
   static const int _initialPageSize = 20;
   static const int _loadMorePageSize = 20;
@@ -53,13 +52,13 @@ class _SearchScreenState extends State<SearchScreen> {
   int _tasksDisplayCount = _initialPageSize;
   int _postsDisplayCount = _initialPageSize;
   int _announcementsDisplayCount = _initialPageSize;
-  
+
   // Home search pagination
   int _homeAnnouncementsDisplayCount = _initialPageSize;
   int _homePostsDisplayCount = _initialPageSize;
   int _homeTasksDisplayCount = _initialPageSize;
   int _homeProductsDisplayCount = _initialPageSize;
-  
+
   final ScrollController _productsScrollController = ScrollController();
   final ScrollController _tasksScrollController = ScrollController();
   final ScrollController _postsScrollController = ScrollController();
@@ -255,14 +254,16 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: isDark ? const Color(0xFF121212) : Colors.grey.shade100,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              color: Colors.white,
+              color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
               padding: const EdgeInsets.fromLTRB(12, 8, 16, 12),
               child: Row(
                 children: [
@@ -271,6 +272,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     onPressed: () => Navigator.of(context).pop(),
                     padding: EdgeInsets.zero,
                     splashRadius: 22,
+                    color: isDark ? Colors.white : Colors.black87,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -283,7 +285,10 @@ class _SearchScreenState extends State<SearchScreen> {
                         hintText: _hintText,
                         hintStyle: TextStyle(
                           fontSize: 16,
-                          color: Colors.grey.shade600,
+                          color:
+                              isDark
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade600,
                         ),
                         border: InputBorder.none,
                         contentPadding: const EdgeInsets.symmetric(
@@ -291,23 +296,28 @@ class _SearchScreenState extends State<SearchScreen> {
                           horizontal: 4,
                         ),
                       ),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
-                        color: Colors.black87,
+                        color: isDark ? Colors.white : Colors.black87,
                       ),
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.search, color: Color(0xFF6E6E6E), size: 26),
+                    icon: Icon(
+                      Icons.search,
+                      color:
+                          isDark
+                              ? Colors.grey.shade300
+                              : const Color(0xFF6E6E6E),
+                      size: 26,
+                    ),
                     onPressed: _runSearch,
                     splashRadius: 22,
                   ),
                 ],
               ),
             ),
-            Expanded(
-              child: _buildBody(),
-            ),
+            Expanded(child: _buildBody()),
           ],
         ),
       ),
@@ -315,6 +325,8 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildBody() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     if (_searchQuery == null) {
       return ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
@@ -329,7 +341,11 @@ class _SearchScreenState extends State<SearchScreen> {
                   const SizedBox(height: 16),
                   Text(
                     'Press the search icon or Enter to search',
-                    style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+                    style: TextStyle(
+                      fontSize: 16,
+                      color:
+                          isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -343,33 +359,45 @@ class _SearchScreenState extends State<SearchScreen> {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: Colors.grey.shade700,
+                color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
               ),
             ),
             const SizedBox(height: 10),
-            ..._recentSearches.map((term) => Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () => _applyRecentSearch(term),
-                    borderRadius: BorderRadius.circular(12),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
-                      child: Row(
-                        children: [
-                          Icon(Icons.history, size: 20, color: Colors.grey.shade600),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              term,
-                              style: const TextStyle(fontSize: 15, color: Colors.black87),
-                              overflow: TextOverflow.ellipsis,
+            ..._recentSearches.map(
+              (term) => Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _applyRecentSearch(term),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 14,
+                      horizontal: 4,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.history,
+                          size: 20,
+                          color: Colors.grey.shade600,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            term,
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: isDark ? Colors.white : Colors.black87,
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
-                )),
+                ),
+              ),
+            ),
           ],
         ],
       );
@@ -403,7 +431,10 @@ class _SearchScreenState extends State<SearchScreen> {
     }
   }
 
-  Future<Map<String, dynamic>> _fetchHomeSearchResults(String queryLower, String? currentUserId) async {
+  Future<Map<String, dynamic>> _fetchHomeSearchResults(
+    String queryLower,
+    String? currentUserId,
+  ) async {
     try {
       final results = await Future.wait([
         AnnouncementsService.getAnnouncementsStream().first,
@@ -411,43 +442,81 @@ class _SearchScreenState extends State<SearchScreen> {
         TasksService.getTasksStream().first,
         ProductsService.getProductsStream().first,
       ]);
-      final announcements = results[0] is List<Map<String, dynamic>> ? results[0] as List<Map<String, dynamic>> : <Map<String, dynamic>>[];
-      final posts = results[1] is List<PostModel> ? results[1] as List<PostModel> : <PostModel>[];
-      final tasks = results[2] is List<TaskModel> ? results[2] as List<TaskModel> : <TaskModel>[];
-      final products = results[3] is List<ProductModel> ? results[3] as List<ProductModel> : <ProductModel>[];
+      final announcements =
+          results[0] is List<Map<String, dynamic>>
+              ? results[0] as List<Map<String, dynamic>>
+              : <Map<String, dynamic>>[];
+      final posts =
+          results[1] is List<PostModel>
+              ? results[1] as List<PostModel>
+              : <PostModel>[];
+      final tasks =
+          results[2] is List<TaskModel>
+              ? results[2] as List<TaskModel>
+              : <TaskModel>[];
+      final products =
+          results[3] is List<ProductModel>
+              ? results[3] as List<ProductModel>
+              : <ProductModel>[];
 
-      final filterAnn = queryLower.isEmpty
-          ? announcements
-          : announcements.where((a) {
-              final title = (a['title'] as String? ?? '').toLowerCase();
-              final content = (a['content'] as String? ?? a['description'] as String? ?? '').toLowerCase();
-              return title.contains(queryLower) || content.contains(queryLower);
-            }).toList();
+      final filterAnn =
+          queryLower.isEmpty
+              ? announcements
+              : announcements.where((a) {
+                final title = (a['title'] as String? ?? '').toLowerCase();
+                final content =
+                    (a['content'] as String? ??
+                            a['description'] as String? ??
+                            '')
+                        .toLowerCase();
+                return title.contains(queryLower) ||
+                    content.contains(queryLower);
+              }).toList();
 
-      final filterPosts = queryLower.isEmpty
-          ? posts
-          : posts.where((p) =>
-              p.title.toLowerCase().contains(queryLower) ||
-              p.content.toLowerCase().contains(queryLower)).toList();
+      final filterPosts =
+          queryLower.isEmpty
+              ? posts
+              : posts
+                  .where(
+                    (p) =>
+                        p.title.toLowerCase().contains(queryLower) ||
+                        p.content.toLowerCase().contains(queryLower),
+                  )
+                  .toList();
 
-      final nonCompleted = tasks.where((t) => t.status != TaskStatus.completed).toList();
-      final feedTasks = currentUserId != null
-          ? nonCompleted.where((t) => t.requesterId != currentUserId).toList()
-          : nonCompleted;
-      final filterTasks = queryLower.isEmpty
-          ? feedTasks
-          : feedTasks.where((t) =>
-              t.title.toLowerCase().contains(queryLower) ||
-              t.description.toLowerCase().contains(queryLower)).toList();
+      final nonCompleted =
+          tasks.where((t) => t.status != TaskStatus.completed).toList();
+      final feedTasks =
+          currentUserId != null
+              ? nonCompleted
+                  .where((t) => t.requesterId != currentUserId)
+                  .toList()
+              : nonCompleted;
+      final filterTasks =
+          queryLower.isEmpty
+              ? feedTasks
+              : feedTasks
+                  .where(
+                    (t) =>
+                        t.title.toLowerCase().contains(queryLower) ||
+                        t.description.toLowerCase().contains(queryLower),
+                  )
+                  .toList();
 
-      final feedProducts = currentUserId != null
-          ? products.where((p) => p.sellerId != currentUserId).toList()
-          : products;
-      final filterProducts = queryLower.isEmpty
-          ? feedProducts
-          : feedProducts.where((p) =>
-              p.title.toLowerCase().contains(queryLower) ||
-              p.description.toLowerCase().contains(queryLower)).toList();
+      final feedProducts =
+          currentUserId != null
+              ? products.where((p) => p.sellerId != currentUserId).toList()
+              : products;
+      final filterProducts =
+          queryLower.isEmpty
+              ? feedProducts
+              : feedProducts
+                  .where(
+                    (p) =>
+                        p.title.toLowerCase().contains(queryLower) ||
+                        p.description.toLowerCase().contains(queryLower),
+                  )
+                  .toList();
 
       return <String, dynamic>{
         'announcements': filterAnn,
@@ -466,6 +535,8 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildHomeResults() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     final query = _searchQuery ?? '';
     final queryLower = query.toLowerCase();
     final currentUserId = FirestoreService.currentUserId;
@@ -484,12 +555,17 @@ class _SearchScreenState extends State<SearchScreen> {
         }
 
         final data = snapshot.data ?? {};
-        final announcements = data['announcements'] as List<Map<String, dynamic>>? ?? [];
+        final announcements =
+            data['announcements'] as List<Map<String, dynamic>>? ?? [];
         final posts = data['posts'] as List<PostModel>? ?? [];
         final tasks = data['tasks'] as List<TaskModel>? ?? [];
         final products = data['products'] as List<ProductModel>? ?? [];
 
-        final totalResults = announcements.length + posts.length + tasks.length + products.length;
+        final totalResults =
+            announcements.length +
+            posts.length +
+            tasks.length +
+            products.length;
 
         // Show unified empty state if no results
         if (totalResults == 0) {
@@ -501,13 +577,19 @@ class _SearchScreenState extends State<SearchScreen> {
                 const SizedBox(height: 16),
                 Text(
                   'No results for "$query"',
-                  style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: isDark ? Colors.grey.shade300 : Colors.grey.shade600,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Try searching for announcements, posts,\nproducts, or errands',
-                  style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
+                  ),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -521,7 +603,10 @@ class _SearchScreenState extends State<SearchScreen> {
             // Announcements Section
             if (announcements.isNotEmpty)
               SliverToBoxAdapter(
-                child: _buildHomeAnnouncementsSectionFromData(announcements, queryLower),
+                child: _buildHomeAnnouncementsSectionFromData(
+                  announcements,
+                  queryLower,
+                ),
               ),
             // Posts Section
             if (posts.isNotEmpty)
@@ -531,7 +616,11 @@ class _SearchScreenState extends State<SearchScreen> {
             // Tasks Section
             if (tasks.isNotEmpty)
               SliverToBoxAdapter(
-                child: _buildHomeTasksSectionFromData(tasks, queryLower, currentUserId),
+                child: _buildHomeTasksSectionFromData(
+                  tasks,
+                  queryLower,
+                  currentUserId,
+                ),
               ),
             // Products Section
             if (products.isNotEmpty)
@@ -539,9 +628,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 child: _buildHomeProductsSectionFromData(products, queryLower),
               ),
             // Bottom padding
-            SliverToBoxAdapter(
-              child: _buildHomeLoadMoreIndicator(),
-            ),
+            SliverToBoxAdapter(child: _buildHomeLoadMoreIndicator()),
           ],
         );
       },
@@ -549,46 +636,78 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   /// Combined stream that emits all search results at once - preserves scroll position
-  Stream<Map<String, dynamic>> _getCombinedHomeSearchStream(String queryLower, String? currentUserId) {
+  Stream<Map<String, dynamic>> _getCombinedHomeSearchStream(
+    String queryLower,
+    String? currentUserId,
+  ) {
     return Rx.combineLatest4(
       AnnouncementsService.getAnnouncementsStream(),
       PostsService.getPostsStream(),
       TasksService.getTasksStream(),
       ProductsService.getProductsStream(),
-      (List<Map<String, dynamic>> announcements, List<PostModel> posts, 
-       List<TaskModel> tasks, List<ProductModel> products) {
+      (
+        List<Map<String, dynamic>> announcements,
+        List<PostModel> posts,
+        List<TaskModel> tasks,
+        List<ProductModel> products,
+      ) {
         // Filter announcements
-        final filteredAnnouncements = announcements.where((a) {
-          final title = (a['title'] as String? ?? '').toLowerCase();
-          final content = (a['content'] as String? ?? a['description'] as String? ?? '').toLowerCase();
-          final postedBy = (a['postedBy'] as String? ?? '').toLowerCase();
-          return title.contains(queryLower) || content.contains(queryLower) || postedBy.contains(queryLower);
-        }).toList();
+        final filteredAnnouncements =
+            announcements.where((a) {
+              final title = (a['title'] as String? ?? '').toLowerCase();
+              final content =
+                  (a['content'] as String? ?? a['description'] as String? ?? '')
+                      .toLowerCase();
+              final postedBy = (a['postedBy'] as String? ?? '').toLowerCase();
+              return title.contains(queryLower) ||
+                  content.contains(queryLower) ||
+                  postedBy.contains(queryLower);
+            }).toList();
 
         // Filter posts
-        final filteredPosts = posts.where((p) =>
-            p.title.toLowerCase().contains(queryLower) ||
-            p.content.toLowerCase().contains(queryLower) ||
-            p.userName.toLowerCase().contains(queryLower)).toList();
+        final filteredPosts =
+            posts
+                .where(
+                  (p) =>
+                      p.title.toLowerCase().contains(queryLower) ||
+                      p.content.toLowerCase().contains(queryLower) ||
+                      p.userName.toLowerCase().contains(queryLower),
+                )
+                .toList();
 
         // Filter tasks
-        final nonCompleted = tasks.where((t) => t.status != TaskStatus.completed).toList();
-        final feedTasks = currentUserId != null
-            ? nonCompleted.where((t) => t.requesterId != currentUserId).toList()
-            : nonCompleted;
-        final filteredTasks = feedTasks.where((t) =>
-            t.title.toLowerCase().contains(queryLower) ||
-            t.description.toLowerCase().contains(queryLower) ||
-            t.requesterName.toLowerCase().contains(queryLower)).toList();
+        final nonCompleted =
+            tasks.where((t) => t.status != TaskStatus.completed).toList();
+        final feedTasks =
+            currentUserId != null
+                ? nonCompleted
+                    .where((t) => t.requesterId != currentUserId)
+                    .toList()
+                : nonCompleted;
+        final filteredTasks =
+            feedTasks
+                .where(
+                  (t) =>
+                      t.title.toLowerCase().contains(queryLower) ||
+                      t.description.toLowerCase().contains(queryLower) ||
+                      t.requesterName.toLowerCase().contains(queryLower),
+                )
+                .toList();
 
         // Filter products
-        final feedProducts = currentUserId != null
-            ? products.where((p) => p.sellerId != currentUserId).toList()
-            : products;
-        final filteredProducts = feedProducts.where((p) =>
-            p.title.toLowerCase().contains(queryLower) ||
-            p.description.toLowerCase().contains(queryLower) ||
-            p.sellerName.toLowerCase().contains(queryLower)).toList();
+        final feedProducts =
+            currentUserId != null
+                ? products.where((p) => p.sellerId != currentUserId).toList()
+                : products;
+        final filteredProducts =
+            feedProducts
+                .where(
+                  (p) =>
+                      p.title.toLowerCase().contains(queryLower) ||
+                      p.description.toLowerCase().contains(queryLower) ||
+                      p.sellerName.toLowerCase().contains(queryLower),
+                )
+                .toList();
 
         return {
           'announcements': filteredAnnouncements,
@@ -600,8 +719,14 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  Widget _buildHomeAnnouncementsSectionFromData(List<Map<String, dynamic>> announcements, String queryLower) {
-    final visibleCount = _homeAnnouncementsDisplayCount.clamp(0, announcements.length);
+  Widget _buildHomeAnnouncementsSectionFromData(
+    List<Map<String, dynamic>> announcements,
+    String queryLower,
+  ) {
+    final visibleCount = _homeAnnouncementsDisplayCount.clamp(
+      0,
+      announcements.length,
+    );
     final showLoadMore = visibleCount < announcements.length;
 
     return Column(
@@ -611,10 +736,14 @@ class _SearchScreenState extends State<SearchScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: _sectionHeader('Announcements'),
         ),
-        ...announcements.take(visibleCount).map((a) => Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: _announcementCardFromMap(a),
-        )),
+        ...announcements
+            .take(visibleCount)
+            .map(
+              (a) => Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: _announcementCardFromMap(a),
+              ),
+            ),
         if (showLoadMore)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -648,7 +777,10 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  Widget _buildHomePostsSectionFromData(List<PostModel> posts, String queryLower) {
+  Widget _buildHomePostsSectionFromData(
+    List<PostModel> posts,
+    String queryLower,
+  ) {
     final visibleCount = _homePostsDisplayCount.clamp(0, posts.length);
     final showLoadMore = visibleCount < posts.length;
 
@@ -656,10 +788,14 @@ class _SearchScreenState extends State<SearchScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionHeader('Posts'),
-        ...posts.take(visibleCount).map((post) => Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: PostCard(post: post),
-        )),
+        ...posts
+            .take(visibleCount)
+            .map(
+              (post) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: PostCard(post: post),
+              ),
+            ),
         if (showLoadMore)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -693,7 +829,11 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  Widget _buildHomeTasksSectionFromData(List<TaskModel> tasks, String queryLower, String? currentUserId) {
+  Widget _buildHomeTasksSectionFromData(
+    List<TaskModel> tasks,
+    String queryLower,
+    String? currentUserId,
+  ) {
     final visibleCount = _homeTasksDisplayCount.clamp(0, tasks.length);
     final showLoadMore = visibleCount < tasks.length;
 
@@ -702,7 +842,8 @@ class _SearchScreenState extends State<SearchScreen> {
       children: [
         _sectionHeader('Errands / Jobs'),
         ...tasks.take(visibleCount).map((task) {
-          final isOwner = currentUserId != null && task.requesterId == currentUserId;
+          final isOwner =
+              currentUserId != null && task.requesterId == currentUserId;
           return Padding(
             padding: const EdgeInsets.only(bottom: 16),
             child: ErrandJobCard(
@@ -716,13 +857,16 @@ class _SearchScreenState extends State<SearchScreen> {
               volunteerName: task.assignedByName,
               showTag: true,
               viewButtonLabel: isOwner ? 'Edit' : 'View',
-              viewButtonIcon: isOwner ? Icons.edit_outlined : Icons.visibility_outlined,
+              viewButtonIcon:
+                  isOwner ? Icons.edit_outlined : Icons.visibility_outlined,
               onViewPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => isOwner
-                        ? TaskEditScreen(task: task)
-                        : TaskDetailScreen(task: task),
+                    builder:
+                        (_) =>
+                            isOwner
+                                ? TaskEditScreen(task: task)
+                                : TaskDetailScreen(task: task),
                   ),
                 );
               },
@@ -762,7 +906,10 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  Widget _buildHomeProductsSectionFromData(List<ProductModel> products, String queryLower) {
+  Widget _buildHomeProductsSectionFromData(
+    List<ProductModel> products,
+    String queryLower,
+  ) {
     final visibleCount = _homeProductsDisplayCount.clamp(0, products.length);
     final showLoadMore = visibleCount < products.length;
 
@@ -770,20 +917,24 @@ class _SearchScreenState extends State<SearchScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionHeader('Marketplace'),
-        ...products.take(visibleCount).map((product) => Padding(
-          padding: const EdgeInsets.only(bottom: 16),
-          child: ProductCard(
-            product: product,
-            showTag: true,
-            onInteract: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => ProductDetailScreen(product: product),
+        ...products
+            .take(visibleCount)
+            .map(
+              (product) => Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: ProductCard(
+                  product: product,
+                  showTag: true,
+                  onInteract: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ProductDetailScreen(product: product),
+                      ),
+                    );
+                  },
                 ),
-              );
-            },
-          ),
-        )),
+              ),
+            ),
         if (showLoadMore)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -818,7 +969,10 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   /// Count results across all sections to determine if we should show empty state
-  Future<Map<String, int>> _countHomeSearchResults(String queryLower, String? currentUserId) async {
+  Future<Map<String, int>> _countHomeSearchResults(
+    String queryLower,
+    String? currentUserId,
+  ) async {
     try {
       final results = await Future.wait([
         AnnouncementsService.getAnnouncementsStream().first,
@@ -827,45 +981,80 @@ class _SearchScreenState extends State<SearchScreen> {
         ProductsService.getProductsStream().first,
       ]);
 
-      final announcements = results[0] is List<Map<String, dynamic>>
-          ? results[0] as List<Map<String, dynamic>>
-          : <Map<String, dynamic>>[];
-      final posts = results[1] is List<PostModel> ? results[1] as List<PostModel> : <PostModel>[];
-      final tasks = results[2] is List<TaskModel> ? results[2] as List<TaskModel> : <TaskModel>[];
-      final products = results[3] is List<ProductModel> ? results[3] as List<ProductModel> : <ProductModel>[];
+      final announcements =
+          results[0] is List<Map<String, dynamic>>
+              ? results[0] as List<Map<String, dynamic>>
+              : <Map<String, dynamic>>[];
+      final posts =
+          results[1] is List<PostModel>
+              ? results[1] as List<PostModel>
+              : <PostModel>[];
+      final tasks =
+          results[2] is List<TaskModel>
+              ? results[2] as List<TaskModel>
+              : <TaskModel>[];
+      final products =
+          results[3] is List<ProductModel>
+              ? results[3] as List<ProductModel>
+              : <ProductModel>[];
 
       // Count announcements
-      final annCount = announcements.where((a) {
-        final title = (a['title'] as String? ?? '').toLowerCase();
-        final content = (a['content'] as String? ?? a['description'] as String? ?? '').toLowerCase();
-        final postedBy = (a['postedBy'] as String? ?? '').toLowerCase();
-        return title.contains(queryLower) || content.contains(queryLower) || postedBy.contains(queryLower);
-      }).length;
+      final annCount =
+          announcements.where((a) {
+            final title = (a['title'] as String? ?? '').toLowerCase();
+            final content =
+                (a['content'] as String? ?? a['description'] as String? ?? '')
+                    .toLowerCase();
+            final postedBy = (a['postedBy'] as String? ?? '').toLowerCase();
+            return title.contains(queryLower) ||
+                content.contains(queryLower) ||
+                postedBy.contains(queryLower);
+          }).length;
 
       // Count posts
-      final postsCount = posts.where((p) =>
-          p.title.toLowerCase().contains(queryLower) ||
-          p.content.toLowerCase().contains(queryLower) ||
-          p.userName.toLowerCase().contains(queryLower)).length;
+      final postsCount =
+          posts
+              .where(
+                (p) =>
+                    p.title.toLowerCase().contains(queryLower) ||
+                    p.content.toLowerCase().contains(queryLower) ||
+                    p.userName.toLowerCase().contains(queryLower),
+              )
+              .length;
 
       // Count tasks
-      final nonCompleted = tasks.where((t) => t.status != TaskStatus.completed).toList();
-      final feedTasks = currentUserId != null
-          ? nonCompleted.where((t) => t.requesterId != currentUserId).toList()
-          : nonCompleted;
-      final tasksCount = feedTasks.where((t) =>
-          t.title.toLowerCase().contains(queryLower) ||
-          t.description.toLowerCase().contains(queryLower) ||
-          t.requesterName.toLowerCase().contains(queryLower)).length;
+      final nonCompleted =
+          tasks.where((t) => t.status != TaskStatus.completed).toList();
+      final feedTasks =
+          currentUserId != null
+              ? nonCompleted
+                  .where((t) => t.requesterId != currentUserId)
+                  .toList()
+              : nonCompleted;
+      final tasksCount =
+          feedTasks
+              .where(
+                (t) =>
+                    t.title.toLowerCase().contains(queryLower) ||
+                    t.description.toLowerCase().contains(queryLower) ||
+                    t.requesterName.toLowerCase().contains(queryLower),
+              )
+              .length;
 
       // Count products
-      final feedProducts = currentUserId != null
-          ? products.where((p) => p.sellerId != currentUserId).toList()
-          : products;
-      final productsCount = feedProducts.where((p) =>
-          p.title.toLowerCase().contains(queryLower) ||
-          p.description.toLowerCase().contains(queryLower) ||
-          p.sellerName.toLowerCase().contains(queryLower)).length;
+      final feedProducts =
+          currentUserId != null
+              ? products.where((p) => p.sellerId != currentUserId).toList()
+              : products;
+      final productsCount =
+          feedProducts
+              .where(
+                (p) =>
+                    p.title.toLowerCase().contains(queryLower) ||
+                    p.description.toLowerCase().contains(queryLower) ||
+                    p.sellerName.toLowerCase().contains(queryLower),
+              )
+              .length;
 
       return {
         'announcements': annCount,
@@ -878,23 +1067,37 @@ class _SearchScreenState extends State<SearchScreen> {
     }
   }
 
-  Widget _buildHomeAnnouncementsSection(String queryLower, String? currentUserId) {
+  Widget _buildHomeAnnouncementsSection(
+    String queryLower,
+    String? currentUserId,
+  ) {
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: AnnouncementsService.getAnnouncementsStream(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const SizedBox(height: 100, child: Center(child: CircularProgressIndicator()));
+          return const SizedBox(
+            height: 100,
+            child: Center(child: CircularProgressIndicator()),
+          );
         }
-        
-        final announcements = snapshot.data ?? [];
-        final filtered = announcements.where((a) {
-          final title = (a['title'] as String? ?? '').toLowerCase();
-          final content = (a['content'] as String? ?? a['description'] as String? ?? '').toLowerCase();
-          final postedBy = (a['postedBy'] as String? ?? '').toLowerCase();
-          return title.contains(queryLower) || content.contains(queryLower) || postedBy.contains(queryLower);
-        }).toList();
 
-        final visibleCount = _homeAnnouncementsDisplayCount.clamp(0, filtered.length);
+        final announcements = snapshot.data ?? [];
+        final filtered =
+            announcements.where((a) {
+              final title = (a['title'] as String? ?? '').toLowerCase();
+              final content =
+                  (a['content'] as String? ?? a['description'] as String? ?? '')
+                      .toLowerCase();
+              final postedBy = (a['postedBy'] as String? ?? '').toLowerCase();
+              return title.contains(queryLower) ||
+                  content.contains(queryLower) ||
+                  postedBy.contains(queryLower);
+            }).toList();
+
+        final visibleCount = _homeAnnouncementsDisplayCount.clamp(
+          0,
+          filtered.length,
+        );
         final showLoadMore = visibleCount < filtered.length;
 
         if (filtered.isEmpty) return const SizedBox.shrink();
@@ -906,10 +1109,14 @@ class _SearchScreenState extends State<SearchScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: _sectionHeader('Announcements'),
             ),
-            ...filtered.take(visibleCount).map((a) => Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: _announcementCardFromMap(a),
-            )),
+            ...filtered
+                .take(visibleCount)
+                .map(
+                  (a) => Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: _announcementCardFromMap(a),
+                  ),
+                ),
             if (showLoadMore)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
@@ -927,14 +1134,22 @@ class _SearchScreenState extends State<SearchScreen> {
       stream: PostsService.getPostsStream(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const SizedBox(height: 100, child: Center(child: CircularProgressIndicator()));
+          return const SizedBox(
+            height: 100,
+            child: Center(child: CircularProgressIndicator()),
+          );
         }
-        
+
         final posts = snapshot.data ?? [];
-        final filtered = posts.where((p) =>
-          p.title.toLowerCase().contains(queryLower) ||
-          p.content.toLowerCase().contains(queryLower) ||
-          p.userName.toLowerCase().contains(queryLower)).toList();
+        final filtered =
+            posts
+                .where(
+                  (p) =>
+                      p.title.toLowerCase().contains(queryLower) ||
+                      p.content.toLowerCase().contains(queryLower) ||
+                      p.userName.toLowerCase().contains(queryLower),
+                )
+                .toList();
 
         final visibleCount = _homePostsDisplayCount.clamp(0, filtered.length);
         final showLoadMore = visibleCount < filtered.length;
@@ -945,10 +1160,14 @@ class _SearchScreenState extends State<SearchScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _sectionHeader('Posts'),
-            ...filtered.take(visibleCount).map((post) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: PostCard(post: post),
-            )),
+            ...filtered
+                .take(visibleCount)
+                .map(
+                  (post) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: PostCard(post: post),
+                  ),
+                ),
             if (showLoadMore)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
@@ -966,18 +1185,30 @@ class _SearchScreenState extends State<SearchScreen> {
       stream: TasksService.getTasksStream(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const SizedBox(height: 100, child: Center(child: CircularProgressIndicator()));
+          return const SizedBox(
+            height: 100,
+            child: Center(child: CircularProgressIndicator()),
+          );
         }
-        
+
         final tasks = snapshot.data ?? [];
-        final nonCompleted = tasks.where((t) => t.status != TaskStatus.completed).toList();
-        final feedTasks = currentUserId != null
-            ? nonCompleted.where((t) => t.requesterId != currentUserId).toList()
-            : nonCompleted;
-        final filtered = feedTasks.where((t) =>
-          t.title.toLowerCase().contains(queryLower) ||
-          t.description.toLowerCase().contains(queryLower) ||
-          t.requesterName.toLowerCase().contains(queryLower)).toList();
+        final nonCompleted =
+            tasks.where((t) => t.status != TaskStatus.completed).toList();
+        final feedTasks =
+            currentUserId != null
+                ? nonCompleted
+                    .where((t) => t.requesterId != currentUserId)
+                    .toList()
+                : nonCompleted;
+        final filtered =
+            feedTasks
+                .where(
+                  (t) =>
+                      t.title.toLowerCase().contains(queryLower) ||
+                      t.description.toLowerCase().contains(queryLower) ||
+                      t.requesterName.toLowerCase().contains(queryLower),
+                )
+                .toList();
 
         final visibleCount = _homeTasksDisplayCount.clamp(0, filtered.length);
         final showLoadMore = visibleCount < filtered.length;
@@ -989,7 +1220,8 @@ class _SearchScreenState extends State<SearchScreen> {
           children: [
             _sectionHeader('Errands / Jobs'),
             ...filtered.take(visibleCount).map((task) {
-              final isOwner = currentUserId != null && task.requesterId == currentUserId;
+              final isOwner =
+                  currentUserId != null && task.requesterId == currentUserId;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 16),
                 child: ErrandJobCard(
@@ -1003,13 +1235,16 @@ class _SearchScreenState extends State<SearchScreen> {
                   volunteerName: task.assignedByName,
                   showTag: true,
                   viewButtonLabel: isOwner ? 'Edit' : 'View',
-                  viewButtonIcon: isOwner ? Icons.edit_outlined : Icons.visibility_outlined,
+                  viewButtonIcon:
+                      isOwner ? Icons.edit_outlined : Icons.visibility_outlined,
                   onViewPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => isOwner
-                            ? TaskEditScreen(task: task)
-                            : TaskDetailScreen(task: task),
+                        builder:
+                            (_) =>
+                                isOwner
+                                    ? TaskEditScreen(task: task)
+                                    : TaskDetailScreen(task: task),
                       ),
                     );
                   },
@@ -1033,19 +1268,31 @@ class _SearchScreenState extends State<SearchScreen> {
       stream: ProductsService.getProductsStream(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const SizedBox(height: 100, child: Center(child: CircularProgressIndicator()));
+          return const SizedBox(
+            height: 100,
+            child: Center(child: CircularProgressIndicator()),
+          );
         }
-        
-        final products = snapshot.data ?? [];
-        final feedProducts = currentUserId != null
-            ? products.where((p) => p.sellerId != currentUserId).toList()
-            : products;
-        final filtered = feedProducts.where((p) =>
-          p.title.toLowerCase().contains(queryLower) ||
-          p.description.toLowerCase().contains(queryLower) ||
-          p.sellerName.toLowerCase().contains(queryLower)).toList();
 
-        final visibleCount = _homeProductsDisplayCount.clamp(0, filtered.length);
+        final products = snapshot.data ?? [];
+        final feedProducts =
+            currentUserId != null
+                ? products.where((p) => p.sellerId != currentUserId).toList()
+                : products;
+        final filtered =
+            feedProducts
+                .where(
+                  (p) =>
+                      p.title.toLowerCase().contains(queryLower) ||
+                      p.description.toLowerCase().contains(queryLower) ||
+                      p.sellerName.toLowerCase().contains(queryLower),
+                )
+                .toList();
+
+        final visibleCount = _homeProductsDisplayCount.clamp(
+          0,
+          filtered.length,
+        );
         final showLoadMore = visibleCount < filtered.length;
 
         if (filtered.isEmpty) return const SizedBox.shrink();
@@ -1054,20 +1301,25 @@ class _SearchScreenState extends State<SearchScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _sectionHeader('Marketplace'),
-            ...filtered.take(visibleCount).map((product) => Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: ProductCard(
-                product: product,
-                showTag: true,
-                onInteract: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => ProductDetailScreen(product: product),
+            ...filtered
+                .take(visibleCount)
+                .map(
+                  (product) => Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: ProductCard(
+                      product: product,
+                      showTag: true,
+                      onInteract: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder:
+                                (_) => ProductDetailScreen(product: product),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
-            )),
+                  ),
+                ),
             if (showLoadMore)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
@@ -1144,10 +1396,12 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget _announcementCardFromMap(Map<String, dynamic> a) {
     final id = a['id'] as String? ?? '';
     final title = a['title'] as String? ?? '';
-    final description = a['content'] as String? ?? a['description'] as String? ?? '';
+    final description =
+        a['content'] as String? ?? a['description'] as String? ?? '';
     final postedBy = a['postedBy'] as String? ?? 'Barangay Official';
     final postedByPosition = a['postedByPosition'] as String?;
-    final date = a['date'] as DateTime? ?? a['createdAt'] as DateTime? ?? DateTime.now();
+    final date =
+        a['date'] as DateTime? ?? a['createdAt'] as DateTime? ?? DateTime.now();
     final category = a['category'] as String?;
     final viewCount = a['viewCount'] as int? ?? 0;
     final imageUrlsRaw = a['imageUrls'] as List<dynamic>?;
@@ -1195,13 +1449,14 @@ class _SearchScreenState extends State<SearchScreen> {
         }
 
         final allPosts = snapshot.data ?? [];
-        final filtered = queryLower.isEmpty
-            ? allPosts
-            : allPosts.where((p) {
-                return p.title.toLowerCase().contains(queryLower) ||
-                    p.content.toLowerCase().contains(queryLower) ||
-                    p.userName.toLowerCase().contains(queryLower);
-              }).toList();
+        final filtered =
+            queryLower.isEmpty
+                ? allPosts
+                : allPosts.where((p) {
+                  return p.title.toLowerCase().contains(queryLower) ||
+                      p.content.toLowerCase().contains(queryLower) ||
+                      p.userName.toLowerCase().contains(queryLower);
+                }).toList();
 
         if (filtered.isEmpty) {
           return Center(
@@ -1232,9 +1487,7 @@ class _SearchScreenState extends State<SearchScreen> {
               padding: EdgeInsets.only(
                 bottom: index < filtered.length - 1 ? 12 : 0,
               ),
-              child: PostCard(
-                post: post,
-              ),
+              child: PostCard(post: post),
             );
           },
         );
@@ -1270,16 +1523,18 @@ class _SearchScreenState extends State<SearchScreen> {
         }
 
         final allProducts = snapshot.data ?? [];
-        final feedProducts = currentUserId != null
-            ? allProducts.where((p) => p.sellerId != currentUserId).toList()
-            : allProducts;
-        final filtered = queryLower.isEmpty
-            ? feedProducts
-            : feedProducts.where((p) {
-                return p.title.toLowerCase().contains(queryLower) ||
-                    p.description.toLowerCase().contains(queryLower) ||
-                    p.sellerName.toLowerCase().contains(queryLower);
-              }).toList();
+        final feedProducts =
+            currentUserId != null
+                ? allProducts.where((p) => p.sellerId != currentUserId).toList()
+                : allProducts;
+        final filtered =
+            queryLower.isEmpty
+                ? feedProducts
+                : feedProducts.where((p) {
+                  return p.title.toLowerCase().contains(queryLower) ||
+                      p.description.toLowerCase().contains(queryLower) ||
+                      p.sellerName.toLowerCase().contains(queryLower);
+                }).toList();
 
         if (filtered.isEmpty) {
           return Center(
@@ -1331,9 +1586,7 @@ class _SearchScreenState extends State<SearchScreen> {
               // Load more indicator
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Center(
-                  child: CircularProgressIndicator(),
-                ),
+                child: Center(child: CircularProgressIndicator()),
               );
             }
           },
@@ -1370,17 +1623,22 @@ class _SearchScreenState extends State<SearchScreen> {
         }
 
         final allTasks = snapshot.data ?? [];
-        final nonCompleted = allTasks.where((t) => t.status != TaskStatus.completed).toList();
-        final feedTasks = currentUserId != null
-            ? nonCompleted.where((t) => t.requesterId != currentUserId).toList()
-            : nonCompleted;
-        final filtered = queryLower.isEmpty
-            ? feedTasks
-            : feedTasks.where((t) {
-                return t.title.toLowerCase().contains(queryLower) ||
-                    t.description.toLowerCase().contains(queryLower) ||
-                    t.requesterName.toLowerCase().contains(queryLower);
-              }).toList();
+        final nonCompleted =
+            allTasks.where((t) => t.status != TaskStatus.completed).toList();
+        final feedTasks =
+            currentUserId != null
+                ? nonCompleted
+                    .where((t) => t.requesterId != currentUserId)
+                    .toList()
+                : nonCompleted;
+        final filtered =
+            queryLower.isEmpty
+                ? feedTasks
+                : feedTasks.where((t) {
+                  return t.title.toLowerCase().contains(queryLower) ||
+                      t.description.toLowerCase().contains(queryLower) ||
+                      t.requesterName.toLowerCase().contains(queryLower);
+                }).toList();
 
         if (filtered.isEmpty) {
           return Center(
@@ -1412,7 +1670,8 @@ class _SearchScreenState extends State<SearchScreen> {
           itemBuilder: (context, index) {
             if (index < visibleCount) {
               final task = filtered[index];
-              final isOwner = currentUserId != null && task.requesterId == currentUserId;
+              final isOwner =
+                  currentUserId != null && task.requesterId == currentUserId;
               return Padding(
                 padding: EdgeInsets.only(
                   bottom: index < visibleCount - 1 ? 16 : 0,
@@ -1428,13 +1687,16 @@ class _SearchScreenState extends State<SearchScreen> {
                   volunteerName: task.assignedByName,
                   showTag: true,
                   viewButtonLabel: isOwner ? 'Edit' : 'View',
-                  viewButtonIcon: isOwner ? Icons.edit_outlined : Icons.visibility_outlined,
+                  viewButtonIcon:
+                      isOwner ? Icons.edit_outlined : Icons.visibility_outlined,
                   onViewPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => isOwner
-                            ? TaskEditScreen(task: task)
-                            : TaskDetailScreen(task: task),
+                        builder:
+                            (_) =>
+                                isOwner
+                                    ? TaskEditScreen(task: task)
+                                    : TaskDetailScreen(task: task),
                       ),
                     );
                   },
@@ -1444,9 +1706,7 @@ class _SearchScreenState extends State<SearchScreen> {
               // Load more indicator
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Center(
-                  child: CircularProgressIndicator(),
-                ),
+                child: Center(child: CircularProgressIndicator()),
               );
             }
           },
@@ -1482,14 +1742,22 @@ class _SearchScreenState extends State<SearchScreen> {
         }
 
         final all = snapshot.data ?? [];
-        final filtered = queryLower.isEmpty
-            ? all
-            : all.where((a) {
-                final title = (a['title'] as String? ?? '').toLowerCase();
-                final content = (a['content'] as String? ?? a['description'] as String? ?? '').toLowerCase();
-                final postedBy = (a['postedBy'] as String? ?? '').toLowerCase();
-                return title.contains(queryLower) || content.contains(queryLower) || postedBy.contains(queryLower);
-              }).toList();
+        final filtered =
+            queryLower.isEmpty
+                ? all
+                : all.where((a) {
+                  final title = (a['title'] as String? ?? '').toLowerCase();
+                  final content =
+                      (a['content'] as String? ??
+                              a['description'] as String? ??
+                              '')
+                          .toLowerCase();
+                  final postedBy =
+                      (a['postedBy'] as String? ?? '').toLowerCase();
+                  return title.contains(queryLower) ||
+                      content.contains(queryLower) ||
+                      postedBy.contains(queryLower);
+                }).toList();
 
         if (filtered.isEmpty) {
           return Center(
@@ -1510,7 +1778,10 @@ class _SearchScreenState extends State<SearchScreen> {
           );
         }
 
-        final visibleCount = _announcementsDisplayCount.clamp(0, filtered.length);
+        final visibleCount = _announcementsDisplayCount.clamp(
+          0,
+          filtered.length,
+        );
         final showLoadMore = visibleCount < filtered.length;
 
         return ListView.builder(
@@ -1523,10 +1794,14 @@ class _SearchScreenState extends State<SearchScreen> {
               final a = filtered[index];
               final id = a['id'] as String? ?? '';
               final title = a['title'] as String? ?? '';
-              final description = a['content'] as String? ?? a['description'] as String? ?? '';
+              final description =
+                  a['content'] as String? ?? a['description'] as String? ?? '';
               final postedBy = a['postedBy'] as String? ?? 'Barangay Official';
               final postedByPosition = a['postedByPosition'] as String?;
-              final date = a['date'] as DateTime? ?? a['createdAt'] as DateTime? ?? DateTime.now();
+              final date =
+                  a['date'] as DateTime? ??
+                  a['createdAt'] as DateTime? ??
+                  DateTime.now();
               final category = a['category'] as String?;
               final viewCount = a['viewCount'] as int? ?? 0;
               final imageUrlsRaw = a['imageUrls'] as List<dynamic>?;
@@ -1554,9 +1829,7 @@ class _SearchScreenState extends State<SearchScreen> {
               // Load more indicator
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Center(
-                  child: CircularProgressIndicator(),
-                ),
+                child: Center(child: CircularProgressIndicator()),
               );
             }
           },
@@ -1601,11 +1874,16 @@ class _SearchScreenState extends State<SearchScreen> {
         }
 
         final all = snapshot.data ?? [];
-        final filtered = queryLower.isEmpty
-            ? all
-            : all.where((p) =>
-                p.title.toLowerCase().contains(queryLower) ||
-                p.description.toLowerCase().contains(queryLower)).toList();
+        final filtered =
+            queryLower.isEmpty
+                ? all
+                : all
+                    .where(
+                      (p) =>
+                          p.title.toLowerCase().contains(queryLower) ||
+                          p.description.toLowerCase().contains(queryLower),
+                    )
+                    .toList();
 
         if (filtered.isEmpty) {
           return Center(
@@ -1690,11 +1968,16 @@ class _SearchScreenState extends State<SearchScreen> {
         }
 
         final all = snapshot.data ?? [];
-        final filtered = queryLower.isEmpty
-            ? all
-            : all.where((t) =>
-                t.title.toLowerCase().contains(queryLower) ||
-                t.description.toLowerCase().contains(queryLower)).toList();
+        final filtered =
+            queryLower.isEmpty
+                ? all
+                : all
+                    .where(
+                      (t) =>
+                          t.title.toLowerCase().contains(queryLower) ||
+                          t.description.toLowerCase().contains(queryLower),
+                    )
+                    .toList();
 
         if (filtered.isEmpty) {
           return Center(
@@ -1740,10 +2023,11 @@ class _SearchScreenState extends State<SearchScreen> {
                 onViewPressed: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => TaskEditScreen(
-                        task: task,
-                        contactNumber: task.contactNumber ?? '',
-                      ),
+                      builder:
+                          (_) => TaskEditScreen(
+                            task: task,
+                            contactNumber: task.contactNumber ?? '',
+                          ),
                     ),
                   );
                 },
