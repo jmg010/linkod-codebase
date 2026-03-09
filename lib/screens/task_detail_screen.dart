@@ -658,7 +658,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             children: [
               Expanded(
                 child: Text(
-                  'List of volunteers',
+                  'List of Volunteers',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,

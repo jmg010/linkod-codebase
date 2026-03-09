@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../screens/bulletin_board_screen.dart';
 
 enum NavDestination {
   home,
@@ -55,20 +56,54 @@ class LinkodNavbar extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // LINKod text at top-left - accounting for status bar
+          // LINKod text at top-left and barangay logo placeholder at top-right - accounting for status bar
           Padding(
             padding: EdgeInsets.fromLTRB(20, statusBarHeight + 8, 20, 6),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: const Text(
-                'LINKod',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFF20BF6B),
-                  letterSpacing: 0.8,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'LINKod',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF20BF6B),
+                    letterSpacing: 0.8,
+                  ),
                 ),
-              ),
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const BulletinBoardScreen(),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.grey.shade200,
+                        border: Border.all(
+                          color: Colors.grey.shade300,
+                          width: 1,
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      // Placeholder for future barangay logo image upload
+                      child: Icon(
+                        Icons.image_outlined,
+                        size: 18,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           // Navigation icons row below LINKod

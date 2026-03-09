@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/bulletin_category_model.dart';
+import '../services/barangay_info_service.dart';
+import '../widgets/barangay_info_category_card.dart';
+import 'bulletin_category_screen.dart';
 
 class BulletinBoardScreen extends StatefulWidget {
   const BulletinBoardScreen({super.key});
@@ -37,25 +42,29 @@ class BulletinBoardScreenState extends State<BulletinBoardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+            // Title with white background container (with back button)
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(8, 10, 16, 10),
               child: Row(
                 children: [
                   Expanded(
                     child: Text(
-                      'Bulletin Board',
+                      'Baranggay Informations',
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w700,
                         color: isDark ? Colors.white : Colors.black87,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
               ),
             ),
-            // Content area
+
+            // Categories list from Firestore
             Expanded(
               child: SingleChildScrollView(
                 controller: _scrollController,

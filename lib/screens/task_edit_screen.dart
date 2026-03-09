@@ -792,7 +792,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                   status.displayName,
                   style: TextStyle(
                     fontSize: 14,
-                    color: isDark ? Colors.white : Colors.black87,
+                    color: isDark ? Colors.white : const Color(0xFF4C4C4C),
                   ),
                 ),
               );
@@ -839,7 +839,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
             children: [
               Expanded(
                 child: Text(
-                  'List of volunteers',
+                  'Accepted Volunteers',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,

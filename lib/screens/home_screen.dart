@@ -55,7 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
   late final int _announcementsIndex = 1; // AnnouncementsScreen
   late final int _marketIndex = 2; // MarketplaceScreen
   late final int _tasksIndex = 3; // TasksScreen
-  late final int _bulletinIndex = 4; // CommunityBulletinScreen
+  late final int _bulletinIndex = 4; // BulletinBoardScreen
   late final int _profileIndex = 5; // MenuScreen
 
   @override
@@ -137,14 +137,14 @@ class _HomeScreenState extends State<HomeScreen> {
       case NavDestination.errandJobPost:
         targetIndex = _tasksIndex;
         break;
-      case NavDestination.bulletin:
-        targetIndex = _bulletinIndex;
-        break;
       case NavDestination.announcements:
         targetIndex = _announcementsIndex;
         break;
       case NavDestination.menu:
         targetIndex = _profileIndex;
+        break;
+      case NavDestination.bulletin:
+        targetIndex = _bulletinIndex;
         break;
     }
 

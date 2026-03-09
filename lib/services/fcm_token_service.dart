@@ -249,13 +249,12 @@ class FcmTokenService {
   }
 
   /// Add token to awaitingApproval doc (fcmTokens array) when user is not approved.
-  /// Finds doc by userId; avoids duplicates via arrayUnion.
+  /// Finds doc by uid field; avoids duplicates via arrayUnion.
   Future<void> _saveTokenToAwaitingApproval({required String uid, required String token}) async {
     try {
       final snapshot = await FirebaseFirestore.instance
           .collection('awaitingApproval')
-          .where('userId', isEqualTo: uid)
-          .where('status', isEqualTo: 'pending')
+          .where('uid', isEqualTo: uid)
           .limit(1)
           .get();
 

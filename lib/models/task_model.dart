@@ -15,15 +15,20 @@ class TaskModel {
   final TaskPriority priority;
   final String? contactNumber;
   final int volunteersCount;
+
   /// Number of volunteers currently in "pending" status. Used for errand badge counts.
   final int pendingVolunteersCount;
   final bool isActive;
+
   /// Gatekeeper: Pending (awaiting admin) or Approved (visible on feed).
   final String approvalStatus;
+
   /// Task category for filtering (e.g. General, Labor, Tutoring).
   final String? category;
+
   /// Optional image URLs for the errand post (owner-attached).
   final List<String> imageUrls;
+
   /// Optional location/purok (e.g. "Purok Uno") for Barangay Cagbaoto.
   final String? location;
 
@@ -85,8 +90,10 @@ class TaskModel {
       assignedTo: json['assignedTo'] as String?,
       assignedByName: json['assignedByName'] as String?,
       createdAt: _parseTimestamp(json['createdAt']),
-      updatedAt: json['updatedAt'] != null ? _parseTimestamp(json['updatedAt']) : null,
-      dueDate: json['dueDate'] != null ? _parseTimestamp(json['dueDate']) : null,
+      updatedAt:
+          json['updatedAt'] != null ? _parseTimestamp(json['updatedAt']) : null,
+      dueDate:
+          json['dueDate'] != null ? _parseTimestamp(json['dueDate']) : null,
       status: TaskStatus.values.firstWhere(
         (e) => e.name == json['status'],
         orElse: () => TaskStatus.open,
@@ -153,9 +160,4 @@ enum TaskStatus {
   final String displayName;
 }
 
-enum TaskPriority {
-  low,
-  medium,
-  high,
-  urgent,
-}
+enum TaskPriority { low, medium, high, urgent }
