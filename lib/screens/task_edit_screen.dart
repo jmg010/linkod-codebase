@@ -408,7 +408,10 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.grey.shade100,
+          color:
+              Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFF2C2C2C)
+                  : Colors.grey.shade100,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
@@ -416,10 +419,13 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
             Expanded(
               child: Text(
                 volunteerName,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: Colors.black87,
+                  color:
+                      Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white
+                          : Colors.black87,
                 ),
               ),
             ),
@@ -459,8 +465,10 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F4F4),
+      backgroundColor:
+          isDark ? const Color(0xFF121212) : const Color(0xFFF4F4F4),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
@@ -470,11 +478,14 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
               Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+                    icon: Icon(
+                      Icons.arrow_back_ios_new,
+                      size: 20,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
                     onPressed: () => Navigator.of(context).pop(),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
-                    color: Colors.black87,
                   ),
                   const Spacer(),
                   StreamBuilder<List<Map<String, dynamic>>>(
@@ -493,7 +504,8 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                         clipBehavior: Clip.none,
                         children: [
                           Material(
-                            color: Colors.white,
+                            color:
+                                isDark ? const Color(0xFF2C2C2C) : Colors.white,
                             borderRadius: BorderRadius.circular(14),
                             child: InkWell(
                               onTap: () => _showVolunteersDropdown(context),
@@ -506,25 +518,34 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
-                                    color: Colors.grey.shade300,
+                                    color:
+                                        isDark
+                                            ? Colors.grey.shade700
+                                            : Colors.grey.shade300,
                                   ),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Text(
+                                    Text(
                                       'Volunteers',
                                       style: TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
-                                        color: Color(0xFF4C4C4C),
+                                        color:
+                                            isDark
+                                                ? Colors.white
+                                                : const Color(0xFF4C4C4C),
                                       ),
                                     ),
                                     const SizedBox(width: 6),
                                     Icon(
                                       Icons.keyboard_arrow_down,
                                       size: 20,
-                                      color: Colors.grey.shade600,
+                                      color:
+                                          isDark
+                                              ? Colors.grey.shade400
+                                              : Colors.grey.shade600,
                                     ),
                                   ],
                                 ),
@@ -550,17 +571,22 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                   ),
                   const SizedBox(width: 8),
                   PopupMenuButton<String>(
-                    color: Colors.white,
+                    color: isDark ? const Color(0xFF2C2C2C) : Colors.white,
                     icon: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.grey.shade300),
+                        border: Border.all(
+                          color:
+                              isDark
+                                  ? Colors.grey.shade700
+                                  : Colors.grey.shade300,
+                        ),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.more_vert,
-                        color: Color(0xFF4C4C4C),
+                        color: isDark ? Colors.white : const Color(0xFF4C4C4C),
                         size: 20,
                       ),
                     ),
@@ -579,7 +605,12 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                                 size: 22,
                                 color: Color(0xFF20BF6B),
                               ),
-                              title: const Text('Edit posting'),
+                              title: Text(
+                                'Edit posting',
+                                style: TextStyle(
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                              ),
                               contentPadding: EdgeInsets.zero,
                               visualDensity: VisualDensity.compact,
                             ),
@@ -606,10 +637,10 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
               ),
               const SizedBox(height: 12),
               // Request Details Card
-              _buildRequestDetailsCard(),
+              _buildRequestDetailsCard(isDark),
               const SizedBox(height: 16),
               // List of Volunteers Card (pending + confirmed with Message)
-              _buildVolunteersCard(),
+              _buildVolunteersCard(isDark),
             ],
           ),
         ),
@@ -617,18 +648,19 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
     );
   }
 
-  Widget _buildRequestDetailsCard() {
+  Widget _buildRequestDetailsCard(bool isDark) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
         ],
       ),
       child: Column(
@@ -637,43 +669,46 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
           // Title
           Text(
             _taskTitle,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: Colors.black87,
+              color: isDark ? Colors.white : Colors.black87,
               height: 1.4,
               letterSpacing: 0.1,
             ),
           ),
           const SizedBox(height: 20),
           // Description Section
-          _buildSectionHeader('Description'),
+          _buildSectionHeader('Description', isDark),
           const SizedBox(height: 10),
           Text(
             _taskDescription,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
-              color: Color(0xFF4C4C4C),
+              color: isDark ? Colors.grey.shade300 : const Color(0xFF4C4C4C),
               height: 1.5,
             ),
           ),
           const SizedBox(height: 20),
           // Contact Section
-          _buildSectionHeader('Contact'),
+          _buildSectionHeader('Contact', isDark),
           const SizedBox(height: 10),
           Text(
             _taskContact.isNotEmpty
                 ? _taskContact
                 : (widget.contactNumber ?? '09026095205'),
-            style: const TextStyle(fontSize: 14, color: Color(0xFF4C4C4C)),
+            style: TextStyle(
+              fontSize: 14,
+              color: isDark ? Colors.grey.shade300 : const Color(0xFF4C4C4C),
+            ),
           ),
           const SizedBox(height: 20),
           // Status Section
-          _buildSectionHeader('Status'),
+          _buildSectionHeader('Status', isDark),
           const SizedBox(height: 10),
           Row(
             children: [
-              Expanded(child: _buildStatusDropdown()),
+              Expanded(child: _buildStatusDropdown(isDark)),
               const SizedBox(width: 12),
               ElevatedButton(
                 onPressed: _isUpdatingStatus ? null : _handleSetStatus,
@@ -717,25 +752,28 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
     );
   }
 
-  Widget _buildSectionHeader(String text) {
+  Widget _buildSectionHeader(String text, bool isDark) {
     return Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 14,
         fontWeight: FontWeight.w700,
-        color: Colors.black87,
+        color: isDark ? Colors.white : Colors.black87,
         letterSpacing: 0.2,
       ),
     );
   }
 
-  Widget _buildStatusDropdown() {
+  Widget _buildStatusDropdown(bool isDark) {
     return Container(
       height: 48,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF2C2C2C) : Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade300, width: 1),
+        border: Border.all(
+          color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+          width: 1,
+        ),
       ),
       child: DropdownButtonFormField<TaskStatus>(
         value: _selectedStatus,
@@ -745,13 +783,17 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
         ),
+        dropdownColor: isDark ? const Color(0xFF2C2C2C) : Colors.white,
         items:
             TaskStatus.values.map((status) {
               return DropdownMenuItem<TaskStatus>(
                 value: status,
                 child: Text(
                   status.displayName,
-                  style: const TextStyle(fontSize: 14, color: Colors.black87),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: isDark ? Colors.white : const Color(0xFF4C4C4C),
+                  ),
                 ),
               );
             }).toList(),
@@ -762,11 +804,11 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
             });
           }
         },
-        icon: const Padding(
-          padding: EdgeInsets.only(right: 8),
+        icon: Padding(
+          padding: const EdgeInsets.only(right: 8),
           child: Icon(
             Icons.keyboard_arrow_down,
-            color: Color(0xFF6E6E6E),
+            color: isDark ? Colors.grey.shade400 : const Color(0xFF6E6E6E),
             size: 20,
           ),
         ),
@@ -775,18 +817,19 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
     );
   }
 
-  Widget _buildVolunteersCard() {
+  Widget _buildVolunteersCard(bool isDark) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
         ],
       ),
       child: Column(
@@ -794,13 +837,13 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Accepted Volunteers',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: Colors.black87,
+                    color: isDark ? Colors.white : Colors.black87,
                   ),
                 ),
               ),
@@ -867,7 +910,10 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                         padding: EdgeInsets.only(
                           bottom: index < confirmed.length - 1 ? 12 : 0,
                         ),
-                        child: _buildConfirmedVolunteerItem(entry.value),
+                        child: _buildConfirmedVolunteerItem(
+                          entry.value,
+                          isDark,
+                        ),
                       );
                     }).toList(),
               );
@@ -891,6 +937,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
   }
 
   Widget _buildPendingVolunteerItem(Map<String, dynamic> volunteer) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final volunteerDocId = volunteer['volunteerDocId'] as String;
     final volunteerName = volunteer['volunteerName'] as String? ?? 'Unknown';
     final volunteerId = volunteer['volunteerId'] as String?;
@@ -923,9 +970,9 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
               children: [
                 Text(
                   volunteerName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
-                    color: Colors.black87,
+                    color: isDark ? Colors.white : Colors.black87,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -979,19 +1026,25 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
     );
   }
 
-  Widget _buildConfirmedVolunteerItem(Map<String, dynamic> volunteer) {
+  Widget _buildConfirmedVolunteerItem(
+    Map<String, dynamic> volunteer,
+    bool isDark,
+  ) {
     final volunteerDocId = volunteer['volunteerDocId'] as String? ?? '';
     final volunteerId = volunteer['volunteerId'] as String?;
     final volunteerName = volunteer['volunteerName'] as String? ?? 'Unknown';
-    if (volunteerId == null || volunteerId.isEmpty)
+    if (volunteerId == null || volunteerId.isEmpty) {
       return const SizedBox.shrink();
+    }
     final ownerId = FirestoreService.auth.currentUser?.uid ?? '';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.green.shade50,
+        color: isDark ? const Color(0xFF2A3A2A) : Colors.green.shade50,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.green.shade200),
+        border: Border.all(
+          color: isDark ? Colors.green.shade800 : Colors.green.shade200,
+        ),
       ),
       child: Row(
         children: [
@@ -999,13 +1052,13 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: Colors.green.shade200,
+              color: isDark ? Colors.green.shade900 : Colors.green.shade200,
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.check_circle,
               size: 22,
-              color: Colors.green.shade700,
+              color: isDark ? Colors.green.shade300 : Colors.green.shade700,
             ),
           ),
           const SizedBox(width: 12),
@@ -1015,7 +1068,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: Colors.green.shade800,
+                color: isDark ? Colors.green.shade300 : Colors.green.shade800,
               ),
             ),
           ),
@@ -1051,10 +1104,10 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                     onPressed:
                         () =>
                             _openChatWithVolunteer(volunteerId, volunteerName),
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.message_outlined,
                       size: 22,
-                      color: Color(0xFF4C4C4C),
+                      color: isDark ? Colors.white : const Color(0xFF4C4C4C),
                     ),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(

@@ -24,10 +24,10 @@ class HomeFeedScreen extends StatefulWidget {
   const HomeFeedScreen({super.key, this.onUnreadAnnouncementsChanged});
 
   @override
-  State<HomeFeedScreen> createState() => _HomeFeedScreenState();
+  State<HomeFeedScreen> createState() => HomeFeedScreenState();
 }
 
-class _HomeFeedScreenState extends State<HomeFeedScreen> {
+class HomeFeedScreenState extends State<HomeFeedScreen> {
   Set<String> _readAnnouncementIds = {};
   bool _readAnnouncementIdsLoaded = false;
   bool? _lastReportedHasUnreadAnnouncements;
@@ -66,6 +66,16 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
     super.dispose();
   }
 
+  void scrollToTop() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
   void _onScroll() {
     final maxScroll = _scrollController.position.maxScrollExtent;
     final currentScroll = _scrollController.position.pixels;
@@ -85,7 +95,10 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
     // Save current scroll position before setState
     final currentOffset = _scrollController.offset;
     setState(() {
-      _displayCount = (_displayCount + _loadMorePageSize).clamp(0, _totalFeedLength);
+      _displayCount = (_displayCount + _loadMorePageSize).clamp(
+        0,
+        _totalFeedLength,
+      );
     });
     // Restore scroll position after frame builds
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -101,20 +114,22 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
 
     try {
       // Per schema: users collection uses Firebase Auth UID as document ID
-      final userDoc = await FirestoreService.instance
-          .collection('users')
-          .doc(currentUser.uid)
-          .get();
-      
+      final userDoc =
+          await FirestoreService.instance
+              .collection('users')
+              .doc(currentUser.uid)
+              .get();
+
       if (userDoc.exists) {
         final data = userDoc.data();
         final categoryString = data?['category'] as String? ?? '';
         setState(() {
-          _userCategories = categoryString
-              .split(',')
-              .map((c) => c.trim())
-              .where((c) => c.isNotEmpty)
-              .toList();
+          _userCategories =
+              categoryString
+                  .split(',')
+                  .map((c) => c.trim())
+                  .where((c) => c.isNotEmpty)
+                  .toList();
         });
       }
     } catch (e) {
@@ -127,7 +142,9 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
     if (currentUser == null) return;
 
     try {
-      final readIds = await AnnouncementsService.getReadAnnouncementIds(currentUser.uid);
+      final readIds = await AnnouncementsService.getReadAnnouncementIds(
+        currentUser.uid,
+      );
       if (!mounted) return;
       setState(() {
         _readAnnouncementIds = readIds;
@@ -158,46 +175,52 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: isDark ? const Color(0xFF121212) : Colors.grey.shade100,
       body: Column(
-          children: [
-            // Title and Search icon row with white background
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Home',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black87,
-                    ),
+        children: [
+          // Title and Search icon row with white background
+          Container(
+            color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Home',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : Colors.black87,
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.search, color: Color(0xFF6E6E6E), size: 26),
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const SearchScreen(mode: SearchMode.home),
-                        ),
-                      );
-                    },
+                ),
+                IconButton(
+                  icon: Icon(
+                    Icons.search,
+                    color:
+                        isDark ? Colors.grey.shade400 : const Color(0xFF6E6E6E),
+                    size: 26,
                   ),
-                ],
-              ),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder:
+                            (_) => const SearchScreen(mode: SearchMode.home),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
-            // Mixed feed list - combining posts, tasks, products, and announcements
-            Expanded(
-              child: _buildFeedStream(),
-            ),
-          ],
-        ),
-      );
-    }
+          ),
+          // Mixed feed list - combining posts, tasks, products, and announcements
+          Expanded(child: _buildFeedStream()),
+        ],
+      ),
+    );
+  }
 
   Stream<List<Map<String, dynamic>>>? _feedStream;
 
@@ -236,13 +259,14 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
         final displayItems = sorted;
 
         // Avoid a brief "unread" badge flicker while read IDs are still loading.
-        final bool hasUnreadAnnouncements = _readAnnouncementIdsLoaded
-            ? sorted.any((item) {
-                final type = item['type'] as String?;
-                final isRead = item['isRead'] as bool? ?? false;
-                return type == 'announcement' && !isRead;
-              })
-            : false;
+        final bool hasUnreadAnnouncements =
+            _readAnnouncementIdsLoaded
+                ? sorted.any((item) {
+                  final type = item['type'] as String?;
+                  final isRead = item['isRead'] as bool? ?? false;
+                  return type == 'announcement' && !isRead;
+                })
+                : false;
         if (widget.onUnreadAnnouncementsChanged != null &&
             _lastReportedHasUnreadAnnouncements != hasUnreadAnnouncements) {
           _lastReportedHasUnreadAnnouncements = hasUnreadAnnouncements;
@@ -271,13 +295,31 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
           );
         }
 
-        final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
-        final todayItems = displayItems.where((item) => _isFromToday(item['timestamp'] as DateTime?, today)).toList();
-        final olderItems = displayItems.where((item) => !_isFromToday(item['timestamp'] as DateTime?, today)).toList();
+        final today = DateTime(
+          DateTime.now().year,
+          DateTime.now().month,
+          DateTime.now().day,
+        );
+        final todayItems =
+            displayItems
+                .where(
+                  (item) => _isFromToday(item['timestamp'] as DateTime?, today),
+                )
+                .toList();
+        final olderItems =
+            displayItems
+                .where(
+                  (item) =>
+                      !_isFromToday(item['timestamp'] as DateTime?, today),
+                )
+                .toList();
 
         final visibleCount = _displayCount.clamp(0, displayItems.length);
         final showLoadMore = visibleCount < displayItems.length;
-        final visibleOlderCount = (visibleCount - todayItems.length).clamp(0, olderItems.length);
+        final visibleOlderCount = (visibleCount - todayItems.length).clamp(
+          0,
+          olderItems.length,
+        );
 
         return Stack(
           children: [
@@ -291,16 +333,24 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                 physics: const ClampingScrollPhysics(),
                 itemCount: 2 + visibleOlderCount + (showLoadMore ? 1 : 0),
                 itemBuilder: (context, index) {
+                  final isDark =
+                      Theme.of(context).brightness == Brightness.dark;
                   if (index == 0) {
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFF00A651).withOpacity(0.4), width: 1.5),
+                        border: Border.all(
+                          color: const Color(0xFF00A651).withOpacity(0.4),
+                          width: 1.5,
+                        ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.06),
+                            color:
+                                isDark
+                                    ? Colors.black.withOpacity(0.3)
+                                    : Colors.black.withOpacity(0.06),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -322,15 +372,28 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                             ),
                           ),
                           if (todayItems.isEmpty)
-                            const Padding(
-                              padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
-                              child: Text('No new postings today.', style: TextStyle(fontSize: 14, color: Colors.black54)),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                              child: Text(
+                                'No new postings today.',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: isDark ? Colors.white : Colors.black54,
+                                ),
+                              ),
                             )
                           else
-                            ...todayItems.map((item) => Padding(
-                              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-                              child: _buildFeedItem(item),
-                            )),
+                            ...todayItems.map(
+                              (item) => Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  12,
+                                  0,
+                                  12,
+                                  8,
+                                ),
+                                child: _buildFeedItem(item),
+                              ),
+                            ),
                         ],
                       ),
                     );
@@ -343,7 +406,10 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: Colors.grey.shade700,
+                          color:
+                              isDark
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade700,
                         ),
                       ),
                     );
@@ -369,7 +435,9 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                   final olderIndex = index - 2;
                   final item = olderItems[olderIndex];
                   return Padding(
-                    padding: EdgeInsets.only(bottom: olderIndex < visibleOlderCount - 1 ? 5 : 0),
+                    padding: EdgeInsets.only(
+                      bottom: olderIndex < visibleOlderCount - 1 ? 5 : 0,
+                    ),
                     child: _buildFeedItem(item),
                   );
                 },
@@ -381,34 +449,46 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                 left: 0,
                 right: 0,
                 child: Center(
-                  child: GestureDetector(
-                    onTap: () {
-                      _scrollController.animateTo(
-                        0,
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeOut,
+                  child: Builder(
+                    builder: (context) {
+                      final isDark =
+                          Theme.of(context).brightness == Brightness.dark;
+                      return GestureDetector(
+                        onTap: () {
+                          _scrollController.animateTo(
+                            0,
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeOut,
+                          );
+                        },
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color:
+                                isDark
+                                    ? Colors.white.withOpacity(0.15)
+                                    : Colors.black.withOpacity(0.35),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color:
+                                    isDark
+                                        ? Colors.black.withOpacity(0.5)
+                                        : Colors.black.withOpacity(0.25),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.arrow_upward,
+                            color: Colors.white,
+                            size: 22,
+                          ),
+                        ),
                       );
                     },
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.35),
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.25),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.arrow_upward,
-                        color: Colors.white,
-                        size: 22,
-                      ),
-                    ),
                   ),
                 ),
               ),
@@ -425,103 +505,113 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
   }
 
   Widget _buildFeedItem(Map<String, dynamic> item) {
-              final type = item['type'] as String;
+    final type = item['type'] as String;
 
-              if (type == 'announcement') {
-                final announcementId = item['id'] as String;
-                final isRead = _readAnnouncementIds.contains(announcementId);
-                final viewCount = item['viewCount'] as int? ?? 0;
-                final imageUrlsRaw = item['imageUrls'] as List<dynamic>?;
-                final imageUrls = imageUrlsRaw?.whereType<String>().toList();
-                return AnnouncementCard(
-                  title: item['title'] as String? ?? '',
-                  description: item['content'] as String? ?? item['description'] as String? ?? '',
-                  postedBy: item['postedBy'] as String? ?? 'Barangay Official',
-                  postedByPosition: item['postedByPosition'] as String?,
-                  date: item['date'] as DateTime? ?? item['createdAt'] as DateTime,
-                  category: item['category'] as String?,
-                  unreadCount: viewCount,
-                  isRead: isRead,
-                  showTag: true,
-                  announcementId: announcementId,
-                  imageUrls: imageUrls?.isNotEmpty == true ? imageUrls : null,
-                  onMarkAsReadPressed: () {
-                    _markAnnouncementAsRead(announcementId);
-                  },
-                );
-              } else if (type == 'post') {
-                final post = item['post'] as PostModel;
-                return PostCard(post: post);
-              } else if (type == 'task') {
-                final task = item['task'] as TaskModel;
-                final errandStatus = _mapTaskStatusToErrandStatus(task.status);
-                final currentUserId = FirestoreService.currentUserId;
-                final isOwner = currentUserId != null && currentUserId == task.requesterId;
-                return ErrandJobCard(
-                  title: task.title,
-                  description: task.description,
-                  postedBy: task.requesterName,
-                  date: task.createdAt,
-                  imageUrls: task.imageUrls,
-                  status: errandStatus,
-                  statusLabel: task.status.displayName,
-                  volunteerName: task.assignedByName,
-                  showTag: true,
-                  onViewPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => isOwner
-                            ? TaskEditScreen(
-                                task: task,
-                                contactNumber: task.contactNumber ?? '',
-                              )
-                            : TaskDetailScreen(
-                                task: task,
-                                contactNumber: task.contactNumber,
-                              ),
-                      ),
-                    );
-                  },
-                  onVolunteerPressed: task.status == TaskStatus.open && task.assignedByName == null
-                      ? () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => TaskDetailScreen(
-                                task: task,
-                                contactNumber: task.contactNumber,
-                              ),
-                            ),
-                          );
-                        }
-                      : null,
-                );
-              } else if (type == 'product') {
-                final product = item['product'] as ProductModel;
-                return ProductCard(
-                  product: product,
-                  showTag: true, // Show "For Sale" tag
-                  onInteract: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => ProductDetailScreen(product: product),
-                      ),
-                    );
-                  },
-                );
-              }
-              return const SizedBox.shrink();
+    if (type == 'announcement') {
+      final announcementId = item['id'] as String;
+      final isRead = _readAnnouncementIds.contains(announcementId);
+      final viewCount = item['viewCount'] as int? ?? 0;
+      final imageUrlsRaw = item['imageUrls'] as List<dynamic>?;
+      final imageUrls = imageUrlsRaw?.whereType<String>().toList();
+      return AnnouncementCard(
+        title: item['title'] as String? ?? '',
+        description:
+            item['content'] as String? ?? item['description'] as String? ?? '',
+        postedBy: item['postedBy'] as String? ?? 'Barangay Official',
+        postedByPosition: item['postedByPosition'] as String?,
+        date: item['date'] as DateTime? ?? item['createdAt'] as DateTime,
+        category: item['category'] as String?,
+        unreadCount: viewCount,
+        isRead: isRead,
+        showTag: true,
+        announcementId: announcementId,
+        imageUrls: imageUrls?.isNotEmpty == true ? imageUrls : null,
+        onMarkAsReadPressed: () {
+          _markAnnouncementAsRead(announcementId);
+        },
+      );
+    } else if (type == 'post') {
+      final post = item['post'] as PostModel;
+      return PostCard(post: post);
+    } else if (type == 'task') {
+      final task = item['task'] as TaskModel;
+      final errandStatus = _mapTaskStatusToErrandStatus(task.status);
+      final currentUserId = FirestoreService.currentUserId;
+      final isOwner =
+          currentUserId != null && currentUserId == task.requesterId;
+      return ErrandJobCard(
+        title: task.title,
+        description: task.description,
+        postedBy: task.requesterName,
+        date: task.createdAt,
+        imageUrls: task.imageUrls,
+        status: errandStatus,
+        statusLabel: task.status.displayName,
+        volunteerName: task.assignedByName,
+        showTag: true,
+        onViewPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder:
+                  (_) =>
+                      isOwner
+                          ? TaskEditScreen(
+                            task: task,
+                            contactNumber: task.contactNumber ?? '',
+                          )
+                          : TaskDetailScreen(
+                            task: task,
+                            contactNumber: task.contactNumber,
+                          ),
+            ),
+          );
+        },
+        onVolunteerPressed:
+            task.status == TaskStatus.open && task.assignedByName == null
+                ? () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder:
+                          (_) => TaskDetailScreen(
+                            task: task,
+                            contactNumber: task.contactNumber,
+                          ),
+                    ),
+                  );
+                }
+                : null,
+      );
+    } else if (type == 'product') {
+      final product = item['product'] as ProductModel;
+      return ProductCard(
+        product: product,
+        showTag: true, // Show "For Sale" tag
+        onInteract: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => ProductDetailScreen(product: product),
+            ),
+          );
+        },
+      );
+    }
+    return const SizedBox.shrink();
   }
 
   List<Map<String, dynamic>> _tagReadStatus(List<Map<String, dynamic>> items) {
     return items.map((item) {
       final type = item['type'] as String?;
-      final isRead = type == 'announcement' && _readAnnouncementIds.contains(item['id'] as String?);
+      final isRead =
+          type == 'announcement' &&
+          _readAnnouncementIds.contains(item['id'] as String?);
       return {...item, 'isRead': isRead};
     }).toList();
   }
 
   /// Announcements first (unread announcements then read), then other types by date descending
-  List<Map<String, dynamic>> _sortUnreadFirst(List<Map<String, dynamic>> items) {
+  List<Map<String, dynamic>> _sortUnreadFirst(
+    List<Map<String, dynamic>> items,
+  ) {
     final list = List<Map<String, dynamic>>.from(items);
     list.sort((a, b) {
       final aIsAnn = a['type'] == 'announcement';
@@ -541,13 +631,14 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
 
   Stream<List<Map<String, dynamic>>> _combineFeedStreams() {
     // Create controller only once
-    _feedController ??= StreamController<List<Map<String, dynamic>>>.broadcast();
-    
+    _feedController ??=
+        StreamController<List<Map<String, dynamic>>>.broadcast();
+
     List<Map<String, dynamic>>? lastAnnouncements;
     List<PostModel>? lastPosts;
     List<TaskModel>? lastTasks;
     List<ProductModel>? lastProducts;
-    
+
     // Track which streams have emitted at least once
     bool announcementsReady = false;
     bool postsReady = false;
@@ -576,11 +667,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
       // Add posts (use empty list if not ready yet)
       if (postsReady && lastPosts != null) {
         for (final post in lastPosts!) {
-          feed.add({
-            'type': 'post',
-            'post': post,
-            'timestamp': post.createdAt,
-          });
+          feed.add({'type': 'post', 'post': post, 'timestamp': post.createdAt});
         }
       }
 
@@ -588,11 +675,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
       if (tasksReady && lastTasks != null) {
         for (final task in lastTasks!) {
           if (task.status == TaskStatus.completed) continue;
-          feed.add({
-            'type': 'task',
-            'task': task,
-            'timestamp': task.createdAt,
-          });
+          feed.add({'type': 'task', 'task': task, 'timestamp': task.createdAt});
         }
       }
 
@@ -626,20 +709,22 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
     _productsSubscription?.cancel();
 
     // Listen to all streams with error handling
-    _announcementsSubscription = AnnouncementsService.getAnnouncementsForUserStream(_userCategories)
-        .listen(
-      (announcements) {
-        lastAnnouncements = announcements;
-        announcementsReady = true;
-        emitCombined();
-      },
-      onError: (error) {
-        debugPrint('Error in announcements stream: $error');
-        lastAnnouncements = [];
-        announcementsReady = true;
-        emitCombined();
-      },
-    );
+    _announcementsSubscription =
+        AnnouncementsService.getAnnouncementsForUserStream(
+          _userCategories,
+        ).listen(
+          (announcements) {
+            lastAnnouncements = announcements;
+            announcementsReady = true;
+            emitCombined();
+          },
+          onError: (error) {
+            debugPrint('Error in announcements stream: $error');
+            lastAnnouncements = [];
+            announcementsReady = true;
+            emitCombined();
+          },
+        );
 
     _postsSubscription = PostsService.getPostsStream().listen(
       (posts) {
@@ -709,5 +794,3 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
     }
   }
 }
-
-

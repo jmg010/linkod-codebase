@@ -34,6 +34,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
   final _descriptionController = TextEditingController();
   final _contactController = TextEditingController();
   String? _selectedCategory;
+
   /// Purok 1-5 for location (Barangay Cagbaoto). Default 1.
   int _selectedPurok = 1;
   final List<XFile> _pickedImages = [];
@@ -51,7 +52,8 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
   ];
 
   bool get _isEdit => widget.isEdit && widget.existingTask != null;
-  bool get _hasAnyImages => _existingImageUrls.isNotEmpty || _pickedImages.isNotEmpty;
+  bool get _hasAnyImages =>
+      _existingImageUrls.isNotEmpty || _pickedImages.isNotEmpty;
   int get _totalImageCount => _existingImageUrls.length + _pickedImages.length;
 
   bool _isPosting = false;
@@ -80,10 +82,11 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
     final user = FirestoreService.auth.currentUser;
     if (user == null) return;
     try {
-      final doc = await FirestoreService.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
+      final doc =
+          await FirestoreService.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
       if (!doc.exists || !mounted) return;
       final data = doc.data();
       final phone = data?['phoneNumber'] as String?;
@@ -148,38 +151,43 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
         context: context,
         barrierColor: Colors.black,
         barrierDismissible: true,
-        builder: (ctx) => GestureDetector(
-          onTap: () => Navigator.of(ctx).pop(),
-          behavior: HitTestBehavior.opaque,
-          child: Dialog(
-            backgroundColor: Colors.transparent,
-            insetPadding: EdgeInsets.zero,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                GestureDetector(
-                  onTap: () => Navigator.of(ctx).pop(),
-                  child: InteractiveViewer(
-                    minScale: 0.5,
-                    maxScale: 4,
-                    child: Center(
-                      child: Image.memory(bytes, fit: BoxFit.contain),
+        builder:
+            (ctx) => GestureDetector(
+              onTap: () => Navigator.of(ctx).pop(),
+              behavior: HitTestBehavior.opaque,
+              child: Dialog(
+                backgroundColor: Colors.transparent,
+                insetPadding: EdgeInsets.zero,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    GestureDetector(
+                      onTap: () => Navigator.of(ctx).pop(),
+                      child: InteractiveViewer(
+                        minScale: 0.5,
+                        maxScale: 4,
+                        child: Center(
+                          child: Image.memory(bytes, fit: BoxFit.contain),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                SafeArea(
-                  child: Align(
-                    alignment: Alignment.topLeft,
-                    child: IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white, size: 28),
-                      onPressed: () => Navigator.of(ctx).pop(),
+                    SafeArea(
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: IconButton(
+                          icon: const Icon(
+                            Icons.close,
+                            color: Colors.white,
+                            size: 28,
+                          ),
+                          onPressed: () => Navigator.of(ctx).pop(),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
       );
     });
   }
@@ -220,9 +228,9 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: ${e.toString()}')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
         }
       } finally {
         if (mounted) setState(() => _isPosting = false);
@@ -239,15 +247,16 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
     }
 
     // Get user data from Firestore
-    final userDoc = await FirestoreService.instance
-        .collection('users')
-        .doc(currentUser.uid)
-        .get();
-    
+    final userDoc =
+        await FirestoreService.instance
+            .collection('users')
+            .doc(currentUser.uid)
+            .get();
+
     if (!userDoc.exists) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('User profile not found')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('User profile not found')));
       return;
     }
 
@@ -280,9 +289,10 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
         createdAt: DateTime.now(),
         status: TaskStatus.open,
         priority: TaskPriority.medium,
-        contactNumber: _contactController.text.trim().isNotEmpty
-            ? _contactController.text.trim()
-            : (userData['phoneNumber'] as String?),
+        contactNumber:
+            _contactController.text.trim().isNotEmpty
+                ? _contactController.text.trim()
+                : (userData['phoneNumber'] as String?),
         approvalStatus: initialApprovalStatus, // Set based on auto-approve flag
         category: _selectedCategory,
         imageUrls: imageUrls,
@@ -290,25 +300,27 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
       );
 
       await TasksService.createTask(task);
-      
+
       widget.onTaskCreated?.call(task);
-      
+
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(shouldAutoApprove
-                ? 'Your errand has been posted!'
-                : 'Your errand is pending admin approval.'),
+            content: Text(
+              shouldAutoApprove
+                  ? 'Your errand has been posted!'
+                  : 'Your errand is pending admin approval.',
+            ),
             duration: const Duration(seconds: 2),
           ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
       }
     } finally {
       if (mounted) setState(() => _isPosting = false);
@@ -317,8 +329,11 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F4F4),
+      backgroundColor:
+          isDark ? const Color(0xFF121212) : const Color(0xFFF4F4F4),
       body: SafeArea(
         child: Column(
           children: [
@@ -332,14 +347,15 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                     onPressed: () => Navigator.of(context).pop(),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
+                    color: isDark ? Colors.white : Colors.black87,
                   ),
                   const SizedBox(width: 8),
                   Text(
                     _isEdit ? 'Edit Errand/Job Post' : 'Create Errand/Job Post',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
-                      color: Colors.black87,
+                      color: isDark ? Colors.white : Colors.black87,
                     ),
                   ),
                 ],
@@ -354,20 +370,28 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 2),
-                        ),
+                        if (!isDark)
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
                       ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Title ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                        Text(
+                          'Title ',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
                         const SizedBox(height: 6),
                         _buildInputField(
                           controller: _titleController,
@@ -380,11 +404,25 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                           },
                         ),
                         const SizedBox(height: 16),
-                        const Text('Category ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                        Text(
+                          'Category ',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
                         const SizedBox(height: 6),
                         _buildCategoryDropdown(),
                         const SizedBox(height: 16),
-                        const Text('Description ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                        Text(
+                          'Description ',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
                         const SizedBox(height: 6),
                         _buildInputField(
                           controller: _descriptionController,
@@ -398,16 +436,28 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                           },
                         ),
                         const SizedBox(height: 16),
-                        const Text('Photos (optional) ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                        Text(
+                          'Photos (optional) ',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
                         const SizedBox(height: 6),
                         GestureDetector(
                           onTap: () async {
                             final picker = ImagePicker();
-                            final xFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                            final xFile = await picker.pickImage(
+                              source: ImageSource.gallery,
+                              imageQuality: 85,
+                            );
                             if (xFile != null && mounted) {
                               setState(() => _pickedImages.add(xFile));
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('${_totalImageCount} image(s)')),
+                                SnackBar(
+                                  content: Text('${_totalImageCount} image(s)'),
+                                ),
                               );
                             }
                           },
@@ -415,173 +465,290 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                             height: 190,
                             width: double.infinity,
                             decoration: BoxDecoration(
-                              color: _hasAnyImages ? Colors.grey.shade100 : const Color(0xFFE3E3E3),
+                              color:
+                                  _hasAnyImages
+                                      ? (isDark
+                                          ? const Color(0xFF1E1E1E)
+                                          : Colors.grey.shade100)
+                                      : (isDark
+                                          ? const Color(0xFF2C2C2C)
+                                          : const Color(0xFFE3E3E3)),
                               borderRadius: BorderRadius.circular(14),
                             ),
-                            child: !_hasAnyImages
-                                ? Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      SizedBox(
-                                        width: 70,
-                                        height: 70,
-                                        child: Stack(
-                                          alignment: Alignment.center,
-                                          children: [
-                                            const Icon(Icons.image_outlined,
-                                                size: 46, color: Color(0xFF646464)),
-                                            Positioned(
-                                              right: 4,
-                                              top: 6,
-                                              child: Container(
-                                                width: 20,
-                                                height: 20,
-                                                decoration: BoxDecoration(
-                                                  color: Colors.white,
-                                                  borderRadius: BorderRadius.circular(6),
-                                                  border: Border.all(
-                                                    color: Colors.grey.shade400,
-                                                  ),
-                                                ),
-                                                child: const Icon(
-                                                  Icons.add,
-                                                  size: 14,
-                                                  color: Colors.black87,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(height: 12),
-                                      const Text(
-                                        'Tap to add photos',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: Color(0xFF4C4C4C),
-                                        ),
-                                      ),
-                                    ],
-                                  )
-                                : Padding(
-                                    padding: const EdgeInsets.all(12),
-                                    child: Stack(
-                                      clipBehavior: Clip.none,
+                            child:
+                                !_hasAnyImages
+                                    ? Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
                                         SizedBox(
-                                          height: 166,
-                                          width: double.infinity,
-                                          child: PageView.builder(
-                                            controller: _imagePageController,
-                                            itemCount: _totalImageCount,
-                                            onPageChanged: (i) => setState(() => _imagePageIndex = i),
-                                            itemBuilder: (context, i) {
-                                              final isUrl = i < _existingImageUrls.length;
-                                              return Stack(
-                                                clipBehavior: Clip.none,
-                                                children: [
-                                                  GestureDetector(
-                                                    onTap: () => _openImageFullScreen(i),
-                                                    child: ClipRRect(
-                                                      borderRadius: BorderRadius.circular(8),
-                                                      child: isUrl
-                                                          ? OptimizedNetworkImage(
-                                                              imageUrl: _existingImageUrls[i],
-                                                              width: double.infinity,
-                                                              height: 166,
-                                                              fit: BoxFit.cover,
-                                                              cacheWidth: 400,
-                                                              cacheHeight: 332,
-                                                              borderRadius: BorderRadius.circular(8),
+                                          width: 70,
+                                          height: 70,
+                                          child: Stack(
+                                            alignment: Alignment.center,
+                                            children: [
+                                              Icon(
+                                                Icons.image_outlined,
+                                                size: 46,
+                                                color:
+                                                    isDark
+                                                        ? Colors.grey.shade400
+                                                        : const Color(
+                                                          0xFF646464,
+                                                        ),
+                                              ),
+                                              Positioned(
+                                                right: 4,
+                                                top: 6,
+                                                child: Container(
+                                                  width: 20,
+                                                  height: 20,
+                                                  decoration: BoxDecoration(
+                                                    color:
+                                                        isDark
+                                                            ? const Color(
+                                                              0xFF4C4C4C,
                                                             )
-                                                          : _TaskXFilePageImage(
-                                                              xFile: _pickedImages[i - _existingImageUrls.length],
-                                                            ),
+                                                            : Colors.white,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          6,
+                                                        ),
+                                                    border: Border.all(
+                                                      color:
+                                                          isDark
+                                                              ? Colors
+                                                                  .grey
+                                                                  .shade600
+                                                              : Colors
+                                                                  .grey
+                                                                  .shade400,
                                                     ),
                                                   ),
-                                                  Positioned(
-                                                    top: 4,
-                                                    right: 4,
-                                                    child: Material(
-                                                      color: Colors.black54,
-                                                      shape: const CircleBorder(),
-                                                      child: InkWell(
-                                                        onTap: () => _removeImageAt(i),
-                                                        customBorder: const CircleBorder(),
-                                                        child: const Padding(
-                                                          padding: EdgeInsets.all(6),
-                                                          child: Icon(Icons.close, color: Colors.white, size: 20),
+                                                  child: Icon(
+                                                    Icons.add,
+                                                    size: 14,
+                                                    color:
+                                                        isDark
+                                                            ? Colors.white
+                                                            : Colors.black87,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Text(
+                                          'Tap to add photos',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color:
+                                                isDark
+                                                    ? Colors.grey.shade400
+                                                    : const Color(0xFF4C4C4C),
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                    : Padding(
+                                      padding: const EdgeInsets.all(12),
+                                      child: Stack(
+                                        clipBehavior: Clip.none,
+                                        children: [
+                                          SizedBox(
+                                            height: 166,
+                                            width: double.infinity,
+                                            child: PageView.builder(
+                                              controller: _imagePageController,
+                                              itemCount: _totalImageCount,
+                                              onPageChanged:
+                                                  (i) => setState(
+                                                    () => _imagePageIndex = i,
+                                                  ),
+                                              itemBuilder: (context, i) {
+                                                final isUrl =
+                                                    i <
+                                                    _existingImageUrls.length;
+                                                return Stack(
+                                                  clipBehavior: Clip.none,
+                                                  children: [
+                                                    GestureDetector(
+                                                      onTap:
+                                                          () =>
+                                                              _openImageFullScreen(
+                                                                i,
+                                                              ),
+                                                      child: ClipRRect(
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              8,
+                                                            ),
+                                                        child:
+                                                            isUrl
+                                                                ? OptimizedNetworkImage(
+                                                                  imageUrl:
+                                                                      _existingImageUrls[i],
+                                                                  width:
+                                                                      double
+                                                                          .infinity,
+                                                                  height: 166,
+                                                                  fit:
+                                                                      BoxFit
+                                                                          .cover,
+                                                                  cacheWidth:
+                                                                      400,
+                                                                  cacheHeight:
+                                                                      332,
+                                                                  borderRadius:
+                                                                      BorderRadius.circular(
+                                                                        8,
+                                                                      ),
+                                                                )
+                                                                : _TaskXFilePageImage(
+                                                                  xFile:
+                                                                      _pickedImages[i -
+                                                                          _existingImageUrls
+                                                                              .length],
+                                                                ),
+                                                      ),
+                                                    ),
+                                                    Positioned(
+                                                      top: 4,
+                                                      right: 4,
+                                                      child: Material(
+                                                        color: Colors.black54,
+                                                        shape:
+                                                            const CircleBorder(),
+                                                        child: InkWell(
+                                                          onTap:
+                                                              () =>
+                                                                  _removeImageAt(
+                                                                    i,
+                                                                  ),
+                                                          customBorder:
+                                                              const CircleBorder(),
+                                                          child: const Padding(
+                                                            padding:
+                                                                EdgeInsets.all(
+                                                                  6,
+                                                                ),
+                                                            child: Icon(
+                                                              Icons.close,
+                                                              color:
+                                                                  Colors.white,
+                                                              size: 20,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                          if (_totalImageCount > 1)
+                                            Positioned(
+                                              left: 0,
+                                              right: 0,
+                                              bottom: 8,
+                                              child: Center(
+                                                child: SingleChildScrollView(
+                                                  scrollDirection:
+                                                      Axis.horizontal,
+                                                  child: Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: List.generate(
+                                                      _totalImageCount,
+                                                      (i) => Container(
+                                                        margin:
+                                                            const EdgeInsets.symmetric(
+                                                              horizontal: 3,
+                                                            ),
+                                                        width: 6,
+                                                        height: 6,
+                                                        decoration: BoxDecoration(
+                                                          shape:
+                                                              BoxShape.circle,
+                                                          color:
+                                                              _imagePageIndex ==
+                                                                      i
+                                                                  ? const Color(
+                                                                    0xFF20BF6B,
+                                                                  )
+                                                                  : Colors
+                                                                      .grey
+                                                                      .shade400,
                                                         ),
                                                       ),
                                                     ),
                                                   ),
-                                                ],
-                                              );
-                                            },
-                                          ),
-                                        ),
-                                        if (_totalImageCount > 1)
+                                                ),
+                                              ),
+                                            ),
                                           Positioned(
                                             left: 0,
-                                            right: 0,
-                                            bottom: 8,
-                                            child: Center(
-                                              child: SingleChildScrollView(
-                                                scrollDirection: Axis.horizontal,
-                                                child: Row(
-                                                  mainAxisSize: MainAxisSize.min,
-                                                  children: List.generate(
-                                                    _totalImageCount,
-                                                    (i) => Container(
-                                                      margin: const EdgeInsets.symmetric(horizontal: 3),
-                                                      width: 6,
-                                                      height: 6,
-                                                      decoration: BoxDecoration(
-                                                        shape: BoxShape.circle,
-                                                        color: _imagePageIndex == i
-                                                            ? const Color(0xFF20BF6B)
-                                                            : Colors.grey.shade400,
+                                            bottom: 0,
+                                            child: Material(
+                                              elevation: 2,
+                                              color: const Color(0xFF20BF6B),
+                                              shape: const CircleBorder(),
+                                              child: InkWell(
+                                                onTap: () async {
+                                                  final picker = ImagePicker();
+                                                  final xFile = await picker
+                                                      .pickImage(
+                                                        source:
+                                                            ImageSource.gallery,
+                                                        imageQuality: 85,
+                                                      );
+                                                  if (xFile != null &&
+                                                      mounted) {
+                                                    setState(
+                                                      () => _pickedImages.add(
+                                                        xFile,
                                                       ),
-                                                    ),
+                                                    );
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
+                                                      SnackBar(
+                                                        content: Text(
+                                                          '${_totalImageCount} image(s)',
+                                                        ),
+                                                      ),
+                                                    );
+                                                  }
+                                                },
+                                                customBorder:
+                                                    const CircleBorder(),
+                                                child: const Padding(
+                                                  padding: EdgeInsets.all(12),
+                                                  child: Icon(
+                                                    Icons.add,
+                                                    color: Colors.white,
+                                                    size: 28,
                                                   ),
                                                 ),
                                               ),
                                             ),
                                           ),
-                                        Positioned(
-                                          left: 0,
-                                          bottom: 0,
-                                          child: Material(
-                                            elevation: 2,
-                                            color: const Color(0xFF20BF6B),
-                                            shape: const CircleBorder(),
-                                            child: InkWell(
-                                              onTap: () async {
-                                                final picker = ImagePicker();
-                                                final xFile = await picker.pickImage(
-                                                    source: ImageSource.gallery, imageQuality: 85);
-                                                if (xFile != null && mounted) {
-                                                  setState(() => _pickedImages.add(xFile));
-                                                  ScaffoldMessenger.of(context).showSnackBar(
-                                                    SnackBar(content: Text('${_totalImageCount} image(s)')),
-                                                  );
-                                                }
-                                              },
-                                              customBorder: const CircleBorder(),
-                                              child: const Padding(
-                                                padding: EdgeInsets.all(12),
-                                                child: Icon(Icons.add, color: Colors.white, size: 28),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
-                                  ),
                           ),
                         ),
                         const SizedBox(height: 16),
-                        const Text('Contact Information ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                        Text(
+                          'Contact Information ',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
                         const SizedBox(height: 6),
                         _buildInputField(
                           controller: _contactController,
@@ -595,30 +762,74 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                           },
                         ),
                         const SizedBox(height: 16),
-                        const Text('Location (Purok) ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                        Text(
+                          'Location (Purok) ',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
                         const SizedBox(height: 6),
                         DropdownButtonFormField<String>(
                           value: purokDisplayName(_selectedPurok),
+                          dropdownColor:
+                              isDark ? const Color(0xFF2C2C2C) : Colors.white,
+                          style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black87,
+                            fontSize: 14,
+                          ),
                           decoration: InputDecoration(
                             filled: true,
-                            fillColor: Colors.white,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                            fillColor:
+                                isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 14,
+                            ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14),
-                              borderSide: BorderSide(color: Colors.grey.shade300),
+                              borderSide: BorderSide(
+                                color:
+                                    isDark
+                                        ? Colors.grey.shade700
+                                        : Colors.grey.shade300,
+                              ),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14),
-                              borderSide: BorderSide(color: Colors.grey.shade300),
+                              borderSide: BorderSide(
+                                color:
+                                    isDark
+                                        ? Colors.grey.shade700
+                                        : Colors.grey.shade300,
+                              ),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14),
-                              borderSide: const BorderSide(color: Color(0xFF20BF6B), width: 1.5),
+                              borderSide: const BorderSide(
+                                color: Color(0xFF20BF6B),
+                                width: 1.5,
+                              ),
                             ),
                           ),
-                          items: purokLabels.map((label) => DropdownMenuItem(value: label, child: Text(label))).toList(),
+                          items:
+                              purokLabels
+                                  .map(
+                                    (label) => DropdownMenuItem(
+                                      value: label,
+                                      child: Text(label),
+                                    ),
+                                  )
+                                  .toList(),
                           onChanged: (value) {
-                            if (value != null) setState(() => _selectedPurok = purokFromDisplayName(value));
+                            if (value != null)
+                              setState(
+                                () =>
+                                    _selectedPurok = purokFromDisplayName(
+                                      value,
+                                    ),
+                              );
                           },
                         ),
                         const SizedBox(height: 24),
@@ -635,22 +846,26 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                               ),
                               elevation: 0,
                             ),
-                            child: _isPosting
-                                ? const SizedBox(
-                                    height: 22,
-                                    width: 22,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            child:
+                                _isPosting
+                                    ? const SizedBox(
+                                      height: 22,
+                                      width: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              Colors.white,
+                                            ),
+                                      ),
+                                    )
+                                    : const Text(
+                                      'Post',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
-                                  )
-                                : const Text(
-                                    'Post',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
                           ),
                         ),
                       ],
@@ -672,27 +887,34 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
     TextInputType keyboardType = TextInputType.text,
     String? Function(String?)? validator,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return TextFormField(
       controller: controller,
       maxLines: maxLines,
       keyboardType: keyboardType,
       validator: validator,
+      style: TextStyle(color: isDark ? Colors.white : Colors.black87),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(
-          color: Color(0xFF9E9E9E),
-          fontSize: 14,
-        ),
+        hintStyle: const TextStyle(color: Color(0xFF9E9E9E), fontSize: 14),
         filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        fillColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: BorderSide(
+            color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+          ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: BorderSide(
+            color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
@@ -711,24 +933,31 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
   }
 
   Widget _buildCategoryDropdown() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return DropdownButtonFormField<String>(
       value: _selectedCategory,
+      dropdownColor: isDark ? const Color(0xFF2C2C2C) : Colors.white,
       decoration: InputDecoration(
         hintText: 'Category',
-        hintStyle: const TextStyle(
-          color: Color(0xFF9E9E9E),
-          fontSize: 14,
-        ),
+        hintStyle: const TextStyle(color: Color(0xFF9E9E9E), fontSize: 14),
         filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        fillColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: BorderSide(
+            color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+          ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: BorderSide(
+            color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
@@ -743,18 +972,19 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
           borderSide: BorderSide(color: Colors.red.shade400, width: 1.5),
         ),
       ),
-      items: _categories.map((category) {
-        return DropdownMenuItem<String>(
-          value: category,
-          child: Text(
-            category,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Colors.black87,
-            ),
-          ),
-        );
-      }).toList(),
+      items:
+          _categories.map((category) {
+            return DropdownMenuItem<String>(
+              value: category,
+              child: Text(
+                category,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+            );
+          }).toList(),
       onChanged: (value) {
         setState(() {
           _selectedCategory = value;
@@ -766,10 +996,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
         }
         return null;
       },
-      icon: const Icon(
-        Icons.keyboard_arrow_down,
-        color: Color(0xFF9E9E9E),
-      ),
+      icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF9E9E9E)),
     );
   }
 }
@@ -791,7 +1018,11 @@ class _TaskXFilePageImage extends StatelessWidget {
             child: Container(
               color: Colors.grey.shade300,
               alignment: Alignment.center,
-              child: Icon(Icons.broken_image_outlined, size: 40, color: Colors.grey.shade600),
+              child: Icon(
+                Icons.broken_image_outlined,
+                size: 40,
+                color: Colors.grey.shade600,
+              ),
             ),
           );
         }
@@ -808,4 +1039,3 @@ class _TaskXFilePageImage extends StatelessWidget {
     );
   }
 }
-

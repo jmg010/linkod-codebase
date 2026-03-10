@@ -14,11 +14,13 @@ class DeclinedStatusScreen extends StatelessWidget {
   });
 
   final String adminNote;
+
   /// 'proof_only' = resubmit proof of residence only; 'full' = fill credentials again.
   final String reapplyType;
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final uid = FirebaseAuth.instance.currentUser?.uid;
     final double buttonWidth = MediaQuery.of(context).size.width * 0.7;
     return Scaffold(
@@ -41,26 +43,29 @@ class DeclinedStatusScreen extends StatelessWidget {
             Expanded(
               child: Container(
                 width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.only(
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF121212) : Colors.white,
+                  borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(30),
                     topRight: Radius.circular(30),
                   ),
                 ),
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 32,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Center(
+                      Center(
                         child: Text(
                           'Your application was declined',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                            color: isDark ? Colors.white : Colors.black87,
                           ),
                         ),
                       ),
@@ -69,26 +74,34 @@ class DeclinedStatusScreen extends StatelessWidget {
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
+                          color:
+                              isDark
+                                  ? const Color(0xFF1E1E1E)
+                                  : Colors.grey.shade100,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Reason:',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.black54,
+                                color:
+                                    isDark
+                                        ? Colors.grey.shade400
+                                        : Colors.black54,
                               ),
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              adminNote.isEmpty ? 'No reason provided.' : adminNote,
-                              style: const TextStyle(
+                              adminNote.isEmpty
+                                  ? 'No reason provided.'
+                                  : adminNote,
+                              style: TextStyle(
                                 fontSize: 16,
-                                color: Colors.black87,
+                                color: isDark ? Colors.white : Colors.black87,
                                 height: 1.4,
                               ),
                             ),
@@ -101,9 +114,9 @@ class DeclinedStatusScreen extends StatelessWidget {
                             ? 'You can resubmit a valid proof of residence and re-apply for approval.'
                             : 'You can update your information and proof of residence, then re-apply for approval.',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
-                          color: Colors.black54,
+                          color: isDark ? Colors.grey.shade400 : Colors.black54,
                           height: 1.4,
                         ),
                       ),
@@ -113,18 +126,20 @@ class DeclinedStatusScreen extends StatelessWidget {
                           width: buttonWidth,
                           height: 50,
                           child: ElevatedButton(
-                            onPressed: uid == null
-                                ? null
-                                : () {
-                                    Navigator.of(context).pushReplacement(
-                                      MaterialPageRoute(
-                                        builder: (context) => ReapplyScreen(
-                                          uid: uid,
-                                          reapplyType: reapplyType,
+                            onPressed:
+                                uid == null
+                                    ? null
+                                    : () {
+                                      Navigator.of(context).pushReplacement(
+                                        MaterialPageRoute(
+                                          builder:
+                                              (context) => ReapplyScreen(
+                                                uid: uid,
+                                                reapplyType: reapplyType,
+                                              ),
                                         ),
-                                      ),
-                                    );
-                                  },
+                                      );
+                                    },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF00A651),
                               shape: RoundedRectangleBorder(

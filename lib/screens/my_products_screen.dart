@@ -34,10 +34,12 @@ class _MyProductsScreenState extends State<MyProductsScreen>
   @override
   Widget build(BuildContext context) {
     final currentUserId = FirestoreService.currentUserId;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (currentUserId == null) {
       return Scaffold(
-        backgroundColor: const Color(0xFFF4F4F4),
+        backgroundColor:
+            isDark ? const Color(0xFF121212) : const Color(0xFFF4F4F4),
         body: SafeArea(
           child: Center(
             child: Column(
@@ -45,9 +47,12 @@ class _MyProductsScreenState extends State<MyProductsScreen>
               children: [
                 const Icon(Icons.error_outline, size: 48, color: Colors.red),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'Please log in to view your products',
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey,
+                  ),
                 ),
               ],
             ),
@@ -57,7 +62,8 @@ class _MyProductsScreenState extends State<MyProductsScreen>
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F4F4),
+      backgroundColor:
+          isDark ? const Color(0xFF121212) : const Color(0xFFF4F4F4),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -68,28 +74,41 @@ class _MyProductsScreenState extends State<MyProductsScreen>
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+                    icon: Icon(
+                      Icons.arrow_back_ios_new,
+                      size: 20,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
                     splashRadius: 22,
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                   const SizedBox(width: 4),
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'Product Activity',
                       style: TextStyle(
                         fontSize: 19,
                         fontWeight: FontWeight.w600,
-                        color: Colors.black,
+                        color: isDark ? Colors.white : Colors.black,
                       ),
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.search, color: Color(0xFF5F5F5F)),
+                    icon: Icon(
+                      Icons.search,
+                      color:
+                          isDark
+                              ? Colors.grey.shade400
+                              : const Color(0xFF5F5F5F),
+                    ),
                     splashRadius: 22,
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => const SearchScreen(mode: SearchMode.myProducts),
+                          builder:
+                              (_) => const SearchScreen(
+                                mode: SearchMode.myProducts,
+                              ),
                         ),
                       );
                     },
@@ -128,15 +147,14 @@ class _TabBarWithBadge extends StatelessWidget {
   final TabController tabController;
   final String userId;
 
-  const _TabBarWithBadge({
-    required this.tabController,
-    required this.userId,
-  });
+  const _TabBarWithBadge({required this.tabController, required this.userId});
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<int>(
-      stream: ProductsService.getTotalUnreadProductMessagesForSellerStream(userId),
+      stream: ProductsService.getTotalUnreadProductMessagesForSellerStream(
+        userId,
+      ),
       initialData: 0,
       builder: (context, sellerSnapshot) {
         return StreamBuilder<int>(
@@ -145,10 +163,11 @@ class _TabBarWithBadge extends StatelessWidget {
           builder: (context, interactedSnapshot) {
             final myProductsUnread = sellerSnapshot.data ?? 0;
             final interactedUnread = interactedSnapshot.data ?? 0;
+            final isDark = Theme.of(context).brightness == Brightness.dark;
 
             return Container(
               decoration: BoxDecoration(
-                color: Colors.grey.shade200,
+                color: isDark ? const Color(0xFF1E1E1E) : Colors.grey.shade200,
                 borderRadius: BorderRadius.circular(24),
               ),
               child: AnimatedBuilder(
@@ -161,7 +180,8 @@ class _TabBarWithBadge extends StatelessWidget {
                         child: _TabButton(
                           label: 'MY PRODUCTS',
                           isSelected: tabController.index == 0,
-                          badgeCount: myProductsUnread > 0 ? myProductsUnread : null,
+                          badgeCount:
+                              myProductsUnread > 0 ? myProductsUnread : null,
                           onTap: () => tabController.animateTo(0),
                         ),
                       ),
@@ -170,7 +190,8 @@ class _TabBarWithBadge extends StatelessWidget {
                         child: _TabButton(
                           label: 'INTERACTED POSTS',
                           isSelected: tabController.index == 1,
-                          badgeCount: interactedUnread > 0 ? interactedUnread : null,
+                          badgeCount:
+                              interactedUnread > 0 ? interactedUnread : null,
                           onTap: () => tabController.animateTo(1),
                         ),
                       ),
@@ -202,22 +223,27 @@ class _TabButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
+          color:
+              isSelected
+                  ? (isDark ? const Color(0xFF2C2C2C) : Colors.white)
+                  : Colors.transparent,
           borderRadius: BorderRadius.circular(24),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
+          boxShadow:
+              isSelected
+                  ? [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                  : null,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -228,7 +254,12 @@ class _TabButton extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: isSelected ? const Color(0xFF20BF6B) : Colors.grey.shade600,
+                color:
+                    isSelected
+                        ? const Color(0xFF20BF6B)
+                        : (isDark
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade600),
               ),
             ),
             if (badgeCount != null && badgeCount! > 0) ...[
@@ -239,10 +270,7 @@ class _TabButton extends StatelessWidget {
                   color: Colors.red,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                constraints: const BoxConstraints(
-                  minWidth: 18,
-                  minHeight: 18,
-                ),
+                constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
                 child: Center(
                   child: Text(
                     badgeCount! > 99 ? '99+' : badgeCount.toString(),
@@ -270,6 +298,7 @@ class _MyProductsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return StreamBuilder<List<MapEntry<ProductModel, int>>>(
       stream: ProductsService.getSellerProductsWithUnreadStream(userId),
       builder: (context, snapshot) {
@@ -285,7 +314,10 @@ class _MyProductsTab extends StatelessWidget {
                 const SizedBox(height: 16),
                 Text(
                   'Error: ${snapshot.error}',
-                  style: const TextStyle(fontSize: 16, color: Colors.grey),
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey,
+                  ),
                 ),
               ],
             ),
@@ -293,7 +325,7 @@ class _MyProductsTab extends StatelessWidget {
         }
         final list = snapshot.data ?? [];
         if (list.isEmpty) {
-          return _buildEmptyState();
+          return _buildEmptyState(isDark);
         }
         return ListView.separated(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
@@ -309,9 +341,7 @@ class _MyProductsTab extends StatelessWidget {
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => ProductDetailScreen(
-                      product: product,
-                    ),
+                    builder: (_) => ProductDetailScreen(product: product),
                   ),
                 );
               },
@@ -322,19 +352,22 @@ class _MyProductsTab extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(bool isDark) {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.inventory_2_outlined,
-              size: 60, color: Colors.grey.shade400),
+          Icon(
+            Icons.inventory_2_outlined,
+            size: 60,
+            color: Colors.grey.shade400,
+          ),
           const SizedBox(height: 12),
           Text(
             'No products posted yet',
             style: TextStyle(
               fontSize: 16,
-              color: Colors.grey.shade600,
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
             ),
           ),
         ],
@@ -351,6 +384,7 @@ class _InteractedPostsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return StreamBuilder<List<MapEntry<ProductModel, int>>>(
       stream: ProductsService.getUserInteractedProductsStream(userId),
       builder: (context, snapshot) {
@@ -366,7 +400,10 @@ class _InteractedPostsTab extends StatelessWidget {
                 const SizedBox(height: 16),
                 Text(
                   'Error: ${snapshot.error}',
-                  style: const TextStyle(fontSize: 16, color: Colors.grey),
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey,
+                  ),
                 ),
               ],
             ),
@@ -374,7 +411,7 @@ class _InteractedPostsTab extends StatelessWidget {
         }
         final list = snapshot.data ?? [];
         if (list.isEmpty) {
-          return _buildEmptyState();
+          return _buildEmptyState(isDark);
         }
         return ListView.separated(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
@@ -392,9 +429,7 @@ class _InteractedPostsTab extends StatelessWidget {
                 ProductsService.markProductMessagesAsRead(product.id, userId);
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => ProductDetailScreen(
-                      product: product,
-                    ),
+                    builder: (_) => ProductDetailScreen(product: product),
                   ),
                 );
               },
@@ -405,19 +440,18 @@ class _InteractedPostsTab extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(bool isDark) {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.history_outlined,
-              size: 60, color: Colors.grey.shade400),
+          Icon(Icons.history_outlined, size: 60, color: Colors.grey.shade400),
           const SizedBox(height: 12),
           Text(
             'No interacted products yet',
             style: TextStyle(
               fontSize: 16,
-              color: Colors.grey.shade600,
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
             ),
           ),
           const SizedBox(height: 8),
@@ -425,7 +459,7 @@ class _InteractedPostsTab extends StatelessWidget {
             'Products you message will appear here',
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey.shade500,
+              color: isDark ? Colors.grey.shade500 : Colors.grey.shade500,
             ),
           ),
         ],
@@ -447,16 +481,18 @@ class _MyProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
         ],
       ),
       child: Padding(
@@ -470,7 +506,7 @@ class _MyProductCard extends StatelessWidget {
                 _formatDate(product.createdAt),
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.grey.shade600,
+                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
                 ),
               ),
             ),
@@ -479,20 +515,22 @@ class _MyProductCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
               child: AspectRatio(
                 aspectRatio: 16 / 9,
-                child: product.imageUrls.isNotEmpty
-                    ? OptimizedNetworkImage(
-                        imageUrl: product.imageUrls.first,
-                        fit: BoxFit.cover,
-                        cacheWidth: 400,
-                        cacheHeight: 225,
-                        errorWidget: _placeholder(),
-                        onTap: () => openFullScreenImages(
-                          context,
-                          product.imageUrls,
-                          initialIndex: 0,
-                        ),
-                      )
-                    : _placeholder(),
+                child:
+                    product.imageUrls.isNotEmpty
+                        ? OptimizedNetworkImage(
+                          imageUrl: product.imageUrls.first,
+                          fit: BoxFit.cover,
+                          cacheWidth: 400,
+                          cacheHeight: 225,
+                          errorWidget: _placeholder(),
+                          onTap:
+                              () => openFullScreenImages(
+                                context,
+                                product.imageUrls,
+                                initialIndex: 0,
+                              ),
+                        )
+                        : _placeholder(),
               ),
             ),
             const SizedBox(height: 12),
@@ -502,20 +540,20 @@ class _MyProductCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     product.title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: Colors.black,
+                      color: isDark ? Colors.white : Colors.black,
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Text(
                   '₱${product.price.toStringAsFixed(0)}/${product.priceUnit ?? _unit(product.category)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black,
+                    color: isDark ? Colors.white : Colors.black,
                   ),
                 ),
               ],
@@ -526,21 +564,29 @@ class _MyProductCard extends StatelessWidget {
               child: OutlinedButton(
                 onPressed: onTap,
                 style: OutlinedButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(24),
                   ),
-                  side: const BorderSide(color: Color(0xFFB5B5B5), width: 1),
+                  side: BorderSide(
+                    color:
+                        isDark ? Colors.grey.shade700 : const Color(0xFFB5B5B5),
+                    width: 1,
+                  ),
+                  backgroundColor:
+                      isDark ? const Color(0xFF2C2C2C) : Colors.white,
                 ),
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    const Text(
+                    Text(
                       'View and interact',
                       style: TextStyle(
                         fontSize: 13.5,
-                        color: Color(0xFF3E3E3E),
+                        color: isDark ? Colors.white : const Color(0xFF3E3E3E),
                       ),
                     ),
                     if (unreadCount > 0)
@@ -548,7 +594,10 @@ class _MyProductCard extends StatelessWidget {
                         right: -10,
                         top: -2,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 1,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.red,
                             borderRadius: BorderRadius.circular(8),
@@ -607,7 +656,7 @@ class _MyProductCard extends StatelessWidget {
       'September',
       'October',
       'November',
-      'December'
+      'December',
     ];
     return months[month - 1];
   }
@@ -639,16 +688,18 @@ class _InteractedProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
         ],
       ),
       child: Padding(
@@ -661,9 +712,10 @@ class _InteractedProductCard extends StatelessWidget {
               alignment: Alignment.centerRight,
               child: Text(
                 _formatDate(product.createdAt),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  color: Color(0xFF8A8A8A),
+                  color:
+                      isDark ? Colors.grey.shade400 : const Color(0xFF8A8A8A),
                 ),
               ),
             ),
@@ -673,20 +725,22 @@ class _InteractedProductCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
               child: AspectRatio(
                 aspectRatio: 16 / 9,
-                child: product.imageUrls.isNotEmpty
-                    ? OptimizedNetworkImage(
-                        imageUrl: product.imageUrls.first,
-                        fit: BoxFit.cover,
-                        cacheWidth: 400,
-                        cacheHeight: 225,
-                        errorWidget: _placeholder(),
-                        onTap: () => openFullScreenImages(
-                          context,
-                          product.imageUrls,
-                          initialIndex: 0,
-                        ),
-                      )
-                    : _placeholder(),
+                child:
+                    product.imageUrls.isNotEmpty
+                        ? OptimizedNetworkImage(
+                          imageUrl: product.imageUrls.first,
+                          fit: BoxFit.cover,
+                          cacheWidth: 400,
+                          cacheHeight: 225,
+                          errorWidget: _placeholder(),
+                          onTap:
+                              () => openFullScreenImages(
+                                context,
+                                product.imageUrls,
+                                initialIndex: 0,
+                              ),
+                        )
+                        : _placeholder(),
               ),
             ),
             const SizedBox(height: 12),
@@ -697,10 +751,10 @@ class _InteractedProductCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     product.title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: Colors.black87,
+                      color: isDark ? Colors.white : Colors.black87,
                       height: 1.3,
                     ),
                     maxLines: 2,
@@ -712,10 +766,10 @@ class _InteractedProductCard extends StatelessWidget {
                   product.priceUnit != null && product.priceUnit!.isNotEmpty
                       ? '₱${product.price.toStringAsFixed(0)}/${product.priceUnit}'
                       : '₱${product.price.toStringAsFixed(0)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: Colors.black,
+                    color: isDark ? Colors.white : Colors.black,
                   ),
                 ),
               ],
@@ -724,14 +778,19 @@ class _InteractedProductCard extends StatelessWidget {
             // Posted by
             Row(
               children: [
-                Icon(Icons.person_outline, size: 16, color: Colors.grey.shade600),
+                Icon(
+                  Icons.person_outline,
+                  size: 16,
+                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     'Posted by: ${product.sellerName}',
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.grey.shade700,
+                      color:
+                          isDark ? Colors.grey.shade400 : Colors.grey.shade700,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -746,8 +805,13 @@ class _InteractedProductCard extends StatelessWidget {
               child: OutlinedButton(
                 onPressed: onTap,
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.black87,
-                  side: const BorderSide(color: Color(0xFFD9D9D9)),
+                  foregroundColor: isDark ? Colors.white : Colors.black87,
+                  side: BorderSide(
+                    color:
+                        isDark ? Colors.grey.shade700 : const Color(0xFFD9D9D9),
+                  ),
+                  backgroundColor:
+                      isDark ? const Color(0xFF2C2C2C) : Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30),
                   ),
@@ -756,11 +820,11 @@ class _InteractedProductCard extends StatelessWidget {
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    const Text(
+                    Text(
                       'View and interact',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Color(0xFF3E3E3E),
+                        color: isDark ? Colors.white : const Color(0xFF3E3E3E),
                       ),
                     ),
                     if (unreadCount > 0)
@@ -768,7 +832,10 @@ class _InteractedProductCard extends StatelessWidget {
                         right: -14,
                         top: -4,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 1,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.red,
                             borderRadius: BorderRadius.circular(8),
@@ -821,7 +888,7 @@ class _InteractedProductCard extends StatelessWidget {
       'September',
       'October',
       'November',
-      'December'
+      'December',
     ];
     final String monthName = months[date.month - 1];
     final int hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
@@ -830,4 +897,3 @@ class _InteractedProductCard extends StatelessWidget {
     return '$monthName ${date.day} at $hour:$minutes $period';
   }
 }
-

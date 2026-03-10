@@ -9,13 +9,11 @@ import '../widgets/optimized_image.dart';
 class AnnouncementDetailScreen extends StatefulWidget {
   final String announcementId;
 
-  const AnnouncementDetailScreen({
-    super.key,
-    required this.announcementId,
-  });
+  const AnnouncementDetailScreen({super.key, required this.announcementId});
 
   @override
-  State<AnnouncementDetailScreen> createState() => _AnnouncementDetailScreenState();
+  State<AnnouncementDetailScreen> createState() =>
+      _AnnouncementDetailScreenState();
 }
 
 class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
@@ -31,7 +29,9 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
 
   Future<void> _load() async {
     try {
-      final a = await AnnouncementsService.getAnnouncementById(widget.announcementId);
+      final a = await AnnouncementsService.getAnnouncementById(
+        widget.announcementId,
+      );
       if (!mounted) return;
       setState(() {
         _announcement = a;
@@ -56,16 +56,18 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F4F4),
+      backgroundColor:
+          isDark ? const Color(0xFF121212) : const Color(0xFFF4F4F4),
       body: SafeArea(
-        child: _loading
-            ? const Center(
-                child: CircularProgressIndicator(
-                  color: Color(0xFF00A651),
-                ),
-              )
-            : _error != null
+        child:
+            _loading
+                ? const Center(
+                  child: CircularProgressIndicator(color: Color(0xFF00A651)),
+                )
+                : _error != null
                 ? _buildErrorState()
                 : _buildContent(),
       ),
@@ -73,6 +75,8 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
   }
 
   Widget _buildErrorState() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       child: Column(
@@ -85,7 +89,7 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
               onPressed: () => Navigator.of(context).pop(),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
-              color: Colors.black87,
+              color: isDark ? Colors.white : Colors.black87,
             ),
           ),
           const SizedBox(height: 100),
@@ -94,11 +98,14 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
             width: double.infinity,
             padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
+                  color:
+                      isDark
+                          ? Colors.black.withOpacity(0.3)
+                          : Colors.black.withOpacity(0.06),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -126,7 +133,7 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 16,
-                    color: Colors.grey[600],
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
                     height: 1.5,
                   ),
                 ),
@@ -166,9 +173,12 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
       return const SizedBox.shrink();
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     final title = _announcement!['title'] as String? ?? '';
     final content = _announcement!['content'] as String? ?? '';
-    final postedBy = _announcement!['postedBy'] as String? ?? 'Barangay Official';
+    final postedBy =
+        _announcement!['postedBy'] as String? ?? 'Barangay Official';
     final postedByPosition = _announcement!['postedByPosition'] as String?;
     final category = _announcement!['category'] as String?;
     final createdAt = _announcement!['createdAt'];
@@ -186,7 +196,7 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
             onPressed: () => Navigator.of(context).pop(),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
-            color: Colors.black87,
+            color: isDark ? Colors.white : Colors.black87,
           ),
           const SizedBox(height: 12),
           // Main Announcement Card
@@ -213,15 +223,20 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
     dynamic createdAt,
     List<String>? imageUrls,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color:
+                isDark
+                    ? Colors.black.withOpacity(0.3)
+                    : Colors.black.withOpacity(0.06),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -277,10 +292,10 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
                       postedByPosition != null && postedByPosition.isNotEmpty
                           ? '$postedBy ($postedByPosition)'
                           : postedBy,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        color: Colors.black87,
+                        color: isDark ? Colors.white : Colors.black87,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -288,7 +303,7 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
                       _formatDate(createdAt),
                       style: TextStyle(
                         fontSize: 13,
-                        color: Colors.grey[500],
+                        color: isDark ? Colors.grey[400] : Colors.grey[500],
                       ),
                     ),
                   ],
@@ -297,7 +312,10 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
               // Category badge (if available)
               if (category != null && category.isNotEmpty)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF00A651).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
@@ -317,16 +335,16 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
           // Divider
           Container(
             height: 1,
-            color: Colors.grey.shade200,
+            color: isDark ? Colors.grey.shade700 : Colors.grey.shade200,
           ),
           const SizedBox(height: 20),
           // Title
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w700,
-              color: Colors.black87,
+              color: isDark ? Colors.white : Colors.black87,
               height: 1.4,
               letterSpacing: 0.1,
             ),
@@ -335,9 +353,9 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
           // Content
           Text(
             content,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 15,
-              color: Color(0xFF4C4C4C),
+              color: isDark ? Colors.grey.shade300 : const Color(0xFF4C4C4C),
               height: 1.6,
             ),
           ),
@@ -350,9 +368,13 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color:
+                      isDark ? const Color(0xFF2C2C2C) : Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -361,14 +383,18 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
                     Icon(
                       Icons.campaign_outlined,
                       size: 16,
-                      color: Colors.grey.shade600,
+                      color:
+                          isDark ? Colors.grey.shade400 : Colors.grey.shade600,
                     ),
                     const SizedBox(width: 6),
                     Text(
                       'Official Announcement',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade600,
+                        color:
+                            isDark
+                                ? Colors.grey.shade300
+                                : Colors.grey.shade600,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -417,7 +443,9 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
         itemCount: displayed.length,
         itemBuilder: (context, index) {
           final url = displayed[index];
-          final isLast = index == displayed.length - 1 && imageUrls.length > displayed.length;
+          final isLast =
+              index == displayed.length - 1 &&
+              imageUrls.length > displayed.length;
           return Stack(
             fit: StackFit.expand,
             children: [
@@ -432,7 +460,12 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
                     color: Colors.grey.shade300,
                     child: const Icon(Icons.image_not_supported),
                   ),
-                  onTap: () => openFullScreenImages(context, imageUrls, initialIndex: index),
+                  onTap:
+                      () => openFullScreenImages(
+                        context,
+                        imageUrls,
+                        initialIndex: index,
+                      ),
                 ),
               ),
               if (isLast)
@@ -463,17 +496,27 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
   String _formatDate(dynamic date) {
     if (date == null) return '';
     final d = date is DateTime ? date : FirestoreService.parseTimestamp(date);
-    
+
     // Format: "January 15, 2026 at 10:30 AM"
     final months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
-    
+
     final hour = d.hour > 12 ? d.hour - 12 : (d.hour == 0 ? 12 : d.hour);
     final period = d.hour >= 12 ? 'PM' : 'AM';
     final minute = d.minute.toString().padLeft(2, '0');
-    
+
     return '${months[d.month - 1]} ${d.day}, ${d.year} at $hour:$minute $period';
   }
 }

@@ -71,44 +71,59 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: isDark ? const Color(0xFF121212) : Colors.grey.shade100,
       appBar: AppBar(
-        title: const Text('Post'),
+        title: Text(
+          'Post',
+          style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+        ),
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
+      body:
+          _loading
+              ? const Center(child: CircularProgressIndicator())
+              : _error != null
               ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
-                        const SizedBox(height: 16),
-                        Text(
-                          _error!,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : _post == null
-                  ? const SizedBox.shrink()
-                  : SingleChildScrollView(
-                      child: PostCard(
-                        post: _post!,
-                        openCommentsOnLoad: widget.openCommentsOnLoad,
-                        initialCommentId: widget.initialCommentId,
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        size: 64,
+                        color: isDark ? Colors.grey[600] : Colors.grey[400],
                       ),
-                    ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _error!,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: isDark ? Colors.grey[400] : Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+              : _post == null
+              ? const SizedBox.shrink()
+              : SingleChildScrollView(
+                child: PostCard(
+                  post: _post!,
+                  openCommentsOnLoad: widget.openCommentsOnLoad,
+                  initialCommentId: widget.initialCommentId,
+                ),
+              ),
     );
   }
 }

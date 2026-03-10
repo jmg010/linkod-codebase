@@ -32,7 +32,7 @@ class BulletinCard extends StatelessWidget {
       },
       child: Container(
         decoration: BoxDecoration(
-          color: category?.backgroundColor ?? Colors.grey.shade200,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(

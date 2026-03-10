@@ -36,6 +36,8 @@ class AnnouncementCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Card(
       margin: EdgeInsets.zero,
       elevation: 1.5,
@@ -110,6 +112,14 @@ class AnnouncementCard extends StatelessWidget {
                       : 'From: $postedBy',
                   style: TextStyle(
                     fontSize: 12,
+                    color:
+                        isDark ? Colors.grey.shade400 : const Color(0xFF6E6E6E),
+                  ),
+                ),
+                Text(
+                  _formatDate(date),
+                  style: TextStyle(
+                    fontSize: 12,
                     color: const Color(0xFF6E6E6E),
                   ),
                 ),
@@ -140,19 +150,19 @@ class AnnouncementCard extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
-                color: Colors.black,
+                color: isDark ? Colors.white : Colors.black,
                 height: 1.25,
               ),
             ),
             const SizedBox(height: 6),
             Text(
               description,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13.5,
-                color: Color(0xFF6A6A6A),
+                color: isDark ? Colors.grey.shade300 : const Color(0xFF6A6A6A),
                 height: 1.4,
               ),
               maxLines: 3,
@@ -174,9 +184,10 @@ class AnnouncementCard extends StatelessWidget {
                 const SizedBox(width: 6),
                 Text(
                   '${unreadCount ?? 0} views',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF6E6E6E),
+                    color:
+                        isDark ? Colors.grey.shade400 : const Color(0xFF6E6E6E),
                   ),
                 ),
               ],
@@ -332,10 +343,15 @@ class _ReadButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final Color borderColor =
-        isRead ? const Color(0xFF4CAF50) : const Color(0xFFDADADA);
+        isRead
+            ? const Color(0xFF4CAF50)
+            : (isDark ? Colors.grey.shade700 : const Color(0xFFDADADA));
     final Color textColor =
-        isRead ? const Color(0xFF4CAF50) : const Color(0xFF5F5F5F);
+        isRead
+            ? const Color(0xFF4CAF50)
+            : (isDark ? Colors.grey.shade300 : const Color(0xFF5F5F5F));
     final IconData icon = isRead ? Icons.check : Icons.visibility_outlined;
 
     return OutlinedButton.icon(
@@ -350,7 +366,7 @@ class _ReadButton extends StatelessWidget {
         ),
       ),
       style: OutlinedButton.styleFrom(
-        backgroundColor: Colors.white,
+        backgroundColor: isDark ? const Color(0xFF2C2C2C) : Colors.white,
         side: BorderSide(color: borderColor, width: 1),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
         padding: const EdgeInsets.symmetric(vertical: 12),

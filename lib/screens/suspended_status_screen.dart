@@ -6,15 +6,14 @@ import 'login_screen.dart';
 /// Shown when the user logs in but their account status is "suspended".
 /// Same design as account registration (green top, white card).
 class SuspendedStatusScreen extends StatelessWidget {
-  const SuspendedStatusScreen({
-    super.key,
-    this.adminNote,
-  });
+  const SuspendedStatusScreen({super.key, this.adminNote});
 
   final String? adminNote;
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       backgroundColor: const Color(0xFF00A651),
       body: SafeArea(
@@ -35,37 +34,40 @@ class SuspendedStatusScreen extends StatelessWidget {
             Expanded(
               child: Container(
                 width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.only(
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF121212) : Colors.white,
+                  borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(30),
                     topRight: Radius.circular(30),
                   ),
                 ),
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 32,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Center(
+                      Center(
                         child: Text(
                           'Account suspended',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                            color: isDark ? Colors.white : Colors.black87,
                           ),
                         ),
                       ),
                       const SizedBox(height: 24),
-                      const Center(
+                      Center(
                         child: Text(
                           'Please visit the Barangay Hall to resolve this.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 16,
-                            color: Colors.black87,
+                            color: isDark ? Colors.white : Colors.black87,
                             height: 1.4,
                           ),
                         ),
@@ -76,14 +78,17 @@ class SuspendedStatusScreen extends StatelessWidget {
                           width: double.infinity,
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
+                            color:
+                                isDark
+                                    ? const Color(0xFF1E1E1E)
+                                    : Colors.grey.shade100,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
                             adminNote!,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
-                              color: Colors.black87,
+                              color: isDark ? Colors.white : Colors.black87,
                               height: 1.4,
                             ),
                           ),

@@ -54,20 +54,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
 
     try {
-      final userDoc = await FirestoreService.instance
-          .collection('users')
-          .doc(currentUser.uid)
-          .get();
+      final userDoc =
+          await FirestoreService.instance
+              .collection('users')
+              .doc(currentUser.uid)
+              .get();
 
       if (userDoc.exists) {
         final data = userDoc.data();
         // Parse demography categories from comma-separated string
         final categoryString = data?['category'] as String? ?? '';
-        final categories = categoryString
-            .split(',')
-            .map((c) => c.trim())
-            .where((c) => c.isNotEmpty)
-            .toList();
+        final categories =
+            categoryString
+                .split(',')
+                .map((c) => c.trim())
+                .where((c) => c.isNotEmpty)
+                .toList();
         setState(() {
           _fullName = data?['fullName'] as String? ?? 'User';
           _phoneController.text = data?['phoneNumber'] as String? ?? '';
@@ -144,7 +146,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   void _showImageSourceDialog() {
-    final hasImage = _selectedImage != null ||
+    final hasImage =
+        _selectedImage != null ||
         (_profileImageUrl != null && _profileImageUrl!.isNotEmpty);
     showModalBottomSheet(
       context: context,
@@ -190,38 +193,46 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         context: context,
         barrierColor: Colors.black,
         barrierDismissible: true,
-        builder: (context) => GestureDetector(
-          onTap: () => Navigator.of(context).pop(),
-          behavior: HitTestBehavior.opaque,
-          child: Dialog(
-            backgroundColor: Colors.transparent,
-            insetPadding: EdgeInsets.zero,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                GestureDetector(
-                  onTap: () => Navigator.of(context).pop(),
-                  child: InteractiveViewer(
-                    minScale: 0.5,
-                    maxScale: 4,
-                    child: Center(
-                      child: Image.file(_selectedImage!, fit: BoxFit.contain),
+        builder:
+            (context) => GestureDetector(
+              onTap: () => Navigator.of(context).pop(),
+              behavior: HitTestBehavior.opaque,
+              child: Dialog(
+                backgroundColor: Colors.transparent,
+                insetPadding: EdgeInsets.zero,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    GestureDetector(
+                      onTap: () => Navigator.of(context).pop(),
+                      child: InteractiveViewer(
+                        minScale: 0.5,
+                        maxScale: 4,
+                        child: Center(
+                          child: Image.file(
+                            _selectedImage!,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                SafeArea(
-                  child: Align(
-                    alignment: Alignment.topLeft,
-                    child: IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white, size: 28),
-                      onPressed: () => Navigator.of(context).pop(),
+                    SafeArea(
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: IconButton(
+                          icon: const Icon(
+                            Icons.close,
+                            color: Colors.white,
+                            size: 28,
+                          ),
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
       );
     } else if (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) {
       openFullScreenImage(context, _profileImageUrl!);
@@ -303,22 +314,28 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     if (_isLoading) {
       return Scaffold(
-        backgroundColor: Colors.grey.shade100,
+        backgroundColor:
+            isDark ? const Color(0xFF121212) : Colors.grey.shade100,
         appBar: AppBar(
-          backgroundColor: Colors.white,
+          backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.black87),
+            icon: Icon(
+              Icons.arrow_back,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
             onPressed: () => Navigator.of(context).pop(),
           ),
-          title: const Text(
+          title: Text(
             'Edit Profile',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w700,
-              color: Colors.black87,
+              color: isDark ? Colors.white : Colors.black87,
             ),
           ),
           centerTitle: true,
@@ -328,20 +345,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: isDark ? const Color(0xFF121212) : Colors.grey.shade100,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          icon: Icon(
+            Icons.arrow_back,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text(
+        title: Text(
           'Edit Profile',
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w700,
-            color: Colors.black87,
+            color: isDark ? Colors.white : Colors.black87,
           ),
         ),
         centerTitle: true,
@@ -358,21 +378,29 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   CircleAvatar(
                     radius: 50,
                     backgroundColor: const Color(0xFF20BF6B),
-                    backgroundImage: _selectedImage != null
-                        ? FileImage(_selectedImage!)
-                        : (_profileImageUrl != null && _profileImageUrl!.isNotEmpty
-                            ? NetworkImage(_profileImageUrl!)
-                            : null) as ImageProvider?,
-                    child: _selectedImage == null && (_profileImageUrl == null || _profileImageUrl!.isEmpty)
-                        ? Text(
-                            (_fullName?.isNotEmpty ?? false) ? _fullName![0].toUpperCase() : 'U',
-                            style: const TextStyle(
-                              fontSize: 40,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          )
-                        : null,
+                    backgroundImage:
+                        _selectedImage != null
+                            ? FileImage(_selectedImage!)
+                            : (_profileImageUrl != null &&
+                                        _profileImageUrl!.isNotEmpty
+                                    ? NetworkImage(_profileImageUrl!)
+                                    : null)
+                                as ImageProvider?,
+                    child:
+                        _selectedImage == null &&
+                                (_profileImageUrl == null ||
+                                    _profileImageUrl!.isEmpty)
+                            ? Text(
+                              (_fullName?.isNotEmpty ?? false)
+                                  ? _fullName![0].toUpperCase()
+                                  : 'U',
+                              style: const TextStyle(
+                                fontSize: 40,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            )
+                            : null,
                   ),
                   Positioned(
                     bottom: 0,
@@ -398,59 +426,69 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ),
           const SizedBox(height: 16),
           // User Name Field
-          const Text(
+          Text(
             'Full Name',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: Colors.black87,
+              color: isDark ? Colors.white : Colors.black87,
             ),
           ),
           const SizedBox(height: 8),
           TextField(
             controller: _nameController,
+            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
             decoration: InputDecoration(
               filled: true,
-              fillColor: Colors.grey.shade100,
+              fillColor:
+                  isDark ? const Color(0xFF1E1E1E) : Colors.grey.shade100,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 16,
+              ),
             ),
           ),
           const SizedBox(height: 32),
           // Phone Number Field
-          const Text(
+          Text(
             'Phone Number',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: Colors.black87,
+              color: isDark ? Colors.white : Colors.black87,
             ),
           ),
           const SizedBox(height: 8),
           TextField(
             controller: _phoneController,
             keyboardType: TextInputType.phone,
+            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
             decoration: InputDecoration(
               filled: true,
-              fillColor: Colors.grey.shade100,
+              fillColor:
+                  isDark ? const Color(0xFF1E1E1E) : Colors.grey.shade100,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 16,
+              ),
             ),
           ),
           const SizedBox(height: 24),
           // Purok Field
-          const Text(
+          Text(
             'Purok',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: Colors.black87,
+              color: isDark ? Colors.white : Colors.black87,
             ),
           ),
           const SizedBox(height: 8),
@@ -460,43 +498,63 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 child: TextField(
                   controller: _purokController,
                   readOnly: true,
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
                   decoration: InputDecoration(
                     filled: true,
-                    fillColor: Colors.grey.shade100,
+                    fillColor:
+                        isDark ? const Color(0xFF1E1E1E) : Colors.grey.shade100,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
                     ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
                   ),
                 ),
               ),
               const SizedBox(width: 12),
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color:
+                      isDark ? const Color(0xFF1E1E1E) : Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.keyboard_arrow_up, size: 20),
+                      icon: Icon(
+                        Icons.keyboard_arrow_up,
+                        size: 20,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
                       onPressed: () {
                         if (_selectedPurok < 5) {
                           setState(() {
                             _selectedPurok++;
-                            _purokController.text = purokDisplayName(_selectedPurok);
+                            _purokController.text = purokDisplayName(
+                              _selectedPurok,
+                            );
                           });
                         }
                       },
                     ),
                     IconButton(
-                      icon: const Icon(Icons.keyboard_arrow_down, size: 20),
+                      icon: Icon(
+                        Icons.keyboard_arrow_down,
+                        size: 20,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
                       onPressed: () {
                         if (_selectedPurok > 1) {
                           setState(() {
                             _selectedPurok--;
-                            _purokController.text = purokDisplayName(_selectedPurok);
+                            _purokController.text = purokDisplayName(
+                              _selectedPurok,
+                            );
                           });
                         }
                       },
@@ -508,12 +566,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ),
           const SizedBox(height: 24),
           // Demography Section (Read-only)
-          const Text(
+          Text(
             'Demography',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: Colors.black87,
+              color: isDark ? Colors.white : Colors.black87,
             ),
           ),
           const SizedBox(height: 8),
@@ -521,39 +579,46 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
+              color: isDark ? const Color(0xFF1E1E1E) : Colors.grey.shade100,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: _demographyCategories.isEmpty
-                ? Text(
-                    'No demographics set',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade500,
-                      fontStyle: FontStyle.italic,
+            child:
+                _demographyCategories.isEmpty
+                    ? Text(
+                      'No demographics set',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade500,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    )
+                    : Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children:
+                          _demographyCategories.map((category) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(
+                                  0xFF20BF6B,
+                                ).withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                category,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: Color(0xFF20BF6B),
+                                ),
+                              ),
+                            );
+                          }).toList(),
                     ),
-                  )
-                : Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _demographyCategories.map((category) {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF20BF6B).withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          category,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF20BF6B),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
           ),
           const SizedBox(height: 8),
           Text(
@@ -579,10 +644,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
             child: const Text(
               'Update Profile',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -590,4 +652,3 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 }
-

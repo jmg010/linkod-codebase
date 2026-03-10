@@ -1,0 +1,63 @@
+rules_version = '2';
+// Firebase Storage rules for linkod-db (Pay As You Go).
+// Paths: proof/{path}, profiles/{uid}, posts/{path}, products/{path}
+// - Authenticated users can upload to their own paths; anyone can read (for feed/product images).
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Proof of residence: only the authenticated user can write to proof/{uid}_*
+    match /proof/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.resource.size < 10 * 1024 * 1024  // 10 MB
+        && request.resource.contentType.matches('image/.*');
+    }
+    // Profile images: any authenticated user (mobile or admin) can write their own profile image
+    // Path: profiles/{uid}.jpg - only the user with matching UID can write
+    match /profiles/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && fileName.matches(request.auth.uid + '.jpg')
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+    // Post images: authenticated users upload to posts/{uid}_{timestamp}_{index}
+    match /posts/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+    // Product images: same as posts
+    match /products/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+    // Errand/task images: used by mobile app for errands (tasks)
+    match /task_images/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+    // Announcement images: admin uploads
+    match /announcement_images/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // Barangay information postings: images and PDFs
+    match /barangay_postings/{categoryId}/{postingId}/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.resource.size < 15 * 1024 * 1024  // 15 MB
+        && (
+          request.resource.contentType.matches('image/.*') ||
+          request.resource.contentType.matches('application/pdf')
+        );
+    }
+  }
+}

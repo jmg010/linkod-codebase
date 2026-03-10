@@ -200,8 +200,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F4F4),
+      backgroundColor:
+          isDark ? const Color(0xFF121212) : const Color(0xFFF4F4F4),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
@@ -214,7 +217,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 onPressed: () => Navigator.of(context).pop(),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
-                color: Colors.black87,
+                color: isDark ? Colors.white : Colors.black87,
               ),
               const SizedBox(height: 12),
               // Request Details Card
@@ -230,14 +233,19 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   Widget _buildRequestDetailsCard() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color:
+                isDark
+                    ? Colors.black.withOpacity(0.3)
+                    : Colors.black.withOpacity(0.06),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -253,10 +261,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           // Title
           Text(
             widget.task.title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: Colors.black87,
+              color: isDark ? Colors.white : Colors.black87,
               height: 1.4,
               letterSpacing: 0.1,
             ),
@@ -267,9 +275,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           const SizedBox(height: 10),
           Text(
             widget.task.description,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
-              color: Color(0xFF4C4C4C),
+              color: isDark ? Colors.grey.shade300 : const Color(0xFF4C4C4C),
               height: 1.5,
             ),
           ),
@@ -279,7 +287,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           const SizedBox(height: 10),
           Text(
             widget.contactNumber ?? '09026095205',
-            style: const TextStyle(fontSize: 14, color: Color(0xFF4C4C4C)),
+            style: TextStyle(
+              fontSize: 14,
+              color: isDark ? Colors.grey.shade300 : const Color(0xFF4C4C4C),
+            ),
           ),
           const SizedBox(height: 20),
           // Status Section
@@ -394,6 +405,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         currentUser.uid,
       ),
       builder: (context, statusSnap) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
         final myStatus = statusSnap.data;
         final status = myStatus?['status'] as String?;
         // Default: Volunteer button (only when task open and not volunteered/rejected)
@@ -418,9 +430,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       ),
               label: Text(
                 _isVolunteering ? 'Volunteering...' : 'Volunteer',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
-                  color: Color(0xFF4C4C4C),
+                  color: isDark ? Colors.white : const Color(0xFF4C4C4C),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -433,8 +445,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
-                side: BorderSide(color: Colors.grey.shade300, width: 1),
-                backgroundColor: Colors.white,
+                side: BorderSide(
+                  color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                  width: 1,
+                ),
+                backgroundColor:
+                    isDark ? const Color(0xFF2C2C2C) : Colors.white,
               ),
             ),
           );
@@ -459,9 +475,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       ),
               label: Text(
                 _isCancelling ? 'Cancelling...' : 'Cancel',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
-                  color: Color(0xFF4C4C4C),
+                  color: isDark ? Colors.white : const Color(0xFF4C4C4C),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -474,8 +490,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
-                side: BorderSide(color: Colors.grey.shade300, width: 1),
-                backgroundColor: Colors.white,
+                side: BorderSide(
+                  color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                  width: 1,
+                ),
+                backgroundColor:
+                    isDark ? const Color(0xFF2C2C2C) : Colors.white,
               ),
             ),
           );
@@ -496,10 +516,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   icon: Stack(
                     clipBehavior: Clip.none,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.message_outlined,
                         size: 20,
-                        color: Color(0xFF4C4C4C),
+                        color: isDark ? Colors.white : const Color(0xFF4C4C4C),
                       ),
                       if (unreadCount > 0)
                         Positioned(
@@ -527,11 +547,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         ),
                     ],
                   ),
-                  label: const Text(
+                  label: Text(
                     'Message',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Color(0xFF4C4C4C),
+                      color: isDark ? Colors.white : const Color(0xFF4C4C4C),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -544,8 +564,13 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    side: BorderSide(color: Colors.grey.shade300, width: 1),
-                    backgroundColor: Colors.white,
+                    side: BorderSide(
+                      color:
+                          isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                      width: 1,
+                    ),
+                    backgroundColor:
+                        isDark ? const Color(0xFF2C2C2C) : Colors.white,
                   ),
                 ),
               );
@@ -558,12 +583,13 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   Widget _buildSectionHeader(String text) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 14,
         fontWeight: FontWeight.w700,
-        color: Colors.black87,
+        color: isDark ? Colors.white : Colors.black87,
         letterSpacing: 0.2,
       ),
     );
@@ -607,14 +633,19 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   Widget _buildVolunteersCard() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color:
+                isDark
+                    ? Colors.black.withOpacity(0.3)
+                    : Colors.black.withOpacity(0.06),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -625,13 +656,13 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
                   'List of Volunteers',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: Colors.black87,
+                    color: isDark ? Colors.white : Colors.black87,
                   ),
                 ),
               ),
@@ -647,7 +678,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     _isEditingConfirmedVolunteer
                         ? Icons.close
                         : Icons.edit_outlined,
-                    color: const Color(0xFF4C4C4C),
+                    color: isDark ? Colors.white : const Color(0xFF4C4C4C),
                     size: 20,
                   ),
                   tooltip: _isEditingConfirmedVolunteer ? 'Done' : 'Edit',
@@ -705,6 +736,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   Widget _buildVolunteerItem(Map<String, dynamic> volunteer) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     final volunteerName = volunteer['volunteerName'] as String? ?? 'Unknown';
     final volunteerId = volunteer['volunteerId'] as String?;
     final status = volunteer['status'] as String? ?? 'pending';
@@ -713,11 +746,16 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
         color:
-            status == 'accepted' ? Colors.green.shade50 : Colors.grey.shade100,
+            status == 'accepted'
+                ? (isDark ? const Color(0xFF1B3B24) : Colors.green.shade50)
+                : (isDark ? const Color(0xFF2C2C2C) : Colors.grey.shade100),
         borderRadius: BorderRadius.circular(14),
         border:
             status == 'accepted'
-                ? Border.all(color: Colors.green.shade200)
+                ? Border.all(
+                  color:
+                      isDark ? const Color(0xFF20BF6B) : Colors.green.shade200,
+                )
                 : null,
       ),
       child: Row(
@@ -728,8 +766,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             decoration: BoxDecoration(
               color:
                   status == 'accepted'
-                      ? Colors.green.shade200
-                      : Colors.grey.shade200,
+                      ? (isDark
+                          ? const Color(0xFF20BF6B).withOpacity(0.2)
+                          : Colors.green.shade200)
+                      : (isDark
+                          ? const Color(0xFF4C4C4C)
+                          : Colors.grey.shade200),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -737,8 +779,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               size: 20,
               color:
                   status == 'accepted'
-                      ? Colors.green.shade700
-                      : const Color(0xFF6E6E6E),
+                      ? (isDark
+                          ? const Color(0xFF20BF6B)
+                          : Colors.green.shade700)
+                      : (isDark
+                          ? Colors.grey.shade400
+                          : const Color(0xFF6E6E6E)),
             ),
           ),
           const SizedBox(width: 12),
@@ -750,7 +796,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   volunteerName,
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.black87,
+                    color: isDark ? Colors.white : Colors.black87,
                     fontWeight: FontWeight.w500,
                   ),
                 ),

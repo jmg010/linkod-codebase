@@ -68,10 +68,11 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
     final text = _controller.text.trim();
     if (text.isEmpty || _isSending) return;
 
-    final userDoc = await FirestoreService.instance
-        .collection('users')
-        .doc(widget.currentUserId)
-        .get();
+    final userDoc =
+        await FirestoreService.instance
+            .collection('users')
+            .doc(widget.currentUserId)
+            .get();
     final senderName = userDoc.data()?['fullName'] as String? ?? 'User';
 
     setState(() => _isSending = true);
@@ -86,9 +87,9 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
       TaskChatService.markChatRead(widget.taskId, widget.currentUserId);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
       }
     } finally {
       if (mounted) setState(() => _isSending = false);
@@ -97,25 +98,28 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F4F4),
+      backgroundColor:
+          isDark ? const Color(0xFF121212) : const Color(0xFFF4F4F4),
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, size: 20),
           onPressed: () => Navigator.of(context).pop(),
-          color: Colors.black87,
+          color: isDark ? Colors.white : Colors.black87,
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               widget.otherPartyName,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: Colors.black87,
+                color: isDark ? Colors.white : Colors.black87,
               ),
             ),
             Text(
@@ -163,7 +167,11 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
                 final items = <Object>[];
                 DateTime? lastDate;
                 for (final msg in messages) {
-                  final d = DateTime(msg.createdAt.year, msg.createdAt.month, msg.createdAt.day);
+                  final d = DateTime(
+                    msg.createdAt.year,
+                    msg.createdAt.month,
+                    msg.createdAt.day,
+                  );
                   if (lastDate != d) {
                     items.add(_formatDateHeader(d));
                     lastDate = d;
@@ -189,7 +197,10 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
 
                 return ListView.builder(
                   controller: _scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   itemCount: itemCount,
                   itemBuilder: (context, index) {
                     final item = items[index];
@@ -213,7 +224,8 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 10),
                       child: Align(
-                        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                        alignment:
+                            isMe ? Alignment.centerRight : Alignment.centerLeft,
                         child: Container(
                           constraints: BoxConstraints(
                             maxWidth: MediaQuery.of(context).size.width * 0.78,
@@ -223,13 +235,19 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
                             vertical: 10,
                           ),
                           decoration: BoxDecoration(
-                            color: isMe
-                                ? const Color(0xFF20BF6B)
-                                : Colors.white,
+                            color:
+                                isMe
+                                    ? const Color(0xFF20BF6B)
+                                    : (isDark
+                                        ? const Color(0xFF2C2C2C)
+                                        : Colors.white),
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.06),
+                                color:
+                                    isDark
+                                        ? Colors.black.withOpacity(0.3)
+                                        : Colors.black.withOpacity(0.06),
                                 blurRadius: 6,
                                 offset: const Offset(0, 2),
                               ),
@@ -243,9 +261,12 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
-                                  color: isMe
-                                      ? Colors.white.withOpacity(0.9)
-                                      : const Color(0xFF4C4C4C),
+                                  color:
+                                      isMe
+                                          ? Colors.white.withOpacity(0.9)
+                                          : (isDark
+                                              ? Colors.grey.shade300
+                                              : const Color(0xFF4C4C4C)),
                                 ),
                               ),
                               const SizedBox(height: 4),
@@ -253,9 +274,12 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
                                 msg.text,
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: isMe
-                                      ? Colors.white
-                                      : Colors.black87,
+                                  color:
+                                      isMe
+                                          ? Colors.white
+                                          : (isDark
+                                              ? Colors.white
+                                              : Colors.black87),
                                   height: 1.4,
                                 ),
                               ),
@@ -264,9 +288,10 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
                                 _formatTime(msg.createdAt),
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: isMe
-                                      ? Colors.white.withOpacity(0.85)
-                                      : Colors.grey.shade600,
+                                  color:
+                                      isMe
+                                          ? Colors.white.withOpacity(0.85)
+                                          : Colors.grey.shade600,
                                 ),
                               ),
                             ],
@@ -281,7 +306,7 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
           ),
           Container(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            color: Colors.white,
+            color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
             child: SafeArea(
               child: Row(
                 children: [
@@ -289,17 +314,31 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF4F4F4),
+                        color:
+                            isDark
+                                ? const Color(0xFF2C2C2C)
+                                : const Color(0xFFF4F4F4),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.grey.shade300),
+                        border: Border.all(
+                          color:
+                              isDark
+                                  ? Colors.grey.shade600
+                                  : Colors.grey.shade300,
+                        ),
                       ),
                       child: TextField(
                         controller: _controller,
+                        style: TextStyle(
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
                         decoration: InputDecoration(
                           border: InputBorder.none,
                           hintText: 'Type a message...',
                           hintStyle: TextStyle(
-                            color: Colors.grey.shade600,
+                            color:
+                                isDark
+                                    ? Colors.grey.shade400
+                                    : Colors.grey.shade600,
                             fontSize: 14,
                           ),
                           contentPadding: const EdgeInsets.symmetric(
@@ -319,23 +358,29 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF20BF6B),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 14,
+                      ),
                       minimumSize: const Size(48, 48),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
                       elevation: 0,
                     ),
-                    child: _isSending
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : const Icon(Icons.send_rounded, size: 22),
+                    child:
+                        _isSending
+                            ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            )
+                            : const Icon(Icons.send_rounded, size: 22),
                   ),
                 ],
               ),

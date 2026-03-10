@@ -28,7 +28,7 @@ class StorageService {
   /// Upload image bytes to [storagePath]. Compresses before upload if large.
   Future<String?> uploadImageFromBytes(Uint8List bytes, String storagePath) async {
     try {
-      final compressed = ImageCompression.compressForUpload(bytes);
+      final compressed = await ImageCompression.compressForUpload(bytes);
       final ref = _storage.ref().child(storagePath);
       final metadata = SettableMetadata(contentType: 'image/jpeg');
       await ref.putData(compressed, metadata);

@@ -18,14 +18,16 @@ class ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final String dateText = _formatDate(product.createdAt);
     return Card(
       margin: EdgeInsets.zero,
       elevation: 1.5,
-      shadowColor: Colors.black.withOpacity(0.06),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-      ),
+      shadowColor:
+          isDark
+              ? Colors.black.withOpacity(0.3)
+              : Colors.black.withOpacity(0.06),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
         child: Column(
@@ -38,7 +40,10 @@ class ProductCard extends StatelessWidget {
               children: [
                 if (showTag)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.orange.shade400,
                       borderRadius: BorderRadius.circular(18),
@@ -72,10 +77,10 @@ class ProductCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     product.title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: Colors.black87,
+                      color: isDark ? Colors.white : Colors.black87,
                       height: 1.3,
                     ),
                     maxLines: 2,
@@ -87,10 +92,10 @@ class ProductCard extends StatelessWidget {
                   product.priceUnit != null && product.priceUnit!.isNotEmpty
                       ? '₱${product.price.toStringAsFixed(0)}/${product.priceUnit}'
                       : '₱${product.price.toStringAsFixed(0)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: Colors.black,
+                    color: isDark ? const Color(0xFF00A651) : Colors.black,
                   ),
                 ),
               ],
@@ -98,14 +103,19 @@ class ProductCard extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                Icon(Icons.person_outline, size: 16, color: Colors.grey.shade600),
+                Icon(
+                  Icons.person_outline,
+                  size: 16,
+                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     'Posted by: ${product.sellerName}',
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.grey.shade700,
+                      color:
+                          isDark ? Colors.grey.shade400 : Colors.grey.shade700,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -117,13 +127,17 @@ class ProductCard extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton(
-                onPressed: onInteract ??
+                onPressed:
+                    onInteract ??
                     () {
                       debugPrint('View and interact: ${product.title}');
                     },
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.black87,
-                  side: const BorderSide(color: Color(0xFFD9D9D9)),
+                  foregroundColor: isDark ? Colors.white : Colors.black87,
+                  side: BorderSide(
+                    color:
+                        isDark ? Colors.grey.shade700 : const Color(0xFFD9D9D9),
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30),
                   ),
@@ -143,7 +157,11 @@ class ProductCard extends StatelessWidget {
     return Container(
       color: color.withOpacity(0.08),
       alignment: Alignment.center,
-      child: Icon(Icons.image_outlined, size: 40, color: color.withOpacity(0.7)),
+      child: Icon(
+        Icons.image_outlined,
+        size: 40,
+        color: color.withOpacity(0.7),
+      ),
     );
   }
 
@@ -160,7 +178,7 @@ class ProductCard extends StatelessWidget {
       'September',
       'October',
       'November',
-      'December'
+      'December',
     ];
     final String monthName = months[date.month - 1];
     final int hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
@@ -226,7 +244,11 @@ class _ProductCardImageState extends State<_ProductCardImage> {
           width: double.infinity,
           color: Colors.grey.shade100,
           alignment: Alignment.center,
-          child: Icon(Icons.image_outlined, size: 40, color: Colors.grey.shade400),
+          child: Icon(
+            Icons.image_outlined,
+            size: 40,
+            color: Colors.grey.shade400,
+          ),
         ),
       );
     }
@@ -236,7 +258,10 @@ class _ProductCardImageState extends State<_ProductCardImage> {
         child: Container(
           height: 160,
           width: double.infinity,
-          color: Colors.grey.shade100,
+          color:
+              Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFF2C2C2C)
+                  : Colors.grey.shade100,
           child: OptimizedNetworkImage(
             imageUrl: product.imageUrls.first,
             height: 160,
@@ -244,8 +269,15 @@ class _ProductCardImageState extends State<_ProductCardImage> {
             cacheWidth: 400,
             cacheHeight: 400,
             borderRadius: BorderRadius.circular(14),
-            errorWidget: _errorPlaceholder(),
-            onTap: () => openFullScreenImages(context, product.imageUrls, initialIndex: 0),
+            errorWidget: _errorPlaceholder(
+              Theme.of(context).brightness == Brightness.dark,
+            ),
+            onTap:
+                () => openFullScreenImages(
+                  context,
+                  product.imageUrls,
+                  initialIndex: 0,
+                ),
           ),
         ),
       );
@@ -255,13 +287,21 @@ class _ProductCardImageState extends State<_ProductCardImage> {
       child: Container(
         height: 160,
         width: double.infinity,
-        color: Colors.grey.shade100,
+        color:
+            Theme.of(context).brightness == Brightness.dark
+                ? const Color(0xFF2C2C2C)
+                : Colors.grey.shade100,
         child: PageView.builder(
           controller: _pageController,
           itemCount: product.imageUrls.length,
           itemBuilder: (context, index) {
             return GestureDetector(
-              onTap: () => openFullScreenImages(context, product.imageUrls, initialIndex: index),
+              onTap:
+                  () => openFullScreenImages(
+                    context,
+                    product.imageUrls,
+                    initialIndex: index,
+                  ),
               child: OptimizedNetworkImage(
                 imageUrl: product.imageUrls[index],
                 height: 160,
@@ -278,11 +318,15 @@ class _ProductCardImageState extends State<_ProductCardImage> {
     );
   }
 
-  Widget _errorPlaceholder() {
+  Widget _errorPlaceholder([bool isDark = false]) {
     return Container(
-      color: Colors.grey.shade200,
+      color: isDark ? const Color(0xFF2C2C2C) : Colors.grey.shade200,
       alignment: Alignment.center,
-      child: Icon(Icons.image_not_supported_outlined, size: 40, color: Colors.grey.shade500),
+      child: Icon(
+        Icons.image_not_supported_outlined,
+        size: 40,
+        color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
+      ),
     );
   }
 }
