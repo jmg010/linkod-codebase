@@ -4,7 +4,7 @@ import 'optimized_image.dart';
 
 class AnnouncementCard extends StatelessWidget {
   final String title;
-  final String description; 
+  final String description;
   final String postedBy;
   final String? postedByPosition;
   final DateTime date;
@@ -114,13 +114,6 @@ class AnnouncementCard extends StatelessWidget {
                     fontSize: 12,
                     color:
                         isDark ? Colors.grey.shade400 : const Color(0xFF6E6E6E),
-                  ),
-                ),
-                Text(
-                  _formatDate(date),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: const Color(0xFF6E6E6E),
                   ),
                 ),
               ],
