@@ -4,7 +4,7 @@ import 'optimized_image.dart';
 
 class AnnouncementCard extends StatelessWidget {
   final String title;
-  final String description;
+  final String description; 
   final String postedBy;
   final String? postedByPosition;
   final DateTime date;

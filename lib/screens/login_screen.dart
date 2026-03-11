@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_role.dart';
 import '../services/fcm_token_service.dart';
 import 'create_account_screen.dart';
+import 'phone_only_registration_screen.dart';
 import 'home_screen.dart';
 import 'declined_status_screen.dart';
 import 'suspended_status_screen.dart';
@@ -38,11 +39,13 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _loadLastLoginData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final phone = prefs.getString('last_login_phone') ??
+      final phone =
+          prefs.getString('last_login_phone') ??
           prefs.getString('last_registered_phone');
-      final password = prefs.getString('last_login_password') ??
+      final password =
+          prefs.getString('last_login_password') ??
           prefs.getString('last_registered_password');
-      
+
       if (phone != null && password != null) {
         setState(() {
           phoneController.text = phone;
@@ -87,14 +90,18 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (phone.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter phone number and password.')),
+        const SnackBar(
+          content: Text('Please enter phone number and password.'),
+        ),
       );
       return;
     }
 
     if (password.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password must be at least 6 characters.')),
+        const SnackBar(
+          content: Text('Password must be at least 6 characters.'),
+        ),
       );
       return;
     }
@@ -107,24 +114,31 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final email = _phoneToEmail(phone);
-      final credential = await FirebaseAuth.instance
-          .signInWithEmailAndPassword(email: email, password: password);
+      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
 
       final user = credential.user;
       if (user == null) {
-        throw FirebaseAuthException(code: 'user-null', message: 'User not found.');
+        throw FirebaseAuthException(
+          code: 'user-null',
+          message: 'User not found.',
+        );
       }
 
       // Fetch Firestore user profile by UID (per schema: UID is document ID)
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
 
       UserRole role = UserRole.resident;
       if (doc.exists) {
         final data = doc.data();
-        final accountStatus = (data?['accountStatus'] as String?)?.toLowerCase();
+        final accountStatus =
+            (data?['accountStatus'] as String?)?.toLowerCase();
         final isApproved = data?['isApproved'] as bool? ?? false;
 
         // Persistence & governance: route by accountStatus
@@ -134,10 +148,11 @@ class _LoginScreenState extends State<LoginScreen> {
           final reapplyType = (data?['reapplyType'] as String?) ?? 'full';
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (context) => DeclinedStatusScreen(
-                adminNote: adminNote,
-                reapplyType: reapplyType,
-              ),
+              builder:
+                  (context) => DeclinedStatusScreen(
+                    adminNote: adminNote,
+                    reapplyType: reapplyType,
+                  ),
             ),
           );
           return;
@@ -152,7 +167,8 @@ class _LoginScreenState extends State<LoginScreen> {
           );
           return;
         }
-        if (accountStatus == 'pending' || (!isApproved && accountStatus != 'active')) {
+        if (accountStatus == 'pending' ||
+            (!isApproved && accountStatus != 'active')) {
           await FirebaseAuth.instance.signOut();
           if (!mounted) return;
           _showPendingApprovalDialog(context);
@@ -185,13 +201,13 @@ class _LoginScreenState extends State<LoginScreen> {
       unawaited(_saveLastLoginData(phone: phone, password: password));
 
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => HomeScreen(userRole: role),
-        ),
+        MaterialPageRoute(builder: (context) => HomeScreen(userRole: role)),
       );
     } on FirebaseAuthException catch (e) {
       String? passErr;
-      if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
+      if (e.code == 'user-not-found' ||
+          e.code == 'wrong-password' ||
+          e.code == 'invalid-credential') {
         passErr = 'Wrong Phone Number or Password.';
       } else {
         passErr = 'Failed to sign in. Please try again.';
@@ -216,82 +232,83 @@ class _LoginScreenState extends State<LoginScreen> {
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Yellow punctuation mark icon
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF7B500),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.priority_high,
-                  size: 50,
-                  color: Colors.white,
-                ),
+      builder:
+          (ctx) => Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
               ),
-              const SizedBox(height: 20),
-              // Account Pending heading
-              const Text(
-                'Account Pending Approval',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 12),
-              // Message
-              const Text(
-                'Your account is still not approved. It needs to be reviewed by the admin or kapitan first. '
-                'You will be able to sign in once your account has been approved.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF4C4C4C),
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 24),
-              // Ok button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00A651),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Yellow punctuation mark icon
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF7B500),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.priority_high,
+                      size: 50,
+                      color: Colors.white,
                     ),
                   ),
-                  child: const Text(
-                    'OK',
+                  const SizedBox(height: 20),
+                  // Account Pending heading
+                  const Text(
+                    'Account Pending Approval',
                     style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black87,
                     ),
                   ),
-                ),
+                  const SizedBox(height: 12),
+                  // Message
+                  const Text(
+                    'Your account is still not approved. It needs to be reviewed by the admin or kapitan first. '
+                    'You will be able to sign in once your account has been approved.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF4C4C4C),
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  // Ok button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF00A651),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text(
+                        'OK',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
     );
   }
 
@@ -325,7 +342,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 32,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -333,7 +353,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Text(
                           "Sign in your account",
                           textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -378,7 +401,11 @@ class _LoginScreenState extends State<LoginScreen> {
                             borderSide: const BorderSide(color: Colors.red),
                           ),
                           suffixIcon: IconButton(
-                            icon: Icon(obscurePassword ? Icons.visibility_off : Icons.visibility),
+                            icon: Icon(
+                              obscurePassword
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                            ),
                             onPressed: () {
                               setState(() {
                                 obscurePassword = !obscurePassword;
@@ -400,12 +427,18 @@ class _LoginScreenState extends State<LoginScreen> {
                                 borderRadius: BorderRadius.circular(30),
                               ),
                             ),
-                            child: isLoading
-                                ? const CircularProgressIndicator(color: Colors.white)
-                                : const Text(
-                                    'Sign in',
-                                    style: TextStyle(fontSize: 18, color: Colors.white),
-                                  ),
+                            child:
+                                isLoading
+                                    ? const CircularProgressIndicator(
+                                      color: Colors.white,
+                                    )
+                                    : const Text(
+                                      'Sign in',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        color: Colors.white,
+                                      ),
+                                    ),
                           ),
                         ),
                       ),
@@ -416,11 +449,15 @@ class _LoginScreenState extends State<LoginScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const CreateAccountScreen(),
+                                builder:
+                                    (context) =>
+                                        const PhoneOnlyRegistrationScreen(),
                               ),
                             );
                           },
-                          child: const Text("Don't have an account? Create one"),
+                          child: const Text(
+                            "Don't have an account? Create one",
+                          ),
                         ),
                       ),
                     ],
@@ -452,10 +489,7 @@ class _RequiredLabel extends StatelessWidget {
         children: const [
           TextSpan(
             text: ' *',
-            style: TextStyle(
-              color: Colors.red,
-              fontWeight: FontWeight.w600,
-            ),
+            style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
           ),
         ],
       ),
