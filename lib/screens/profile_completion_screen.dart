@@ -395,73 +395,91 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
       // Show success dialog
       showDialog(
         context: context,
-        barrierDismissible: false,
-        builder:
-            (dialogContext) => AlertDialog(
-              backgroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
+        barrierColor: Colors.black.withOpacity(0.5),
+        builder: (BuildContext context) {
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
               ),
-              title: Row(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.check_circle,
-                    color: const Color(0xFF00A651),
-                    size: 28,
+                  // Green checkmark icon
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF20BF6B),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.check,
+                      size: 50,
+                      color: Colors.white,
+                    ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(height: 20),
+                  // Thank You heading
                   const Text(
-                    'Account Created',
+                    'Thank You!',
                     style: TextStyle(
-                      color: Color(0xFF00A651),
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Message
+                  const Text(
+                    'Your request has been sent. We\'ll notify you once it\'s approved.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF4C4C4C),
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  // Ok button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(context).pop(); // Close dialog
+                        Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            builder: (_) => const LoginScreen(),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF20BF6B),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Ok',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
-              content: const Text(
-                'Your account has been created successfully!\n\n'
-                'Your request is now pending approval from the admin. '
-                'Please check your notifications for updates.\n\n'
-                'You will be able to log in once your account is approved.',
-                style: TextStyle(
-                  fontSize: 16,
-                  height: 1.5,
-                  color: Colors.black87,
-                ),
-              ),
-              actions: [
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.of(dialogContext).pop(); // Close dialog
-                      // Navigate to login screen with replacement
-                      Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(builder: (_) => const LoginScreen()),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00A651),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: const Text(
-                      'Go to Login',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
             ),
+          );
+        },
       );
     } on FirebaseAuthException catch (e) {
       String message = 'Failed to create account. Please try again.';
