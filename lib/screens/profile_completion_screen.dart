@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:linkod_platform/services/otp_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/fcm_token_service.dart';
@@ -339,7 +340,8 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
 
     try {
       final firestore = FirebaseFirestore.instance;
-      final email = '${widget.phoneNumber}@linkod.com';
+      final normalizedPhone = OtpService.normalizePhone(widget.phoneNumber);
+      final email = '$normalizedPhone@linkod.com';
 
       // Create Firebase Auth account
       final authCred = await FirebaseAuth.instance
@@ -374,7 +376,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
       await firestore.collection('awaitingApproval').add({
         'uid': uid,
         'fullName': name,
-        'phoneNumber': widget.phoneNumber,
+        'phoneNumber': OtpService.normalizePhone(widget.phoneNumber),
         'password': password,
         'role': 'user',
         'category': categoryString,
@@ -385,7 +387,10 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
       });
 
       // Save registration data for auto-fill on login screen
-      await _saveRegistrationData(widget.phoneNumber, password);
+      await _saveRegistrationData(
+        OtpService.normalizePhone(widget.phoneNumber),
+        password,
+      );
 
       // Sign out so they see login screen with "pending approval" message
       await FirebaseAuth.instance.signOut();
@@ -393,94 +398,97 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
       if (!mounted) return;
 
       // Show success dialog
-      showDialog(
-        context: context,
-        barrierColor: Colors.black.withOpacity(0.5),
-        builder: (BuildContext context) {
-          return Dialog(
-            backgroundColor: Colors.transparent,
-            insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Green checkmark icon
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF20BF6B),
-                      shape: BoxShape.circle,
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierColor: Colors.black.withOpacity(0.5),
+          barrierDismissible: false,
+          builder: (BuildContext dialogContext) {
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Green checkmark icon
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF20BF6B),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.check,
+                        size: 50,
+                        color: Colors.white,
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.check,
-                      size: 50,
-                      color: Colors.white,
+                    const SizedBox(height: 20),
+                    // Thank You heading
+                    const Text(
+                      'Thank You!',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  // Thank You heading
-                  const Text(
-                    'Thank You!',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black87,
+                    const SizedBox(height: 12),
+                    // Message
+                    const Text(
+                      'Your request has been sent. We\'ll notify you once it\'s approved.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF4C4C4C),
+                        height: 1.4,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  // Message
-                  const Text(
-                    'Your request has been sent. We\'ll notify you once it\'s approved.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF4C4C4C),
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  // Ok button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).pop(); // Close dialog
-                        Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(
-                            builder: (_) => const LoginScreen(),
+                    const SizedBox(height: 24),
+                    // Ok button
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(dialogContext).pop(); // Close dialog
+                          Navigator.of(dialogContext).pushReplacement(
+                            MaterialPageRoute(
+                              builder: (_) => const LoginScreen(),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF20BF6B),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
                           ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF20BF6B),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                          elevation: 0,
                         ),
-                        elevation: 0,
-                      ),
-                      child: const Text(
-                        'Ok',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                        child: const Text(
+                          'Ok',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          );
-        },
-      );
+            );
+          },
+        );
+      }
     } on FirebaseAuthException catch (e) {
       String message = 'Failed to create account. Please try again.';
       if (e.code == 'email-already-in-use') {

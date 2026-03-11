@@ -50,10 +50,11 @@ class _PhoneOnlyRegistrationScreenState
   void _validatePhoneNumber() {
     final phoneNumber = _phoneController.text.trim();
     final fullNumber = '$_selectedCountryCode$phoneNumber';
+    final normalized = OtpService.normalizePhone(fullNumber);
 
     setState(() {
       _isValidPhone =
-          OtpService.isValidPhoneNumber(fullNumber) && phoneNumber.isNotEmpty;
+          OtpService.isValidPhoneNumber(normalized) && phoneNumber.isNotEmpty;
       _error = null;
     });
   }
@@ -65,6 +66,7 @@ class _PhoneOnlyRegistrationScreenState
   Future<void> _continueToOtp() async {
     final phoneNumber = _phoneController.text.trim();
     final fullPhoneNumber = '$_selectedCountryCode$phoneNumber';
+    final normalizedPhone = OtpService.normalizePhone(fullPhoneNumber);
 
     // Get FCM token early
     final fcmToken = await FirebaseMessaging.instance.getToken();
@@ -77,12 +79,12 @@ class _PhoneOnlyRegistrationScreenState
     if (!mounted) return;
 
     // Navigate to processing screen (which will request OTP and show verification)
-    debugPrint('Navigating to processing screen with phone=$fullPhoneNumber');
+    debugPrint('Navigating to processing screen with phone=$normalizedPhone');
     Navigator.of(context).push(
       MaterialPageRoute(
         builder:
             (context) => OtpVerificationProcessingScreen(
-              phoneNumber: fullPhoneNumber,
+              phoneNumber: normalizedPhone,
               fcmToken: fcmToken,
             ),
       ),

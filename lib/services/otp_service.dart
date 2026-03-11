@@ -79,10 +79,13 @@ class OtpService {
     try {
       final functions = FirebaseFunctions.instance;
 
+      // ensure phone is in normalized 0-prefixed format
+      final normalizedPhone = normalizePhone(phoneNumber);
+
       // Call the Cloud Function
       final callable = functions.httpsCallable('requestOtp');
       final result = await callable.call({
-        'phoneNumber': phoneNumber,
+        'phoneNumber': normalizedPhone,
         'fcmToken': fcmToken,
       });
 
@@ -154,14 +157,33 @@ class OtpService {
       return true;
     }
 
-    // Check if it's at least 10 digits and max 15 digits (international standard)
-    if (cleaned.length < 10 || cleaned.length > 15) return false;
+    // Accept numbers starting with 0 as well
+    final withoutPlus =
+        cleaned.startsWith('+') ? cleaned.substring(1) : cleaned;
 
-    // Check if it contains only digits (and optional + prefix)
-    return RegExp(r'^\+?\d+$').hasMatch(cleaned);
+    // Check if it's at least 10 digits and max 15 digits (international standard)
+    if (withoutPlus.length < 10 || withoutPlus.length > 15) return false;
+
+    // Check if it contains only digits
+    return RegExp(r'^\d+$').hasMatch(withoutPlus);
   }
 
   void dispose() {
     _otpReceived.close();
+  }
+
+  /// Normalize Philippine phone numbers to start with 0
+  /// Input may include "+63" prefix or just digits. Removes whitespace.
+  static String normalizePhone(String input) {
+    var cleaned = input.replaceAll(RegExp(r'[\s\-\.\(\)]+'), '');
+    // digits only
+    cleaned = cleaned.replaceAll(RegExp(r'[^0-9+]'), '');
+    if (cleaned.startsWith('+63')) {
+      return '0' + cleaned.substring(3);
+    }
+    if (cleaned.startsWith('63') && cleaned.length == 12) {
+      return '0' + cleaned.substring(2);
+    }
+    return cleaned;
   }
 }
