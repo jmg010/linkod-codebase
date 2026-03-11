@@ -11,6 +11,7 @@ import '../screens/product_detail_screen.dart';
 import '../screens/task_detail_screen.dart';
 import '../screens/task_edit_screen.dart';
 import 'firestore_service.dart';
+import 'otp_service.dart';
 
 /// Handles incoming FCM messages: shows a notification when in foreground and
 /// navigates to announcement detail when user taps (using data payload announcementId).
@@ -46,17 +47,15 @@ class PushNotificationHandler {
       requestBadgePermission: false,
     );
     await _localNotifications.initialize(
-      const InitializationSettings(
-        android: androidInit,
-        iOS: iosInit,
-      ),
+      const InitializationSettings(android: androidInit, iOS: iosInit),
       onDidReceiveNotificationResponse: _onNotificationTap,
     );
 
     if (defaultTargetPlatform == TargetPlatform.android) {
       await _localNotifications
           .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
+            AndroidFlutterLocalNotificationsPlugin
+          >()
           ?.createNotificationChannel(_channel);
     }
 
@@ -80,20 +79,20 @@ class PushNotificationHandler {
     if (payload.startsWith('product_approved:')) {
       final id = payload.substring('product_approved:'.length);
       if (id.isNotEmpty) {
-        PushNotificationHandler.handleNotificationNavigation(
-          _navigatorKey,
-          {'type': 'product_approved', 'productId': id},
-        );
+        PushNotificationHandler.handleNotificationNavigation(_navigatorKey, {
+          'type': 'product_approved',
+          'productId': id,
+        });
       }
       return;
     }
     if (payload.startsWith('task_approved:')) {
       final id = payload.substring('task_approved:'.length);
       if (id.isNotEmpty) {
-        PushNotificationHandler.handleNotificationNavigation(
-          _navigatorKey,
-          {'type': 'task_approved', 'taskId': id},
-        );
+        PushNotificationHandler.handleNotificationNavigation(_navigatorKey, {
+          'type': 'task_approved',
+          'taskId': id,
+        });
       }
       return;
     }
@@ -111,10 +110,11 @@ class PushNotificationHandler {
       final commentIdPart = parts.length >= 2 ? parts[1] : null;
       if (id.isNotEmpty) {
         if (commentIdPart != null && commentIdPart.isNotEmpty) {
-          PushNotificationHandler.handleNotificationNavigation(
-            _navigatorKey,
-            {'type': 'comment', 'postId': id, 'commentId': commentIdPart},
-          );
+          PushNotificationHandler.handleNotificationNavigation(_navigatorKey, {
+            'type': 'comment',
+            'postId': id,
+            'commentId': commentIdPart,
+          });
         } else {
           _pushPostDetail(id);
         }
@@ -127,9 +127,46 @@ class PushNotificationHandler {
 
   void _showForegroundNotification(RemoteMessage message) {
     final type = message.data['type'] as String?;
+
+    // Handle OTP messages (data-only); show the code and disable autofill
+    if (type == 'otp') {
+      final otp = message.data['otp'] as String?;
+      final phoneNumber = message.data['phoneNumber'] as String?;
+
+      if (otp != null &&
+          otp.isNotEmpty &&
+          phoneNumber != null &&
+          phoneNumber.isNotEmpty) {
+        // Do NOT pass OTP to OtpService – user will type it manually
+
+        // Show a notification with the actual 6‑digit code
+        _localNotifications.show(
+          'otp'.hashCode % 0x7FFFFFFF,
+          'Your LINKod verification code',
+          otp,
+          NotificationDetails(
+            android: AndroidNotificationDetails(
+              _channel.id,
+              _channel.name,
+              channelDescription: _channel.description,
+              importance: Importance.high,
+              priority: Priority.high,
+            ),
+            iOS: const DarwinNotificationDetails(
+              presentSound: true,
+              presentBadge: false,
+            ),
+          ),
+          payload: 'otp:$phoneNumber',
+        );
+      }
+      return;
+    }
+
     if (type == 'account_approved') {
       final title = message.notification?.title ?? 'Account Approved';
-      final body = message.notification?.body ??
+      final body =
+          message.notification?.body ??
           'Your account has been approved. You can now sign in.';
       _localNotifications.show(
         message.hashCode % 0x7FFFFFFF,
@@ -156,8 +193,7 @@ class PushNotificationHandler {
       _localNotifications.show(
         message.hashCode % 0x7FFFFFFF,
         message.notification?.title ?? 'Listing approved',
-        message.notification?.body ??
-            'Your marketplace listing was approved.',
+        message.notification?.body ?? 'Your marketplace listing was approved.',
         NotificationDetails(
           android: AndroidNotificationDetails(
             _channel.id,
@@ -199,17 +235,20 @@ class PushNotificationHandler {
       contentType = 'announcement';
     } else if (postId != null && postId.isNotEmpty) {
       // Include commentId when present so tap opens post with comments
-      payload = (commentId != null && commentId.isNotEmpty)
-          ? 'post:$postId:$commentId'
-          : 'post:$postId';
+      payload =
+          (commentId != null && commentId.isNotEmpty)
+              ? 'post:$postId:$commentId'
+              : 'post:$postId';
       contentType = 'post';
     }
 
     if (payload == null || payload.isEmpty) return;
 
-    final title = message.notification?.title ??
+    final title =
+        message.notification?.title ??
         (contentType == 'announcement' ? 'Announcement' : 'Post');
-    final body = message.notification?.body ??
+    final body =
+        message.notification?.body ??
         (contentType == 'announcement' ? 'New announcement' : 'New post');
 
     _localNotifications.show(
@@ -229,6 +268,13 @@ class PushNotificationHandler {
   }
 
   void _navigateFromMessage(RemoteMessage message) {
+    // Handle OTP tap: no autofill, just return so user can type it manually.
+    if (message.data['type'] == 'otp') {
+      // nothing to do here; the visible notification already shows the code
+      // and the verification screen will expect manual entry.
+      return;
+    }
+
     if (message.data['type'] == 'account_approved') {
       _navigateToLoginClearStack();
       return;
@@ -272,7 +318,8 @@ class PushNotificationHandler {
     if (context == null) return;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => AnnouncementDetailScreen(announcementId: announcementId),
+        builder:
+            (_) => AnnouncementDetailScreen(announcementId: announcementId),
       ),
     );
   }
@@ -281,9 +328,7 @@ class PushNotificationHandler {
     final context = _navigatorKey.currentContext;
     if (context == null) return;
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => PostDetailScreen(postId: postId),
-      ),
+      MaterialPageRoute<void>(builder: (_) => PostDetailScreen(postId: postId)),
     );
   }
 
@@ -307,11 +352,12 @@ class PushNotificationHandler {
       if (postId != null && postId.isNotEmpty) {
         Navigator.of(context).push(
           MaterialPageRoute<void>(
-            builder: (_) => PostDetailScreen(
-              postId: postId,
-              openCommentsOnLoad: type == 'comment' || type == 'reply',
-              initialCommentId: commentId,
-            ),
+            builder:
+                (_) => PostDetailScreen(
+                  postId: postId,
+                  openCommentsOnLoad: type == 'comment' || type == 'reply',
+                  initialCommentId: commentId,
+                ),
           ),
         );
       }
@@ -321,7 +367,10 @@ class PushNotificationHandler {
     if (taskId != null && taskId.isNotEmpty) {
       try {
         final snap =
-            await FirestoreService.instance.collection('tasks').doc(taskId).get();
+            await FirestoreService.instance
+                .collection('tasks')
+                .doc(taskId)
+                .get();
         if (snap.exists) {
           final task = TaskModel.fromFirestore(snap);
           final currentUid = FirestoreService.auth.currentUser?.uid;
@@ -351,19 +400,21 @@ class PushNotificationHandler {
 
     if (productId != null && productId.isNotEmpty) {
       try {
-        final snap = await FirestoreService.instance
-            .collection('products')
-            .doc(productId)
-            .get();
+        final snap =
+            await FirestoreService.instance
+                .collection('products')
+                .doc(productId)
+                .get();
         if (snap.exists) {
           final product = ProductModel.fromFirestore(snap);
           final String? notificationId = _str(data['notificationId']);
           Navigator.of(context).push(
             MaterialPageRoute<void>(
-              builder: (_) => ProductDetailScreen(
-                product: product,
-                notificationId: notificationId,
-              ),
+              builder:
+                  (_) => ProductDetailScreen(
+                    product: product,
+                    notificationId: notificationId,
+                  ),
             ),
           );
         }
@@ -374,8 +425,8 @@ class PushNotificationHandler {
     if (announcementId != null && announcementId.isNotEmpty) {
       Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) =>
-              AnnouncementDetailScreen(announcementId: announcementId),
+          builder:
+              (_) => AnnouncementDetailScreen(announcementId: announcementId),
         ),
       );
       return;
@@ -404,6 +455,24 @@ class PushNotificationHandler {
   ) async {
     final message = await FirebaseMessaging.instance.getInitialMessage();
     if (message == null) return;
+
+    // Handle OTP from initial message
+    if (message.data['type'] == 'otp') {
+      final otp = message.data['otp'] as String?;
+      final phoneNumber = message.data['phoneNumber'] as String?;
+
+      if (otp != null &&
+          otp.isNotEmpty &&
+          phoneNumber != null &&
+          phoneNumber.isNotEmpty) {
+        OtpService.instance.handleOtpFromFcm(
+          otp: otp,
+          phoneNumber: phoneNumber,
+        );
+      }
+      return;
+    }
+
     final context = navigatorKey.currentContext;
     if (context == null) return;
 
@@ -429,7 +498,8 @@ class PushNotificationHandler {
     if (announcementId != null && announcementId.isNotEmpty) {
       Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) => AnnouncementDetailScreen(announcementId: announcementId),
+          builder:
+              (_) => AnnouncementDetailScreen(announcementId: announcementId),
         ),
       );
     } else if (postId != null && postId.isNotEmpty) {

@@ -7,12 +7,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'create_account_screen.dart';
+import 'phone_only_registration_screen.dart';
 import 'login_screen.dart';
 import 'home_screen.dart';
 import 'declined_status_screen.dart';
 import 'suspended_status_screen.dart';
 import '../models/user_role.dart';
-
 
 class LandingScreen extends StatefulWidget {
   const LandingScreen({Key? key}) : super(key: key);
@@ -35,14 +35,16 @@ class _LandingScreenState extends State<LandingScreen> {
     if (user != null) {
       // User is already logged in, check if approved and navigate to home
       try {
-        final doc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
+        final doc =
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .get();
 
         if (doc.exists) {
           final data = doc.data();
-          final accountStatus = (data?['accountStatus'] as String?)?.toLowerCase();
+          final accountStatus =
+              (data?['accountStatus'] as String?)?.toLowerCase();
           final isApproved = data?['isApproved'] as bool? ?? false;
 
           if (accountStatus == 'declined' && mounted) {
@@ -50,10 +52,11 @@ class _LandingScreenState extends State<LandingScreen> {
             final reapplyType = (data?['reapplyType'] as String?) ?? 'full';
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (context) => DeclinedStatusScreen(
-                  adminNote: adminNote,
-                  reapplyType: reapplyType,
-                ),
+                builder:
+                    (context) => DeclinedStatusScreen(
+                      adminNote: adminNote,
+                      reapplyType: reapplyType,
+                    ),
               ),
             );
             return;
@@ -62,7 +65,8 @@ class _LandingScreenState extends State<LandingScreen> {
             final adminNote = data?['adminNote'] as String?;
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (context) => SuspendedStatusScreen(adminNote: adminNote),
+                builder:
+                    (context) => SuspendedStatusScreen(adminNote: adminNote),
               ),
             );
             return;
@@ -94,7 +98,7 @@ class _LandingScreenState extends State<LandingScreen> {
         debugPrint('Error checking auth state: $e');
       }
     }
-    
+
     if (mounted) {
       setState(() {
         _isCheckingAuth = false;
@@ -251,7 +255,8 @@ class _LandingScreenState extends State<LandingScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const CreateAccountScreen(),
+                          builder:
+                              (context) => const PhoneOnlyRegistrationScreen(),
                         ),
                       );
                     },

@@ -8,6 +8,7 @@ import '../services/fcm_token_service.dart';
 import '../services/storage_service.dart';
 import '../widgets/xfile_preview_image.dart';
 import 'login_screen.dart';
+import 'otp_verification_screen.dart';
 
 /// Philippines mobile: 10 digits (9XX XXX XXXX) or 11 with leading 0 (09XX XXX XXXX). Max 11 digits.
 const int kPhilippineMobileMaxDigits = 11;
@@ -27,14 +28,23 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
   bool obscure = true;
   bool isLoading = false;
+
   /// Proof of residence: picked file is uploaded to Firebase Storage on submit; URL stored in awaitingApproval.
   XFile? _proofFile;
 
   // Demographic categories (Tattoo removed per request)
   final List<String> categories = [
-    "Senior", "Student", "PWD", "Youth", "Farmer",
-    "Fisherman", "Tricycle Driver", "Small Business Owner",
-    "4Ps", "Barangay Official", "Parent"
+    "Senior",
+    "Student",
+    "PWD",
+    "Youth",
+    "Farmer",
+    "Fisherman",
+    "Tricycle Driver",
+    "Small Business Owner",
+    "4Ps",
+    "Barangay Official",
+    "Parent",
   ];
 
   final List<String> selectedCategories = [];
@@ -69,7 +79,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                   ),
                 ),
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 32,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -77,7 +90,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         child: Text(
                           "Create an account",
                           textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -123,7 +139,9 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         decoration: InputDecoration(
                           hintText: 'At least 6 characters',
                           suffixIcon: IconButton(
-                            icon: Icon(obscure ? Icons.visibility_off : Icons.visibility),
+                            icon: Icon(
+                              obscure ? Icons.visibility_off : Icons.visibility,
+                            ),
                             onPressed: () => setState(() => obscure = !obscure),
                           ),
                           border: OutlineInputBorder(
@@ -134,21 +152,38 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
                       const SizedBox(height: 18),
 
-                      const Text("Proof of residence (optional)", style: TextStyle(fontWeight: FontWeight.w600)),
+                      const Text(
+                        "Proof of residence (optional)",
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
                       const SizedBox(height: 6),
-                      
+
                       const SizedBox(height: 8),
                       OutlinedButton.icon(
-                        icon: Icon(_proofFile != null ? Icons.check_circle : Icons.add_photo_alternate_outlined, size: 20),
-                        label: Text(_proofFile != null ? 'Photo selected' : 'Add proof of residence (e.g. ID or utility bill)'),
+                        icon: Icon(
+                          _proofFile != null
+                              ? Icons.check_circle
+                              : Icons.add_photo_alternate_outlined,
+                          size: 20,
+                        ),
+                        label: Text(
+                          _proofFile != null
+                              ? 'Photo selected'
+                              : 'Add proof of residence (e.g. ID or utility bill)',
+                        ),
                         onPressed: () async {
                           final picker = ImagePicker();
-                          final xFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+                          final xFile = await picker.pickImage(
+                            source: ImageSource.gallery,
+                            imageQuality: 80,
+                          );
                           if (xFile != null && mounted) {
                             setState(() => _proofFile = xFile);
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Proof of residence photo selected.'),
+                                content: Text(
+                                  'Proof of residence photo selected.',
+                                ),
                               ),
                             );
                           }
@@ -164,7 +199,9 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                           decoration: BoxDecoration(
                             color: Colors.grey.shade100,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFF00A651).withOpacity(0.3)),
+                            border: Border.all(
+                              color: const Color(0xFF00A651).withOpacity(0.3),
+                            ),
                           ),
                           padding: const EdgeInsets.all(12),
                           child: Row(
@@ -179,7 +216,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                               Expanded(
                                 child: Text(
                                   'Proof of residence will be uploaded when you submit.',
-                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade700,
+                                  ),
                                 ),
                               ),
                             ],
@@ -197,27 +237,30 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
-                        children: categories.map((cat) {
-                          final bool isSelected = selectedCategories.contains(cat);
-                          return ChoiceChip(
-                            label: Text(cat),
-                            selected: isSelected,
-                            selectedColor: const Color(0xFF00A651),
-                            labelStyle: TextStyle(
-                              color: isSelected ? Colors.white : Colors.black,
-                            ),
-                            backgroundColor: Colors.grey[200],
-                            onSelected: (value) {
-                              setState(() {
-                                if (value) {
-                                  selectedCategories.add(cat);
-                                } else {
-                                  selectedCategories.remove(cat);
-                                }
-                              });
-                            },
-                          );
-                        }).toList(),
+                        children:
+                            categories.map((cat) {
+                              final bool isSelected = selectedCategories
+                                  .contains(cat);
+                              return ChoiceChip(
+                                label: Text(cat),
+                                selected: isSelected,
+                                selectedColor: const Color(0xFF00A651),
+                                labelStyle: TextStyle(
+                                  color:
+                                      isSelected ? Colors.white : Colors.black,
+                                ),
+                                backgroundColor: Colors.grey[200],
+                                onSelected: (value) {
+                                  setState(() {
+                                    if (value) {
+                                      selectedCategories.add(cat);
+                                    } else {
+                                      selectedCategories.remove(cat);
+                                    }
+                                  });
+                                },
+                              );
+                            }).toList(),
                       ),
 
                       const SizedBox(height: 30),
@@ -235,12 +278,18 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                 borderRadius: BorderRadius.circular(30),
                               ),
                             ),
-                            child: isLoading
-                                ? const CircularProgressIndicator(color: Colors.white)
-                                : const Text(
-                                    'Request sign up',
-                                    style: TextStyle(fontSize: 18, color: Colors.white),
-                                  ),
+                            child:
+                                isLoading
+                                    ? const CircularProgressIndicator(
+                                      color: Colors.white,
+                                    )
+                                    : const Text(
+                                      'Request sign up',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        color: Colors.white,
+                                      ),
+                                    ),
                           ),
                         ),
                       ),
@@ -271,9 +320,12 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   static String _normalizePhilippinePhone(String input) {
     final digits = _digitsOnly(input);
     if (digits.length == 11 && digits.startsWith('0')) return digits;
-    if (digits.length == 10 && !digits.startsWith('0')) return '0$digits'; // 9XXXXXXXXX -> 09XXXXXXXXX
-    if (digits.length == 10 && digits.startsWith('0')) return digits; // 0XXXXXXXXX: don't add 0 (would be 009...)
-    if (digits.length == 12 && digits.startsWith('63')) return '0${digits.substring(2)}';
+    if (digits.length == 10 && !digits.startsWith('0'))
+      return '0$digits'; // 9XXXXXXXXX -> 09XXXXXXXXX
+    if (digits.length == 10 && digits.startsWith('0'))
+      return digits; // 0XXXXXXXXX: don't add 0 (would be 009...)
+    if (digits.length == 12 && digits.startsWith('63'))
+      return '0${digits.substring(2)}';
     return digits; // fallback: return as-is
   }
 
@@ -302,7 +354,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     }
 
     final digitsOnly = _digitsOnly(phoneRaw);
-    if (digitsOnly.length < kPhilippineMobileMinDigits || digitsOnly.length > kPhilippineMobileMaxDigits) {
+    if (digitsOnly.length < kPhilippineMobileMinDigits ||
+        digitsOnly.length > kPhilippineMobileMaxDigits) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -317,7 +370,9 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
     if (password.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password must be at least 6 characters.')),
+        const SnackBar(
+          content: Text('Password must be at least 6 characters.'),
+        ),
       );
       return;
     }
@@ -332,90 +387,120 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     setState(() => isLoading = true);
 
     try {
-      final firestore = FirebaseFirestore.instance;
-      final email = '$phone@linkod.com';
-
-      // Create Firebase Auth account so resident can log in and see "pending approval" instead of invalid credential
-      final authCred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      final uid = authCred.user?.uid;
-      if (uid == null) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not create account. Please try again.')),
-        );
-        return;
-      }
-
-      // Convert categories array to comma-separated string (per schema)
-      final categoryString = selectedCategories.join(', ');
-
-      // Upload proof of residence to Firebase Storage if one was selected
-      String? proofOfResidenceUrl;
-      if (_proofFile != null) {
-        proofOfResidenceUrl = await StorageService.instance.uploadImageFromXFile(
-          _proofFile!,
-          StorageService.proofPath(uid),
-        );
-      }
-
-      // Get FCM token and store with request so admin can send push on approval
-      final fcmToken = await FcmTokenService.instance.getTokenForAwaitingApproval();
-      final fcmTokens = (fcmToken != null && fcmToken.isNotEmpty) ? [fcmToken] : <String>[];
-
-      // Store approval request in awaitingApproval (with uid so admin can create users/{uid} on approve)
-      await firestore.collection('awaitingApproval').add({
-        'uid': uid,
-        'fullName': name,
-        'phoneNumber': phone,
-        'password': password,
-        'role': 'user',
-        'category': categoryString,
-        'status': 'pending',
-        'createdAt': FieldValue.serverTimestamp(),
-        'proofOfResidenceUrl': proofOfResidenceUrl,
-        'fcmTokens': fcmTokens,
-      });
-
-      // Sign out so they see success and later use Login to see "pending approval" message
-      await FirebaseAuth.instance.signOut();
-
-      // Save registration data for auto-fill on login screen
-      await _saveRegistrationData(phone, password);
+      // Get FCM token before OTP (don't create account yet)
+      final fcmToken =
+          await FcmTokenService.instance.getTokenForAwaitingApproval();
 
       if (!mounted) return;
 
-      // Show success dialog
-      _showSuccessDialog(context);
+      // Navigate to OTP verification BEFORE creating Firebase Auth account
+      // This ensures user is not signed in if OTP verification fails
+      final verificationResult = await Navigator.of(
+        context,
+      ).push<Map<String, dynamic>>(
+        MaterialPageRoute(
+          builder:
+              (context) => OtpVerificationScreen(
+                phoneNumber: phone,
+                fcmToken: fcmToken ?? '',
+              ),
+        ),
+      );
+
+      // Only create account AFTER OTP verification succeeds
+      if (verificationResult != null &&
+          verificationResult['verified'] == true) {
+        if (!mounted) return;
+
+        final firestore = FirebaseFirestore.instance;
+        final email = '$phone@linkod.com';
+
+        // NOW create Firebase Auth account after phone verification
+        final authCred = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(email: email, password: password);
+        final uid = authCred.user?.uid;
+        if (uid == null) {
+          if (mounted)
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Could not create account. Please try again.'),
+              ),
+            );
+          return;
+        }
+
+        // Convert categories array to comma-separated string (per schema)
+        final categoryString = selectedCategories.join(', ');
+
+        // Upload proof of residence to Firebase Storage if one was selected
+        String? proofOfResidenceUrl;
+        if (_proofFile != null) {
+          proofOfResidenceUrl = await StorageService.instance
+              .uploadImageFromXFile(_proofFile!, StorageService.proofPath(uid));
+        }
+
+        final fcmTokens =
+            (fcmToken != null && fcmToken.isNotEmpty) ? [fcmToken] : <String>[];
+
+        // Store approval request in awaitingApproval
+        await firestore.collection('awaitingApproval').add({
+          'uid': uid,
+          'fullName': name,
+          'phoneNumber': phone,
+          'password': password,
+          'role': 'user',
+          'category': categoryString,
+          'status': 'pending',
+          'createdAt': FieldValue.serverTimestamp(),
+          'proofOfResidenceUrl': proofOfResidenceUrl,
+          'fcmTokens': fcmTokens,
+        });
+
+        // Save registration data for auto-fill on login screen
+        await _saveRegistrationData(phone, password);
+
+        // Sign out so they see login screen with "pending approval" message
+        await FirebaseAuth.instance.signOut();
+
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+          );
+        }
+      } else if (mounted) {
+        // OTP verification was cancelled or failed
+        setState(() => isLoading = false);
+      }
     } on FirebaseAuthException catch (e) {
       String message = 'Failed to create account. Please try again.';
       if (e.code == 'email-already-in-use') {
-        message = 'An account already exists for that phone number. Try logging in or wait for admin approval.';
+        message =
+            'An account already exists for that phone number. Try logging in or wait for admin approval.';
       } else if (e.code == 'weak-password') {
         message = 'The password is too weak.';
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
+        setState(() => isLoading = false);
       }
     } on FirebaseException catch (e) {
       String message = 'Something went wrong. Please try again.';
       if (e.code == 'permission-denied') {
         message = 'Permission denied. Please contact support.';
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Something went wrong: ${e.toString()}'),
-        ),
-      );
-    } finally {
       if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
+        setState(() => isLoading = false);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Something went wrong: ${e.toString()}')),
+        );
         setState(() => isLoading = false);
       }
     }
@@ -446,11 +531,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                     color: const Color(0xFF20BF6B),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.check,
-                    size: 50,
-                    color: Colors.white,
-                  ),
+                  child: const Icon(Icons.check, size: 50, color: Colors.white),
                 ),
                 const SizedBox(height: 20),
                 // Thank You heading
@@ -481,9 +562,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                     onPressed: () {
                       Navigator.of(context).pop(); // Close dialog
                       Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(
-                          builder: (_) => const LoginScreen(),
-                        ),
+                        MaterialPageRoute(builder: (_) => const LoginScreen()),
                       );
                     },
                     style: ElevatedButton.styleFrom(

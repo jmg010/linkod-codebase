@@ -1,0 +1,54 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ==================== OTP & Phone Verification ====================
+    
+    /// Pending OTP Records
+    /// - Only accessible via Cloud Functions (service account)
+    /// - Stores temporary OTP codes with 2-minute expiration
+    /// - Clients cannot directly read/write (security via rules)
+    match /pendingOtps/{docId} {
+      allow read, write: if false;
+      // Cloud Functions have service account access
+    }
+    
+    /// Verified Phone Numbers
+    /// - Authenticated users can read (check if phone is verified)
+    /// - Only writable via Cloud Functions (after OTP verification)
+    /// - Stores phone number verification records
+    match /verifiedPhones/{phoneNumber} {
+      allow read: if request.auth != null;
+      allow write: if false;
+      // Only writable via Cloud Functions
+    }
+    
+    // ==================== Existing Collections (Examples) ====================
+    
+    // Users collection
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+      
+      // User's devices (FCM tokens)
+      match /devices/{deviceId} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+    }
+    
+    // For users awaiting approval
+    match /awaitingApproval/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.token.claim_admin == true;
+    }
+    
+    // ==================== Notes ====================
+    
+    // Security Strategy:
+    // 1. OTP operations are Cloud Function only (no direct client access)
+    // 2. Users can read verified phone records to check own verification status
+    // 3. All OTP state changes (generation, verification) via functions
+    // 4. Rate limiting enforced in Cloud Function logic
+    // 5. Firestore rules provide additional defense layer
+    
+  }
+}
