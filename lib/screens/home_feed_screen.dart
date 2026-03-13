@@ -338,8 +338,12 @@ class HomeFeedScreenState extends State<HomeFeedScreen> {
                   if (index == 0) {
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
+
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                        color:
+                            isDark
+                                ? const Color.fromARGB(255, 16, 16, 16)
+                                : const Color.fromARGB(255, 248, 248, 248),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: const Color(0xFF00A651).withOpacity(0.4),
@@ -361,7 +365,7 @@ class HomeFeedScreenState extends State<HomeFeedScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+                            padding: const EdgeInsets.fromLTRB(20, 14, 16, 12),
                             child: Text(
                               'New postings',
                               style: TextStyle(
