@@ -919,9 +919,7 @@ class _SellProductScreenState extends State<SellProductScreen> {
 class _XFilePageImage extends StatelessWidget {
   const _XFilePageImage({required this.xFile});
 
-  final XFile xFile;
-
-  @override
+  final XFile xFile;  @override
   Widget build(BuildContext context) {
     return FutureBuilder<Uint8List>(
       future: xFile.readAsBytes(),

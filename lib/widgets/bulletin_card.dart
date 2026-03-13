@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import '../models/bulletin_model.dart';
+import 'bulletin_metadata_row.dart';
 import '../screens/bulletin_detail_screen.dart';
 
+/// Card widget for displaying bulletin items.
+/// Compact version with consistent styling for grid/list displays.
 class BulletinCard extends StatelessWidget {
   final BulletinModel bulletin;
 
@@ -10,18 +13,12 @@ class BulletinCard extends StatelessWidget {
     required this.bulletin,
   });
 
-  String _formatDate(DateTime date) {
-    final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-    ];
-    return '${months[date.month - 1]} ${date.day}';
-  }
-
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final category = bulletin.category;
-    
+    final hasImage = bulletin.imageUrl != null;
+
     return GestureDetector(
       onTap: () {
         Navigator.of(context).push(
@@ -32,26 +29,26 @@ class BulletinCard extends StatelessWidget {
       },
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
+          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Optional image banner
-              if (bulletin.imageUrl != null)
+              // Image banner (if exists)
+              if (hasImage)
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(18),
+                    top: Radius.circular(16),
                   ),
                   child: AspectRatio(
                     aspectRatio: 16 / 9,
@@ -59,10 +56,11 @@ class BulletinCard extends StatelessWidget {
                       bulletin.imageUrl!,
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => Container(
-                        color: Colors.grey.shade300,
+                        color: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade300,
                         child: Icon(
-                          Icons.image_not_supported,
-                          color: Colors.grey.shade500,
+                          Icons.image_not_supported_outlined,
+                          color: isDark ? Colors.grey.shade600 : Colors.grey.shade500,
+                          size: 32,
                         ),
                       ),
                     ),
@@ -80,11 +78,11 @@ class BulletinCard extends StatelessWidget {
                       Container(
                         margin: const EdgeInsets.only(bottom: 10),
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
+                          horizontal: 10,
+                          vertical: 5,
                         ),
                         decoration: BoxDecoration(
-                          color: category.iconColor.withOpacity(0.15),
+                          color: category.iconColor.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Row(
@@ -95,14 +93,15 @@ class BulletinCard extends StatelessWidget {
                               size: 12,
                               color: category.iconColor,
                             ),
-                            const SizedBox(width: 4),
+                            const SizedBox(width: 5),
                             Flexible(
                               child: Text(
                                 category.title.toUpperCase(),
                                 style: TextStyle(
-                                  fontSize: 9,
+                                  fontSize: 10,
                                   fontWeight: FontWeight.w700,
                                   color: category.iconColor,
+                                  letterSpacing: 0.3,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                                 maxLines: 1,
@@ -112,18 +111,18 @@ class BulletinCard extends StatelessWidget {
                         ),
                       ),
 
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
 
                     // Title
                     Text(
                       bulletin.title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: Colors.black87,
+                        color: isDark ? Colors.white : Colors.black87,
                         height: 1.3,
                       ),
-                      maxLines: 3,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
 
@@ -134,52 +133,23 @@ class BulletinCard extends StatelessWidget {
                       bulletin.description,
                       style: TextStyle(
                         fontSize: 13,
-                        color: Colors.grey.shade700,
+                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
                         height: 1.4,
                       ),
-                      maxLines: 3,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
 
                     const SizedBox(height: 12),
 
                     // Footer: Date and Location
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.calendar_today,
-                          size: 12,
-                          color: Colors.grey.shade500,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _formatDate(bulletin.date),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                        if (bulletin.location != null) ...[
-                          const SizedBox(width: 12),
-                          Icon(
-                            Icons.location_on,
-                            size: 12,
-                            color: Colors.grey.shade500,
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              bulletin.location!,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade600,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ],
+                    BulletinMetadataRow(
+                      date: bulletin.date,
+                      location: bulletin.location,
+                      iconSize: 12,
+                      fontSize: 11,
+                      iconColor: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
+                      textColor: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
                     ),
                   ],
                 ),

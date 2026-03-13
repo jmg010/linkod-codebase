@@ -20,6 +20,7 @@ class ProductCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final String dateText = _formatDate(product.createdAt);
+    final bool hasImages = product.imageUrls.isNotEmpty;
     return Card(
       margin: EdgeInsets.zero,
       elevation: 1.5,
@@ -68,9 +69,13 @@ class ProductCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            _ProductCardImage(product: product),
-            const SizedBox(height: 12),
+            if (hasImages) ...[
+              const SizedBox(height: 8),
+              _ProductCardImage(product: product),
+              const SizedBox(height: 12),
+            ] else ...[
+              const SizedBox(height: 4),
+            ],
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -237,20 +242,7 @@ class _ProductCardImageState extends State<_ProductCardImage> {
     final product = widget.product;
     final hasImages = product.imageUrls.isNotEmpty;
     if (!hasImages) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          height: 160,
-          width: double.infinity,
-          color: Colors.grey.shade100,
-          alignment: Alignment.center,
-          child: Icon(
-            Icons.image_outlined,
-            size: 40,
-            color: Colors.grey.shade400,
-          ),
-        ),
-      );
+      return const SizedBox.shrink();
     }
     if (product.imageUrls.length == 1) {
       return ClipRRect(

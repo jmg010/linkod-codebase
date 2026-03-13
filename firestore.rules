@@ -68,6 +68,10 @@ service cloud.firestore {
       // Only Super Admin can read other users (User Management). Admin is limited to Dashboard and Announcements.
       allow read: if isSuperAdmin();
 
+      // Any signed-in user can read basic profile info of other users
+      // (for marketplace message avatars, resident profile dialogs, etc.)
+      allow get: if isSignedIn();
+
       // Create user docs: only Super Admin
       allow create: if isSuperAdmin();
 
@@ -183,6 +187,17 @@ service cloud.firestore {
       allow create, update, delete: if isAdminPanelUser();
     }
 
+    // ========= barangaySettings =========
+    // Barangay branding settings (logo and cover image URLs)
+
+    match /barangaySettings/{docId} {
+      // Any signed-in user can read settings (for mobile app bulletin board)
+      allow read: if isSignedIn();
+      
+      // Only admin panel users can update branding settings
+      allow create, update, delete: if isAdminPanelUser();
+    }
+
     // ========= posts =========
     // General posts from mobile app
 
@@ -228,7 +243,11 @@ service cloud.firestore {
              .hasOnly(['messagesCount', 'updatedAt']);
 
       match /messages/{messageId} {
-        allow read, write: if isSignedIn();
+        allow read: if isSignedIn();
+        allow create: if isSignedIn();
+        // Only message sender can update/delete their own message
+        allow update, delete: if isSignedIn()
+          && resource.data.senderId == request.auth.uid;
       }
 
       match /message_read/{userId} {

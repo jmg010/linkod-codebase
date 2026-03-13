@@ -8,7 +8,6 @@ import '../models/task_model.dart';
 import '../services/tasks_service.dart';
 import '../services/firestore_service.dart';
 import '../services/admin_settings_service.dart';
-import '../constants/purok.dart';
 import '../services/storage_service.dart';
 import '../widgets/optimized_image.dart';
 
@@ -33,10 +32,8 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _contactController = TextEditingController();
+  final _locationController = TextEditingController();
   String? _selectedCategory;
-
-  /// Purok 1-5 for location (Barangay Cagbaoto). Default 1.
-  int _selectedPurok = 1;
   final List<XFile> _pickedImages = [];
   List<String> _existingImageUrls = [];
   final PageController _imagePageController = PageController();
@@ -68,10 +65,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
       _contactController.text = t.contactNumber ?? '';
       _selectedCategory = t.category;
       _existingImageUrls = List<String>.from(t.imageUrls);
-      if (t.location != null && t.location!.isNotEmpty) {
-        _selectedPurok = purokFromDisplayName(t.location!);
-        if (_selectedPurok < 1 || _selectedPurok > 5) _selectedPurok = 1;
-      }
+      _locationController.text = t.location ?? '';
     }
     if (!_isEdit) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _loadUserData());
@@ -93,9 +87,9 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
       if (phone != null && phone.isNotEmpty) {
         _contactController.text = phone;
       }
-      final purok = (data?['purok'] as num?)?.toInt();
-      if (purok != null && purok >= 1 && purok <= 5) {
-        setState(() => _selectedPurok = purok);
+      final location = data?['location'] as String?;
+      if (location != null && location.isNotEmpty) {
+        _locationController.text = location;
       }
     } catch (_) {}
   }
@@ -106,6 +100,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
     _titleController.dispose();
     _descriptionController.dispose();
     _contactController.dispose();
+    _locationController.dispose();
     super.dispose();
   }
 
@@ -215,7 +210,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
           'contactNumber': _contactController.text.trim(),
           'category': _selectedCategory,
           'imageUrls': imageUrls,
-          'location': purokDisplayName(_selectedPurok),
+          'location': _locationController.text.trim().isEmpty ? 'Location not specified' : _locationController.text.trim(),
         });
         if (mounted) {
           Navigator.of(context).pop();
@@ -296,7 +291,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
         approvalStatus: initialApprovalStatus, // Set based on auto-approve flag
         category: _selectedCategory,
         imageUrls: imageUrls,
-        location: purokDisplayName(_selectedPurok),
+        location: _locationController.text.trim().isEmpty ? 'Location not specified' : _locationController.text.trim(),
       );
 
       await TasksService.createTask(task);
@@ -763,7 +758,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'Location (Purok) ',
+                          'Location ',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
@@ -771,65 +766,14 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                           ),
                         ),
                         const SizedBox(height: 6),
-                        DropdownButtonFormField<String>(
-                          value: purokDisplayName(_selectedPurok),
-                          dropdownColor:
-                              isDark ? const Color(0xFF2C2C2C) : Colors.white,
-                          style: TextStyle(
-                            color: isDark ? Colors.white : Colors.black87,
-                            fontSize: 14,
-                          ),
-                          decoration: InputDecoration(
-                            filled: true,
-                            fillColor:
-                                isDark ? const Color(0xFF1E1E1E) : Colors.white,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 14,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: BorderSide(
-                                color:
-                                    isDark
-                                        ? Colors.grey.shade700
-                                        : Colors.grey.shade300,
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: BorderSide(
-                                color:
-                                    isDark
-                                        ? Colors.grey.shade700
-                                        : Colors.grey.shade300,
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: const BorderSide(
-                                color: Color(0xFF20BF6B),
-                                width: 1.5,
-                              ),
-                            ),
-                          ),
-                          items:
-                              purokLabels
-                                  .map(
-                                    (label) => DropdownMenuItem(
-                                      value: label,
-                                      child: Text(label),
-                                    ),
-                                  )
-                                  .toList(),
-                          onChanged: (value) {
-                            if (value != null)
-                              setState(
-                                () =>
-                                    _selectedPurok = purokFromDisplayName(
-                                      value,
-                                    ),
-                              );
+                        _buildInputField(
+                          controller: _locationController,
+                          hint: 'Enter location',
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Please enter a location';
+                            }
+                            return null;
                           },
                         ),
                         const SizedBox(height: 24),

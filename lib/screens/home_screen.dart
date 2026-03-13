@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../ui_constants.dart';
 import '../models/user_role.dart';
 import '../models/post_model.dart';
@@ -47,6 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Stream<int>? _cachedPostCommentsStream;
   String? _cachedMarketplaceUid;
   Stream<int>? _cachedMarketplaceStream;
+  String? _barangayLogoUrl;
   late final bool _isResident = widget.userRole == UserRole.resident;
   late final int _feedIndex = 0; // HomeFeedScreen (mixed feed)
   late final int _announcementsIndex = 1; // AnnouncementsScreen
@@ -58,6 +61,41 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: _currentIndex);
+    _loadBranding();
+  }
+
+  Future<void> _loadBranding() async {
+    // First, load from local cache for immediate display
+    final prefs = await SharedPreferences.getInstance();
+    final cachedLogoUrl = prefs.getString('barangayLogoUrl');
+    
+    if (cachedLogoUrl != null && cachedLogoUrl.isNotEmpty && mounted) {
+      setState(() {
+        _barangayLogoUrl = cachedLogoUrl;
+      });
+    }
+    
+    // Then fetch from Firestore in background to check for updates
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('barangaySettings')
+          .doc('branding')
+          .get();
+      if (doc.exists && mounted) {
+        final data = doc.data();
+        final newLogoUrl = data?['barangayLogoUrl'] as String?;
+        
+        // Update cache and state if changed
+        if (newLogoUrl != null && newLogoUrl != cachedLogoUrl) {
+          await prefs.setString('barangayLogoUrl', newLogoUrl);
+          setState(() {
+            _barangayLogoUrl = newLogoUrl;
+          });
+        }
+      }
+    } catch (e) {
+      // Silently fail - cached logo will be shown if available
+    }
   }
 
   @override
@@ -341,6 +379,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         errandNotificationCount: errandCount,
                         postCommentsNotificationCount: postCommentsCount,
                         marketplaceNotificationCount: marketplaceCount,
+                        barangayLogoUrl: _barangayLogoUrl,
                       );
                     },
                   );

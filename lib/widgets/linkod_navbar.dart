@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../screens/bulletin_board_screen.dart';
 
 enum NavDestination {
@@ -24,6 +25,9 @@ class LinkodNavbar extends StatelessWidget {
   /// Number of unread messages on owner's marketplace products.
   final int marketplaceNotificationCount;
 
+  /// Barangay logo URL to display in the top right corner.
+  final String? barangayLogoUrl;
+
   const LinkodNavbar({
     super.key,
     required this.currentDestination,
@@ -32,6 +36,7 @@ class LinkodNavbar extends StatelessWidget {
     this.errandNotificationCount = 0,
     this.postCommentsNotificationCount = 0,
     this.marketplaceNotificationCount = 0,
+    this.barangayLogoUrl,
   });
 
   @override
@@ -83,23 +88,40 @@ class LinkodNavbar extends StatelessWidget {
                       );
                     },
                     child: Container(
-                      width: 34,
-                      height: 34,
+                      width: 40,
+                      height: 40,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.grey.shade200,
+                        color: barangayLogoUrl != null ? null : Colors.grey.shade200,
                         border: Border.all(
                           color: Colors.grey.shade300,
                           width: 1,
                         ),
                       ),
                       alignment: Alignment.center,
-                      // Placeholder for future barangay logo image upload
-                      child: Icon(
-                        Icons.image_outlined,
-                        size: 18,
-                        color: Colors.grey.shade600,
-                      ),
+                      clipBehavior: Clip.hardEdge,
+                      child: barangayLogoUrl != null
+                          ? CachedNetworkImage(
+                              imageUrl: barangayLogoUrl!,
+                              fit: BoxFit.contain,
+                              width: 40,
+                              height: 40,
+                              placeholder: (context, url) => Icon(
+                                Icons.image_outlined,
+                                size: 18,
+                                color: Colors.grey.shade600,
+                              ),
+                              errorWidget: (context, url, error) => Icon(
+                                Icons.image_outlined,
+                                size: 18,
+                                color: Colors.grey.shade600,
+                              ),
+                            )
+                          : Icon(
+                              Icons.image_outlined,
+                              size: 18,
+                              color: Colors.grey.shade600,
+                            ),
                     ),
                   ),
                 ),

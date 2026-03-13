@@ -151,7 +151,16 @@ class ProductsService {
     return docRef.id;
   }
 
-  /// Get all messages for a product in a single list (top-level and replies).
+  /// Delete a message from a product
+  static Future<void> deleteMessage(String productId, String messageId) async {
+    final messageRef = _productsCollection.doc(productId).collection('messages').doc(messageId);
+    await messageRef.delete();
+    
+    // Decrement messagesCount
+    await _productsCollection.doc(productId).update({
+      'messagesCount': FieldValue.increment(-1),
+    });
+  }
   static Stream<List<MessageModel>> getMessagesStream(String productId) {
     return _productsCollection
         .doc(productId)

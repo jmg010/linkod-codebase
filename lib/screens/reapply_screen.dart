@@ -83,6 +83,24 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
     return digits;
   }
 
+  /// Clean up any old awaitingApproval documents with same uid but random document IDs.
+  /// This prevents duplicates when users resubmit after being declined.
+  Future<void> _cleanupOldAwaitingApproval() async {
+    try {
+      final query = await FirebaseFirestore.instance
+          .collection('awaitingApproval')
+          .where('uid', isEqualTo: widget.uid)
+          .get();
+      for (final doc in query.docs) {
+        if (doc.id != widget.uid) {
+          await doc.reference.delete();
+        }
+      }
+    } catch (_) {
+      // Non-blocking: cleanup failure shouldn't stop resubmission
+    }
+  }
+
   Future<void> _submitProofOnly() async {
     if (_proofFile == null) {
       setState(() => _errorMessage = 'Please add proof of residence.');
@@ -111,6 +129,7 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
         return;
       }
       final currentCount = (doc.data()?['reapplicationCount'] as int?) ?? 0;
+      final category = (doc.data()?['category'] as String?) ?? '';
       final updates = <String, dynamic>{
         'accountStatus': 'pending',
         'reapplicationCount': currentCount + 1,
@@ -119,6 +138,9 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
       };
       if (proofUrl != null) updates['proofOfResidenceUrl'] = proofUrl;
       await docRef.update(updates);
+
+      // Clean up any old awaitingApproval docs with random IDs before creating new one
+      await _cleanupOldAwaitingApproval();
 
       // Add/update awaitingApproval for admin notification
       await FirebaseFirestore.instance
@@ -131,6 +153,7 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
         'source': 'users',
         'status': 'pending',
         'reapplicationCount': currentCount + 1,
+        'category': category,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
@@ -200,6 +223,9 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
         'lastUpdated': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
+      // Clean up any old awaitingApproval docs with random IDs before creating new one
+      await _cleanupOldAwaitingApproval();
 
       // Add/update awaitingApproval for admin notification
       await FirebaseFirestore.instance

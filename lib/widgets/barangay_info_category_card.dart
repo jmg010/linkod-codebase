@@ -16,24 +16,34 @@ class BarangayInfoCategoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     const green = Color(0xFF20BF6B);
 
+    final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final borderColor = isDark
+        ? Colors.grey.shade800
+        : Colors.grey.withOpacity(0.18);
+    final titleColor = isDark ? Colors.white : Colors.black87;
+    final descriptionColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+
     return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
+      color: cardColor,
+      borderRadius: BorderRadius.circular(16),
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.grey.withOpacity(0.22), width: 1),
+            color: cardColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: borderColor, width: 1),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
+                color: isDark
+                    ? Colors.black.withOpacity(0.2)
+                    : Colors.black.withOpacity(0.04),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
@@ -41,14 +51,14 @@ class BarangayInfoCategoryCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, color: green, size: 39),
+              Icon(icon, color: green, size: 36),
               const SizedBox(height: 10),
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
-                  color: Colors.black87,
+                  color: titleColor,
                   height: 1.15,
                 ),
                 maxLines: 2,
@@ -60,7 +70,7 @@ class BarangayInfoCategoryCard extends StatelessWidget {
                   description,
                   style: TextStyle(
                     fontSize: 12.5,
-                    color: Colors.grey.shade700,
+                    color: descriptionColor,
                     height: 1.25,
                   ),
                   maxLines: 3,
@@ -70,8 +80,8 @@ class BarangayInfoCategoryCard extends StatelessWidget {
               Align(
                 alignment: Alignment.bottomRight,
                 child: Icon(
-                  Icons.keyboard_arrow_down,
-                  color: green,
+                  Icons.chevron_right,
+                  color: green.withOpacity(0.8),
                   size: 22,
                 ),
               ),
