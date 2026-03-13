@@ -78,7 +78,7 @@ class ErrandJobCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(18),
                     ),
                     child: const Text(
-                      'Request',
+                      'Job/Errand',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
