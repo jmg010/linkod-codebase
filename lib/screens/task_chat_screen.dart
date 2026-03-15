@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../models/task_chat_message_model.dart';
 import '../services/task_chat_service.dart';
 import '../services/firestore_service.dart';
+import '../widgets/resident_profile_dialog.dart';
+import '../widgets/optimized_image.dart';
 
 /// Chat between task owner and approved volunteer only.
 /// Reusable screen: pass taskId, taskTitle, otherPartyName, otherPartyId, currentUserId.
@@ -30,6 +32,10 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _isSending = false;
   int _previousMessageCount = 0;
+  String? _otherPartyAvatarUrl;
+  String? _otherPartyPurok;
+  String? _otherPartyPhone;
+  bool _hasLoadedOtherPartyData = false;
 
   static String _formatDateHeader(DateTime date) {
     final now = DateTime.now();
@@ -55,6 +61,31 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
   void initState() {
     super.initState();
     TaskChatService.markChatRead(widget.taskId, widget.currentUserId);
+    _loadOtherPartyData();
+  }
+
+  Future<void> _loadOtherPartyData() async {
+    if (_hasLoadedOtherPartyData) return;
+    try {
+      final userDoc = await FirestoreService.instance
+          .collection('users')
+          .doc(widget.otherPartyId)
+          .get();
+
+      if (userDoc.exists && mounted) {
+        final data = userDoc.data();
+        setState(() {
+          _otherPartyAvatarUrl = data?['profileImageUrl'] as String?;
+          _otherPartyPurok = data?['purok'] != null
+              ? 'Purok ${data?['purok']}'
+              : null;
+          _otherPartyPhone = data?['phoneNumber'] as String?;
+          _hasLoadedOtherPartyData = true;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading other party data: $e');
+    }
   }
 
   @override
@@ -223,80 +254,129 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
                     final isMe = msg.senderId == widget.currentUserId;
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 10),
-                      child: Align(
-                        alignment:
-                            isMe ? Alignment.centerRight : Alignment.centerLeft,
-                        child: Container(
-                          constraints: BoxConstraints(
-                            maxWidth: MediaQuery.of(context).size.width * 0.78,
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color:
-                                isMe
-                                    ? const Color(0xFF20BF6B)
-                                    : (isDark
-                                        ? const Color(0xFF2C2C2C)
-                                        : Colors.white),
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color:
-                                    isDark
-                                        ? Colors.black.withOpacity(0.3)
-                                        : Colors.black.withOpacity(0.06),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                msg.senderName,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color:
-                                      isMe
-                                          ? Colors.white.withOpacity(0.9)
-                                          : (isDark
-                                              ? Colors.grey.shade300
-                                              : const Color(0xFF4C4C4C)),
+                      child: Row(
+                        mainAxisAlignment:
+                            isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          // Profile picture for other party (left side)
+                          if (!isMe) ...[
+                            GestureDetector(
+                              onTap: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (_) => ResidentProfileDialog(
+                                    avatarUrl: _otherPartyAvatarUrl,
+                                    name: msg.senderName,
+                                    purok: _otherPartyPurok,
+                                    phoneNumber: _otherPartyPhone,
+                                    isSeller: false,
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                width: 32,
+                                height: 32,
+                                margin: const EdgeInsets.only(right: 8),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.grey.shade300,
+                                    width: 1,
+                                  ),
+                                ),
+                                child: ClipOval(
+                                  child: _otherPartyAvatarUrl != null &&
+                                          _otherPartyAvatarUrl!.isNotEmpty
+                                      ? OptimizedNetworkImage(
+                                          imageUrl: _otherPartyAvatarUrl!,
+                                          width: 32,
+                                          height: 32,
+                                          fit: BoxFit.cover,
+                                          cacheWidth: 64,
+                                          cacheHeight: 64,
+                                          errorWidget: _buildAvatarFallback(
+                                            msg.senderName,
+                                          ),
+                                        )
+                                      : _buildAvatarFallback(msg.senderName),
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                msg.text,
-                                style: TextStyle(
-                                  fontSize: 14,
+                            ),
+                          ],
+                          // Chat bubble
+                          Container(
+                            constraints: BoxConstraints(
+                              maxWidth: MediaQuery.of(context).size.width * 0.70,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color:
+                                  isMe
+                                      ? const Color(0xFF20BF6B)
+                                      : (isDark
+                                          ? const Color(0xFF2C2C2C)
+                                          : Colors.white),
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
                                   color:
-                                      isMe
-                                          ? Colors.white
-                                          : (isDark
-                                              ? Colors.white
-                                              : Colors.black87),
-                                  height: 1.4,
+                                      isDark
+                                          ? Colors.black.withOpacity(0.3)
+                                          : Colors.black.withOpacity(0.06),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
                                 ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                _formatTime(msg.createdAt),
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color:
-                                      isMe
-                                          ? Colors.white.withOpacity(0.85)
-                                          : Colors.grey.shade600,
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  msg.senderName,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color:
+                                        isMe
+                                            ? Colors.white.withOpacity(0.9)
+                                            : (isDark
+                                                ? Colors.grey.shade300
+                                                : const Color(0xFF4C4C4C)),
+                                  ),
                                 ),
-                              ),
-                            ],
+                                const SizedBox(height: 4),
+                                Text(
+                                  msg.text,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color:
+                                        isMe
+                                            ? Colors.white
+                                            : (isDark
+                                                ? Colors.white
+                                                : Colors.black87),
+                                    height: 1.4,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  _formatTime(msg.createdAt),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color:
+                                        isMe
+                                            ? Colors.white.withOpacity(0.85)
+                                            : Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                     );
                   },
@@ -387,6 +467,22 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAvatarFallback(String name) {
+    final initials = name.isNotEmpty ? name[0].toUpperCase() : '?';
+    return CircleAvatar(
+      radius: 16,
+      backgroundColor: const Color(0xFF20BF6B),
+      child: Text(
+        initials,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
       ),
     );
   }

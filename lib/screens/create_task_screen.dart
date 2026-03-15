@@ -828,15 +828,19 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
     required TextEditingController controller,
     required String hint,
     int maxLines = 1,
-    TextInputType keyboardType = TextInputType.text,
+    int? minLines,
+    TextInputType? keyboardType,
     String? Function(String?)? validator,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isMultiline = maxLines > 1;
 
     return TextFormField(
       controller: controller,
       maxLines: maxLines,
-      keyboardType: keyboardType,
+      minLines: minLines ?? (isMultiline ? 2 : 1),
+      keyboardType: keyboardType ?? (isMultiline ? TextInputType.multiline : TextInputType.text),
+      textInputAction: isMultiline ? TextInputAction.newline : TextInputAction.next,
       validator: validator,
       style: TextStyle(color: isDark ? Colors.white : Colors.black87),
       decoration: InputDecoration(

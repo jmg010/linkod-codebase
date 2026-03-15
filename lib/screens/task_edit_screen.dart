@@ -3,6 +3,8 @@ import '../models/task_model.dart';
 import '../services/tasks_service.dart';
 import '../services/firestore_service.dart';
 import '../services/task_chat_service.dart';
+import '../widgets/resident_profile_dialog.dart';
+import '../widgets/optimized_image.dart';
 import 'task_chat_screen.dart';
 import 'create_task_screen.dart';
 
@@ -25,6 +27,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
   late String _taskDescription;
   String? _taskCategory;
   late String _taskContact;
+  final Map<String, Map<String, String?>> _volunteerDataCache = {};
 
   @override
   void initState() {
@@ -1037,102 +1040,161 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
       return const SizedBox.shrink();
     }
     final ownerId = FirestoreService.auth.currentUser?.uid ?? '';
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF2A3A2A) : Colors.green.shade50,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isDark ? Colors.green.shade800 : Colors.green.shade200,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: isDark ? Colors.green.shade900 : Colors.green.shade200,
-              shape: BoxShape.circle,
+
+    return FutureBuilder<Map<String, String?>>(
+      future: _fetchVolunteerData(volunteerId),
+      builder: (context, snapshot) {
+        final userData = snapshot.data;
+        final avatarUrl = userData?['avatarUrl'];
+        final purok = userData?['purok'];
+        final phoneNumber = userData?['phoneNumber'];
+
+        void showProfileDialog() {
+          showDialog(
+            context: context,
+            builder: (_) => ResidentProfileDialog(
+              avatarUrl: avatarUrl,
+              name: volunteerName,
+              purok: purok,
+              phoneNumber: phoneNumber,
+              isSeller: false,
             ),
-            child: Icon(
-              Icons.check_circle,
-              size: 22,
-              color: isDark ? Colors.green.shade300 : Colors.green.shade700,
+          );
+        }
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF2A3A2A) : Colors.green.shade50,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isDark ? Colors.green.shade800 : Colors.green.shade200,
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              volunteerName,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: isDark ? Colors.green.shade300 : Colors.green.shade800,
+          child: Row(
+            children: [
+              // Volunteer Profile Picture (tap to show profile)
+              GestureDetector(
+                onTap: showProfileDialog,
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isDark ? Colors.green.shade700 : Colors.green.shade300,
+                      width: 2,
+                    ),
+                  ),
+                  child: ClipOval(
+                    child: avatarUrl != null && avatarUrl.isNotEmpty
+                        ? OptimizedNetworkImage(
+                            imageUrl: avatarUrl,
+                            width: 40,
+                            height: 40,
+                            fit: BoxFit.cover,
+                            cacheWidth: 80,
+                            cacheHeight: 80,
+                            errorWidget: _buildVolunteerAvatarFallback(volunteerName),
+                          )
+                        : _buildVolunteerAvatarFallback(volunteerName),
+                  ),
+                ),
               ),
-            ),
-          ),
-          StreamBuilder<int>(
-            stream: TaskChatService.getUnreadCountStream(
-              widget.task.id,
-              ownerId,
-            ),
-            builder: (context, unreadSnap) {
-              final unreadCount = unreadSnap.data ?? 0;
-              if (_isRemovingVolunteerMode) {
-                return IconButton(
-                  onPressed:
-                      volunteerDocId.isEmpty
-                          ? null
-                          : () => _confirmRemoveVolunteer(
-                            volunteerDocId,
-                            volunteerName,
-                          ),
-                  icon: Icon(Icons.close, size: 22, color: Colors.red.shade700),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(
-                    minWidth: 44,
-                    minHeight: 44,
-                  ),
-                  tooltip: 'Remove volunteer',
-                );
-              }
-              return Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  IconButton(
-                    onPressed:
-                        () =>
-                            _openChatWithVolunteer(volunteerId, volunteerName),
-                    icon: Icon(
-                      Icons.message_outlined,
-                      size: 22,
-                      color: isDark ? Colors.white : const Color(0xFF4C4C4C),
-                    ),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 44,
-                      minHeight: 44,
+              const SizedBox(width: 12),
+              // Volunteer Name (tap to show profile)
+              Expanded(
+                child: GestureDetector(
+                  onTap: showProfileDialog,
+                  child: Text(
+                    volunteerName,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.green.shade300 : Colors.green.shade800,
                     ),
                   ),
-                  if (unreadCount > 0)
-                    Positioned(
-                      right: 4,
-                      top: 4,
-                      child: Container(
-                        width: 10,
-                        height: 10,
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
+                ),
+              ),
+              StreamBuilder<int>(
+                stream: TaskChatService.getUnreadCountStream(
+                  widget.task.id,
+                  ownerId,
+                ),
+                builder: (context, unreadSnap) {
+                  final unreadCount = unreadSnap.data ?? 0;
+                  if (_isRemovingVolunteerMode) {
+                    return IconButton(
+                      onPressed:
+                          volunteerDocId.isEmpty
+                              ? null
+                              : () => _confirmRemoveVolunteer(
+                                volunteerDocId,
+                                volunteerName,
+                              ),
+                      icon: Icon(Icons.close, size: 22, color: Colors.red.shade700),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 44,
+                        minHeight: 44,
+                      ),
+                      tooltip: 'Remove volunteer',
+                    );
+                  }
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      IconButton(
+                        onPressed:
+                            () =>
+                                _openChatWithVolunteer(volunteerId, volunteerName),
+                        icon: Icon(
+                          Icons.message_outlined,
+                          size: 22,
+                          color: isDark ? Colors.white : const Color(0xFF4C4C4C),
+                        ),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(
+                          minWidth: 44,
+                          minHeight: 44,
                         ),
                       ),
-                    ),
-                ],
-              );
-            },
+                      if (unreadCount > 0)
+                        Positioned(
+                          right: 4,
+                          top: 4,
+                          child: Container(
+                            width: 10,
+                            height: 10,
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ],
           ),
-        ],
+        );
+      },
+    );
+  }
+
+  Widget _buildVolunteerAvatarFallback(String name) {
+    final initials = name.isNotEmpty ? name[0].toUpperCase() : '?';
+    return CircleAvatar(
+      radius: 20,
+      backgroundColor: const Color(0xFF20BF6B),
+      child: Text(
+        initials,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
       ),
     );
   }
@@ -1148,5 +1210,43 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
     } catch (_) {
       return null;
     }
+  }
+
+  Future<Map<String, String?>> _fetchVolunteerData(String volunteerId) async {
+    if (_volunteerDataCache.containsKey(volunteerId)) {
+      return _volunteerDataCache[volunteerId]!;
+    }
+
+    try {
+      final userDoc = await FirestoreService.instance
+          .collection('users')
+          .doc(volunteerId)
+          .get();
+
+      if (userDoc.exists) {
+        final data = userDoc.data();
+        final userData = {
+          'avatarUrl': data?['profileImageUrl'] as String?,
+          'purok': data?['purok'] != null
+              ? 'Purok ${data?['purok']}'
+              : null,
+          'phoneNumber': data?['phoneNumber'] as String?,
+          'fullName': data?['fullName'] as String? ?? 'Unknown',
+        };
+        _volunteerDataCache[volunteerId] = userData;
+        return userData;
+      }
+    } catch (e) {
+      debugPrint('Error fetching volunteer data: $e');
+    }
+
+    final emptyData = {
+      'avatarUrl': null,
+      'purok': null,
+      'phoneNumber': null,
+      'fullName': 'Unknown',
+    };
+    _volunteerDataCache[volunteerId] = emptyData;
+    return emptyData;
   }
 }

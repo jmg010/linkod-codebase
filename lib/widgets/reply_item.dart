@@ -7,6 +7,7 @@ import 'message_bubble.dart';
 class ReplyItem extends StatelessWidget {
   final MessageModel reply;
   final VoidCallback? onDelete;
+  final VoidCallback? onReply;
   final bool canDelete;
   final String? avatarUrl;
   final String? purok;
@@ -16,6 +17,7 @@ class ReplyItem extends StatelessWidget {
     super.key,
     required this.reply,
     this.onDelete,
+    this.onReply,
     this.canDelete = false,
     this.avatarUrl,
     this.purok,
@@ -34,7 +36,7 @@ class ReplyItem extends StatelessWidget {
           // Thread line
           Container(
             width: 2,
-            margin: const EdgeInsets.only(left: 14, right: 12),
+            margin: const EdgeInsets.only(left: 40, right: 10),
             decoration: BoxDecoration(
               color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
               borderRadius: BorderRadius.circular(1),
@@ -56,28 +58,57 @@ class ReplyItem extends StatelessWidget {
                     purok: purok,
                     phoneNumber: phoneNumber,
                   ),
-                  if (canDelete && onDelete != null) ...[
-                    const SizedBox(height: 4),
-                    TextButton(
-                      onPressed: () => _confirmDelete(context),
-                      style: TextButton.styleFrom(
-                        foregroundColor: secondaryColor,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: const Text(
-                        'Delete',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
+                  // Reply and Delete buttons row
+                  if (onReply != null || (canDelete && onDelete != null))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Row(
+                        children: [
+                          if (onReply != null)
+                            TextButton(
+                              onPressed: onReply,
+                              style: TextButton.styleFrom(
+                                foregroundColor: const Color(0xFF20BF6B),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: const Text(
+                                'Reply',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          if (canDelete && onDelete != null) ...[
+                            if (onReply != null) const SizedBox(width: 8),
+                            TextButton(
+                              onPressed: () => _confirmDelete(context),
+                              style: TextButton.styleFrom(
+                                foregroundColor: secondaryColor,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: const Text(
+                                'Delete',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
-                  ],
                 ],
               ),
             ),
@@ -140,6 +171,7 @@ class ReplyThread extends StatelessWidget {
   final List<MessageModel> replies;
   final Map<String, Map<String, String?>> userDataCache;
   final Function(String)? onDeleteReply;
+  final Function(String, String)? onReply;
   final String? currentUserId;
 
   const ReplyThread({
@@ -147,6 +179,7 @@ class ReplyThread extends StatelessWidget {
     required this.replies,
     this.userDataCache = const {},
     this.onDeleteReply,
+    this.onReply,
     this.currentUserId,
   });
 
@@ -159,6 +192,7 @@ class ReplyThread extends StatelessWidget {
         return ReplyItem(
           reply: reply,
           onDelete: onDeleteReply != null ? () => onDeleteReply!(reply.id) : null,
+          onReply: onReply != null ? () => onReply!(reply.id, reply.senderName) : null,
           canDelete: reply.senderId == currentUserId,
           avatarUrl: userData?['avatarUrl'],
           purok: userData?['purok'],

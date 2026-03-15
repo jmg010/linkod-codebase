@@ -32,10 +32,8 @@ class _SellProductScreenState extends State<SellProductScreen> {
   final _priceController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _contactController = TextEditingController();
+  final _locationController = TextEditingController();
   String? _selectedCategory;
-
-  /// Purok 1-5 for location (Barangay Cagbaoto). Default 1.
-  int _selectedPurok = 1;
   final List<XFile> _pickedImages = [];
 
   /// When editing, URLs already on the product (user can remove).
@@ -71,8 +69,7 @@ class _SellProductScreenState extends State<SellProductScreen> {
       _titleController.text = p.title;
       _priceController.text = p.price.toStringAsFixed(0);
       _descriptionController.text = p.description;
-      _selectedPurok = purokFromDisplayName(p.location);
-      if (_selectedPurok < 1 || _selectedPurok > 5) _selectedPurok = 1;
+      _locationController.text = p.location;
       _contactController.text = p.contactNumber;
       _selectedCategory = p.category;
       _existingImageUrls = List<String>.from(p.imageUrls);
@@ -101,9 +98,9 @@ class _SellProductScreenState extends State<SellProductScreen> {
       if (phone != null && phone.isNotEmpty) {
         _contactController.text = phone;
       }
-      final purok = (data?['purok'] as num?)?.toInt();
-      if (purok != null && purok >= 1 && purok <= 5) {
-        setState(() => _selectedPurok = purok);
+      final location = data?['location'] as String?;
+      if (location != null && location.isNotEmpty) {
+        _locationController.text = location;
       }
     } catch (_) {}
   }
@@ -115,6 +112,7 @@ class _SellProductScreenState extends State<SellProductScreen> {
     _priceController.dispose();
     _descriptionController.dispose();
     _contactController.dispose();
+    _locationController.dispose();
     super.dispose();
   }
 
@@ -284,7 +282,7 @@ class _SellProductScreenState extends State<SellProductScreen> {
           'description': _descriptionController.text.trim(),
           'price': price,
           'category': _selectedCategory!,
-          'location': purokDisplayName(_selectedPurok),
+          'location': _locationController.text.trim(),
           'contactNumber':
               _contactController.text.trim().isNotEmpty
                   ? _contactController.text.trim()
@@ -326,7 +324,7 @@ class _SellProductScreenState extends State<SellProductScreen> {
           createdAt: DateTime.now(),
           isAvailable: true,
           imageUrls: imageUrls,
-          location: purokDisplayName(_selectedPurok),
+          location: _locationController.text.trim(),
           contactNumber:
               _contactController.text.trim().isNotEmpty
                   ? _contactController.text.trim()
@@ -762,7 +760,7 @@ class _SellProductScreenState extends State<SellProductScreen> {
               ),
               const SizedBox(height: 14),
               Text(
-                'Location (Purok)',
+                'Location',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
@@ -770,51 +768,9 @@ class _SellProductScreenState extends State<SellProductScreen> {
                 ),
               ),
               const SizedBox(height: 6),
-              DropdownButtonFormField<String>(
-                value: purokDisplayName(_selectedPurok),
-                dropdownColor: isDark ? const Color(0xFF2C2C2C) : Colors.white,
-                style: TextStyle(
-                  color: isDark ? Colors.white : Colors.black87,
-                  fontSize: 14,
-                ),
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor:
-                      isDark ? const Color(0xFF1E1E1E) : Colors.grey.shade100,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide:
-                        isDark
-                            ? BorderSide(color: Colors.grey.shade700)
-                            : BorderSide.none,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide:
-                        isDark
-                            ? BorderSide(color: Colors.grey.shade700)
-                            : BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 14,
-                  ),
-                ),
-                items:
-                    purokLabels
-                        .map(
-                          (label) => DropdownMenuItem(
-                            value: label,
-                            child: Text(label),
-                          ),
-                        )
-                        .toList(),
-                onChanged: (value) {
-                  if (value != null)
-                    setState(
-                      () => _selectedPurok = purokFromDisplayName(value),
-                    );
-                },
+              _buildInputField(
+                controller: _locationController,
+                hint: 'Enter location',
               ),
               const SizedBox(height: 14),
               Text(
@@ -877,7 +833,8 @@ class _SellProductScreenState extends State<SellProductScreen> {
     required TextEditingController controller,
     required String hint,
     int maxLines = 1,
-    TextInputType keyboardType = TextInputType.text,
+    int? minLines,
+    TextInputType? keyboardType,
   }) {
     final bool isMultiline = maxLines > 1;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -892,9 +849,10 @@ class _SellProductScreenState extends State<SellProductScreen> {
       ),
       child: TextField(
         controller: controller,
-        keyboardType: keyboardType,
-        maxLines: isMultiline ? maxLines : 1,
-        minLines: isMultiline ? maxLines : 1,
+        keyboardType: keyboardType ?? (isMultiline ? TextInputType.multiline : TextInputType.text),
+        maxLines: maxLines,
+        minLines: minLines ?? (isMultiline ? 2 : 1),
+        textInputAction: isMultiline ? TextInputAction.newline : TextInputAction.next,
         style: TextStyle(
           fontSize: 14,
           color: isDark ? Colors.white : Colors.black87,

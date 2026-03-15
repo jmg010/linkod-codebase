@@ -215,6 +215,8 @@ class ErrandJobCard extends StatelessWidget {
                 color: isDark ? Colors.grey.shade300 : const Color(0xFF4C4C4C),
                 height: 1.4,
               ),
+              softWrap: true,
+              overflow: TextOverflow.visible,
             ),
             const SizedBox(height: 14),
             // Action button: View / Edit (or Volunteer when open and no assignee)
@@ -374,15 +376,17 @@ class _ErrandCardImage extends StatelessWidget {
     if (imageUrls.isEmpty) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(14),
-        child: Container(
-          height: 160,
-          width: double.infinity,
-          color: Colors.grey.shade100,
-          alignment: Alignment.center,
-          child: Icon(
-            Icons.image_outlined,
-            size: 40,
-            color: Colors.grey.shade400,
+        child: AspectRatio(
+          aspectRatio: 16 / 9,
+          child: Container(
+            width: double.infinity,
+            color: Colors.grey.shade100,
+            alignment: Alignment.center,
+            child: Icon(
+              Icons.image_outlined,
+              size: 40,
+              color: Colors.grey.shade400,
+            ),
           ),
         ),
       );
@@ -390,15 +394,13 @@ class _ErrandCardImage extends StatelessWidget {
     if (imageUrls.length == 1) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(14),
-        child: SizedBox(
-          height: 160,
-          width: double.infinity,
+        child: AspectRatio(
+          aspectRatio: 16 / 9,
           child: OptimizedNetworkImage(
             imageUrl: imageUrls.first,
-            height: 160,
             fit: BoxFit.cover,
-            cacheWidth: 400,
-            cacheHeight: 400,
+            cacheWidth: 800,
+            cacheHeight: 450,
             borderRadius: BorderRadius.circular(14),
             errorWidget: _errorPlaceholder(),
             onTap:
@@ -409,9 +411,8 @@ class _ErrandCardImage extends StatelessWidget {
     }
     return ClipRRect(
       borderRadius: BorderRadius.circular(14),
-      child: SizedBox(
-        height: 160,
-        width: double.infinity,
+      child: AspectRatio(
+        aspectRatio: 16 / 9,
         child: PageView.builder(
           itemCount: imageUrls.length,
           itemBuilder: (context, index) {
@@ -424,10 +425,9 @@ class _ErrandCardImage extends StatelessWidget {
                   ),
               child: OptimizedNetworkImage(
                 imageUrl: imageUrls[index],
-                height: 160,
                 fit: BoxFit.cover,
-                cacheWidth: 400,
-                cacheHeight: 400,
+                cacheWidth: 800,
+                cacheHeight: 450,
                 borderRadius: BorderRadius.circular(14),
                 errorWidget: _errorPlaceholder(),
               ),

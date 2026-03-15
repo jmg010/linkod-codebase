@@ -148,6 +148,45 @@ class ProductsService {
       );
     }
 
+    // Create notification for the parent message sender when this is a reply.
+    if (parentId != null) {
+      try {
+        final parentMsg = await messagesRef.doc(parentId).get();
+        if (parentMsg.exists) {
+          final parentData = parentMsg.data() as Map<String, dynamic>?;
+          final parentSenderId = parentData?['senderId'] as String?;
+          if (parentSenderId != null &&
+              parentSenderId != senderId) {
+            final batch = FirestoreService.instance.batch();
+            final notifRef =
+                FirestoreService.instance.collection('notifications').doc();
+            batch.set(notifRef, {
+              'userId': parentSenderId,
+              'senderId': senderId,
+              'type': 'reply',
+              'productId': productId,
+              'parentMessageId': parentId,
+              'messageId': docRef.id,
+              'isRead': false,
+              'message': '$senderName replied to your message',
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+            final userRef =
+                FirestoreService.instance.collection('users').doc(parentSenderId);
+            batch.set(
+              userRef,
+              {'unreadNotificationCount': FieldValue.increment(1)},
+              SetOptions(merge: true),
+            );
+            await batch.commit();
+            print('Reply notification created for parent sender: $parentSenderId');
+          }
+        }
+      } catch (e) {
+        print('FAILED to create reply notification for product $productId: $e');
+      }
+    }
+
     return docRef.id;
   }
 

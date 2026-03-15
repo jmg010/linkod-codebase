@@ -3,7 +3,9 @@ import '../models/task_model.dart';
 import '../services/tasks_service.dart';
 import '../services/task_chat_service.dart';
 import '../services/firestore_service.dart';
+import '../services/notifications_service.dart';
 import '../widgets/errand_job_card.dart';
+import '../widgets/optimized_image.dart';
 import 'task_edit_screen.dart';
 import 'task_detail_screen.dart';
 import 'search_screen.dart';
@@ -108,9 +110,7 @@ class _MyPostsScreenState extends State<MyPostsScreen>
                       if (uid == null) return;
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder:
-                              (_) =>
-                                  const SearchScreen(mode: SearchMode.myTasks),
+                          builder: (_) => SearchScreen(mode: SearchMode.myTasks),
                         ),
                       );
                     },
@@ -157,48 +157,69 @@ class _TabBarWithBadge extends StatelessWidget {
     return StreamBuilder<int>(
       stream: TaskChatService.getTotalUnreadForRequesterStream(userId),
       initialData: 0,
-      builder: (context, requesterSnapshot) {
-        return StreamBuilder<int>(
-          stream: TaskChatService.getTotalUnreadForAssignedStream(userId),
-          initialData: 0,
-          builder: (context, assignedSnapshot) {
-            final myPostsUnread = requesterSnapshot.data ?? 0;
-            final interactedUnread = assignedSnapshot.data ?? 0;
-            final isDark = Theme.of(context).brightness == Brightness.dark;
+      builder: (context, requesterChatSnapshot) {
+        return StreamBuilder<List<TaskModel>>(
+          stream: TasksService.getRequesterTasksStream(userId),
+          builder: (context, requesterTasksSnapshot) {
+            final requesterChatUnread = requesterChatSnapshot.data ?? 0;
+            final requesterTasks = requesterTasksSnapshot.data ?? [];
+            final pendingVolunteersCount = requesterTasks.fold<int>(
+              0,
+              (sum, task) => sum + task.pendingVolunteersCount,
+            );
+            final myPostsUnread = requesterChatUnread + pendingVolunteersCount;
 
-            return Container(
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E1E1E) : Colors.grey.shade200,
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: AnimatedBuilder(
-                animation: tabController,
-                builder: (context, child) {
-                  return Row(
-                    children: [
-                      // MY POSTS Tab with badge
-                      Expanded(
-                        child: _TabButton(
-                          label: 'MY POSTS',
-                          isSelected: tabController.index == 0,
-                          badgeCount: myPostsUnread > 0 ? myPostsUnread : null,
-                          onTap: () => tabController.animateTo(0),
-                        ),
+            return StreamBuilder<int>(
+              stream: TaskChatService.getTotalUnreadForAssignedStream(userId),
+              initialData: 0,
+              builder: (context, assignedSnapshot) {
+                return StreamBuilder<int>(
+                  stream: NotificationsService.getVolunteerAcceptedUnreadCountStream(userId),
+                  initialData: 0,
+                  builder: (context, volunteerAcceptedSnapshot) {
+                    final assignedUnread = assignedSnapshot.data ?? 0;
+                    final volunteerAcceptedUnread = volunteerAcceptedSnapshot.data ?? 0;
+                    // Interacted posts = assigned tasks chat + volunteer_accepted notifications
+                    final interactedUnread = assignedUnread + volunteerAcceptedUnread;
+                    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E1E1E) : Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(24),
                       ),
-                      // INTERACTED POSTS Tab with badge
-                      Expanded(
-                        child: _TabButton(
-                          label: 'INTERACTED POSTS',
-                          isSelected: tabController.index == 1,
-                          badgeCount:
-                              interactedUnread > 0 ? interactedUnread : null,
-                          onTap: () => tabController.animateTo(1),
-                        ),
+                      child: AnimatedBuilder(
+                        animation: tabController,
+                        builder: (context, child) {
+                          return Row(
+                            children: [
+                              // MY POSTS Tab with badge
+                              Expanded(
+                                child: _TabButton(
+                                  label: 'MY POSTS',
+                                  isSelected: tabController.index == 0,
+                                  badgeCount: myPostsUnread > 0 ? myPostsUnread : null,
+                                  onTap: () => tabController.animateTo(0),
+                                ),
+                              ),
+                              // INTERACTED POSTS Tab with badge
+                              Expanded(
+                                child: _TabButton(
+                                  label: 'INTERACTED POSTS',
+                                  isSelected: tabController.index == 1,
+                                  badgeCount:
+                                      interactedUnread > 0 ? interactedUnread : null,
+                                  onTap: () => tabController.animateTo(1),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
-                    ],
-                  );
-                },
-              ),
+                    );
+                  },
+                );
+              },
             );
           },
         );
@@ -377,6 +398,7 @@ class _MyPostsTab extends StatelessWidget {
                   statusLabel: task.status.displayName,
                   volunteerName: task.assignedByName,
                   unreadCount: totalUnread,
+                  imageUrls: task.imageUrls,
                   onViewPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
@@ -488,9 +510,10 @@ class _InteractedPostsTab extends StatelessWidget {
               status: status,
               statusLabel: task.status.displayName,
               unreadCount: unreadCount,
+              imageUrls: task.imageUrls,
               onViewPressed: () {
-                // Mark chat as read when opening
-                TaskChatService.markChatRead(task.id, userId);
+                // Mark volunteer_accepted notification as read when viewing the task
+                NotificationsService.markVolunteerAcceptedAsReadByTask(userId, task.id);
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder:
@@ -519,6 +542,7 @@ class _MyPostCard extends StatelessWidget {
   final String? volunteerName;
   final int unreadCount;
   final VoidCallback? onViewPressed;
+  final List<String> imageUrls;
 
   const _MyPostCard({
     required this.title,
@@ -530,6 +554,7 @@ class _MyPostCard extends StatelessWidget {
     this.volunteerName,
     this.unreadCount = 0,
     this.onViewPressed,
+    this.imageUrls = const [],
   });
 
   @override
@@ -616,6 +641,11 @@ class _MyPostCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
+            // Image section (when imageUrls provided)
+            if (imageUrls.isNotEmpty) ...[
+              _MyPostCardImage(imageUrls: imageUrls),
+              const SizedBox(height: 12),
+            ],
             // Description
             Text(
               description,
@@ -624,6 +654,8 @@ class _MyPostCard extends StatelessWidget {
                 color: Color(0xFF4C4C4C),
                 height: 1.4,
               ),
+              softWrap: true,
+              overflow: TextOverflow.visible,
             ),
             const SizedBox(height: 14),
             // Action button: Edit (owner's post - has volunteer) or View
@@ -865,6 +897,57 @@ class _MyPostCard extends StatelessWidget {
   }
 }
 
+/// Image widget for My Post cards
+class _MyPostCardImage extends StatelessWidget {
+  final List<String> imageUrls;
+
+  const _MyPostCardImage({required this.imageUrls});
+
+  @override
+  Widget build(BuildContext context) {
+    if (imageUrls.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    if (imageUrls.length == 1) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: AspectRatio(
+          aspectRatio: 16 / 9,
+          child: OptimizedNetworkImage(
+            imageUrl: imageUrls.first,
+            fit: BoxFit.cover,
+            cacheWidth: 800,
+            cacheHeight: 450,
+            borderRadius: BorderRadius.circular(12),
+            onTap: () => openFullScreenImages(context, imageUrls, initialIndex: 0),
+          ),
+        ),
+      );
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: AspectRatio(
+        aspectRatio: 16 / 9,
+        child: PageView.builder(
+          itemCount: imageUrls.length,
+          itemBuilder: (context, index) {
+            return GestureDetector(
+              onTap: () => openFullScreenImages(context, imageUrls, initialIndex: index),
+              child: OptimizedNetworkImage(
+                imageUrl: imageUrls[index],
+                fit: BoxFit.cover,
+                cacheWidth: 800,
+                cacheHeight: 450,
+                borderRadius: BorderRadius.circular(12),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
 /// Card for INTERACTED POSTS tab
 class _InteractedPostCard extends StatelessWidget {
   final String title;
@@ -875,6 +958,7 @@ class _InteractedPostCard extends StatelessWidget {
   final String? statusLabel;
   final int unreadCount;
   final VoidCallback? onViewPressed;
+  final List<String> imageUrls;
 
   const _InteractedPostCard({
     required this.title,
@@ -885,6 +969,7 @@ class _InteractedPostCard extends StatelessWidget {
     this.statusLabel,
     this.unreadCount = 0,
     this.onViewPressed,
+    this.imageUrls = const [],
   });
 
   @override
@@ -971,6 +1056,12 @@ class _InteractedPostCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
+            // Image section (when imageUrls provided)
+            if (imageUrls.isNotEmpty) ...[
+              _MyPostCardImage(imageUrls: imageUrls),
+              const SizedBox(height: 12),
+            ],
+            // Description
             Text(
               description,
               style: TextStyle(
@@ -978,6 +1069,8 @@ class _InteractedPostCard extends StatelessWidget {
                 color: isDark ? Colors.grey.shade300 : const Color(0xFF4C4C4C),
                 height: 1.4,
               ),
+              softWrap: true,
+              overflow: TextOverflow.visible,
             ),
             const SizedBox(height: 14),
             // View button with badge inside

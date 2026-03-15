@@ -16,6 +16,7 @@ class BulletinBoardScreenState extends State<BulletinBoardScreen> {
   final ScrollController _scrollController = ScrollController();
   String? barangayCoverImageUrl;
   String? barangayLogoUrl;
+  String? barangayDisplayName;
 
   @override
   void initState() {
@@ -34,6 +35,7 @@ class BulletinBoardScreenState extends State<BulletinBoardScreen> {
         setState(() {
           barangayCoverImageUrl = data?['barangayCoverImageUrl'] as String?;
           barangayLogoUrl = data?['barangayLogoUrl'] as String?;
+          barangayDisplayName = data?['barangayDisplayName'] as String?;
         });
       }
     } catch (e) {
@@ -227,7 +229,9 @@ class BulletinBoardScreenState extends State<BulletinBoardScreen> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
-            'Barangay Cagbaoto Bayabas Surigao Del sur',
+            barangayDisplayName?.isNotEmpty == true
+                ? barangayDisplayName!
+                : 'Barangay Information',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 18,

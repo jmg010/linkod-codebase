@@ -35,12 +35,14 @@ class BulletinModel {
     return BulletinCategoryModel.getById(categoryId);
   }
 
-  // Get all image URLs (combines single imageUrl and imageUrls list)
+  // Get all image URLs (combines single imageUrl and imageUrls list, avoiding duplicates)
   List<String> get allImageUrls {
     final urls = <String>[];
-    if (imageUrl != null && imageUrl!.isNotEmpty) {
+    // Add imageUrl only if it's not empty and not already in imageUrls
+    if (imageUrl != null && imageUrl!.isNotEmpty && !imageUrls.contains(imageUrl)) {
       urls.add(imageUrl!);
     }
+    // Add all non-empty URLs from imageUrls list
     urls.addAll(imageUrls.where((url) => url.isNotEmpty));
     return urls;
   }

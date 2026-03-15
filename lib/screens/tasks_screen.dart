@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:rxdart/rxdart.dart';
 
 import '../models/task_model.dart';
 import '../widgets/errand_job_card.dart';
@@ -9,6 +10,7 @@ import 'my_posts_screen.dart';
 import 'task_detail_screen.dart';
 import 'task_edit_screen.dart';
 import 'search_screen.dart';
+import '../services/notifications_service.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -194,8 +196,12 @@ class TasksScreenState extends State<TasksScreen> {
 
   static Stream<int> _ownerPendingVolunteersCountStream(String? uid) {
     if (uid == null) return Stream<int>.value(0);
-    // Use combined stream for both requester tasks and interacted tasks
-    return TasksService.getTotalPostActivityUnreadStream(uid);
+    // Combine task activity stream with volunteer_accepted notifications
+    return Rx.combineLatest2<int, int, int>(
+      TasksService.getTotalPostActivityUnreadStream(uid),
+      NotificationsService.getVolunteerAcceptedUnreadCountStream(uid),
+      (taskActivityCount, volunteerAcceptedCount) => taskActivityCount + volunteerAcceptedCount,
+    );
   }
 
   @override
@@ -237,8 +243,7 @@ class TasksScreenState extends State<TasksScreen> {
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder:
-                            (_) => const SearchScreen(mode: SearchMode.tasks),
+                        builder: (_) => SearchScreen(mode: SearchMode.tasks),
                       ),
                     );
                   },

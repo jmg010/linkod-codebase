@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/announcements_service.dart';
 import '../services/firestore_service.dart';
 import '../widgets/optimized_image.dart';
@@ -20,11 +21,30 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
   Map<String, dynamic>? _announcement;
   bool _loading = true;
   String? _error;
+  String? _barangayLogoUrl;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _loadBranding();
+  }
+
+  Future<void> _loadBranding() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('barangaySettings')
+          .doc('branding')
+          .get();
+      if (doc.exists && mounted) {
+        final data = doc.data();
+        setState(() {
+          _barangayLogoUrl = data?['barangayLogoUrl'] as String?;
+        });
+      }
+    } catch (e) {
+      // Silently fail - will show fallback
+    }
   }
 
   Future<void> _load() async {
@@ -245,11 +265,50 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with logo and info
+          // Official Announcement Banner at top
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFF20BF6B).withOpacity(0.15),
+                  const Color(0xFF20BF6B).withOpacity(0.05),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: const Color(0xFF20BF6B).withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.verified,
+                  size: 16,
+                  color: const Color(0xFF20BF6B),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Official Announcement',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF20BF6B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Header with barangay logo and info
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Linkod Logo as avatar
+              // Barangay Logo as avatar
               Container(
                 width: 48,
                 height: 48,
@@ -259,27 +318,17 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.asset(
-                    'assets/images/linkod_logo.png',
-                    width: 48,
-                    height: 48,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
+                  child: _barangayLogoUrl != null && _barangayLogoUrl!.isNotEmpty
+                    ? Image.network(
+                        _barangayLogoUrl!,
                         width: 48,
                         height: 48,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF00A651),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.campaign,
-                          color: Colors.white,
-                          size: 24,
-                        ),
-                      );
-                    },
-                  ),
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return _buildFallbackLogo();
+                        },
+                      )
+                    : _buildFallbackLogo(),
                 ),
               ),
               const SizedBox(width: 12),
@@ -358,51 +407,13 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
               color: isDark ? Colors.grey.shade300 : const Color(0xFF4C4C4C),
               height: 1.6,
             ),
+            softWrap: true,
+            overflow: TextOverflow.visible,
           ),
           if (imageUrls != null && imageUrls.isNotEmpty) ...[
             const SizedBox(height: 20),
             _buildDetailImages(imageUrls),
           ],
-          const SizedBox(height: 24),
-          // Footer with announcement icon
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color:
-                      isDark ? const Color(0xFF2C2C2C) : Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.campaign_outlined,
-                      size: 16,
-                      color:
-                          isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Official Announcement',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color:
-                            isDark
-                                ? Colors.grey.shade300
-                                : Colors.grey.shade600,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
@@ -489,6 +500,22 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildFallbackLogo() {
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        color: const Color(0xFF00A651),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Icon(
+        Icons.campaign,
+        color: Colors.white,
+        size: 24,
       ),
     );
   }

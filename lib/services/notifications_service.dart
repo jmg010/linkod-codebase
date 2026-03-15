@@ -70,6 +70,49 @@ class NotificationsService {
         });
   }
 
+  /// Stream of unread volunteer_accepted notifications count.
+  /// Used for Interacted Posts tab badge when user is assigned to a task.
+  static Stream<int> getVolunteerAcceptedUnreadCountStream(String userId) {
+    return _notificationsCollection
+        .where('userId', isEqualTo: userId)
+        .where('type', isEqualTo: 'volunteer_accepted')
+        .where('isRead', isEqualTo: false)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.length);
+  }
+
+  /// Mark volunteer_accepted notifications as read for a specific task.
+  /// Called when user opens a task from Interacted Posts to clear the badge.
+  static Future<void> markVolunteerAcceptedAsReadByTask(String userId, String taskId) async {
+    final notifications = await _notificationsCollection
+        .where('userId', isEqualTo: userId)
+        .where('type', isEqualTo: 'volunteer_accepted')
+        .where('taskId', isEqualTo: taskId)
+        .where('isRead', isEqualTo: false)
+        .get();
+    
+    if (notifications.docs.isEmpty) return;
+    
+    final batch = FirestoreService.instance.batch();
+    int unreadCount = 0;
+    
+    for (final doc in notifications.docs) {
+      batch.update(doc.reference, {'isRead': true});
+      unreadCount++;
+    }
+    
+    await batch.commit();
+    
+    // Decrement unreadNotificationCount on user document
+    if (unreadCount > 0) {
+      final userRef = FirestoreService.instance.collection('users').doc(userId);
+      await userRef.set(
+        {'unreadNotificationCount': FieldValue.increment(-unreadCount)},
+        SetOptions(merge: true),
+      );
+    }
+  }
+
   /// Mark notification as read and decrement unreadNotificationCount atomically.
   static Future<void> markAsRead(String notificationId) async {
     final docRef = _notificationsCollection.doc(notificationId);

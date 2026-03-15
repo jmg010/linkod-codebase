@@ -38,6 +38,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   /// Sender name of the message we're replying to (for the indicator).
   String? replyingToName;
 
+  /// When replying to a sub-comment (reply), track which specific reply for UI display
+  /// The actual parentId stays the same (the top-level message)
+  String? replyingToSubCommentId;
+  String? replyingToSubCommentName;
+
   /// Current product (updated after owner edits).
   late ProductModel _currentProduct;
   bool _isEditing = false;
@@ -588,6 +593,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                     color: Colors.grey.shade700,
                                     height: 1.4,
                                   ),
+                                  softWrap: true,
+                                  overflow: TextOverflow.visible,
                                 ),
                             const SizedBox(height: 16),
                             _buildSectionTitle('Location'),
@@ -794,6 +801,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                                   replyingToId = msg.id;
                                                   replyingToName =
                                                       msg.senderName;
+                                                  replyingToSubCommentId = null;
+                                                  replyingToSubCommentName = null;
                                                   expandedMessageIds.add(
                                                     msg.id,
                                                   );
@@ -819,6 +828,20 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                               onDelete: () => _deleteMessage(msg.id),
                                               canDelete: msg.senderId == FirestoreService.auth.currentUser?.uid,
                                               onDeleteReply: (replyId) => _deleteMessage(replyId),
+                                              onReplyToReply: (replyId, replySenderName) {
+                                                setState(() {
+                                                  replyingToId = msg.id;
+                                                  replyingToName = msg.senderName;
+                                                  replyingToSubCommentId = replyId;
+                                                  replyingToSubCommentName = replySenderName;
+                                                  expandedMessageIds.add(msg.id);
+                                                });
+                                                WidgetsBinding.instance
+                                                    .addPostFrameCallback((_) {
+                                                  _messageFocusNode
+                                                      .requestFocus();
+                                                });
+                                              },
                                               currentUserId: FirestoreService.auth.currentUser?.uid,
                                               avatarUrl: senderUserData?['avatarUrl'],
                                               purok: senderUserData?['purok'],
@@ -836,10 +859,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                                     _buildInlineReplyComposer(
                                                   replyingToName:
                                                       replyingToName ?? '',
+                                                  replyingToSubCommentName: replyingToSubCommentName,
                                                   onCancel: () {
                                                     setState(() {
                                                       replyingToId = null;
                                                       replyingToName = null;
+                                                      replyingToSubCommentId = null;
+                                                      replyingToSubCommentName = null;
                                                     });
                                                   },
                                                 ),
@@ -997,6 +1023,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           expandedMessageIds.add(replyingToId!);
           replyingToId = null;
           replyingToName = null;
+          replyingToSubCommentId = null;
+          replyingToSubCommentName = null;
         }
       });
     } catch (e) {
@@ -1022,12 +1050,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   Widget _buildInlineReplyComposer({
     required String replyingToName,
+    String? replyingToSubCommentName,
     required VoidCallback onCancel,
   }) {
     return InlineReplyComposer(
       controller: _messageController,
       focusNode: _messageFocusNode,
-      replyingToName: replyingToName,
+      replyingToName: replyingToSubCommentName ?? replyingToName,
       onCancel: onCancel,
       onReply: _handleSendMessage,
       isSending: _isSending,

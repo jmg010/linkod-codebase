@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:rxdart/rxdart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../ui_constants.dart';
 import '../models/user_role.dart';
@@ -11,6 +12,7 @@ import '../services/tasks_service.dart';
 import '../services/task_chat_service.dart';
 import '../services/posts_service.dart';
 import '../services/products_service.dart';
+import '../services/notifications_service.dart';
 import '../services/firestore_service.dart';
 import 'home_feed_screen.dart';
 import 'announcements_screen.dart';
@@ -303,8 +305,12 @@ class _HomeScreenState extends State<HomeScreen> {
   Stream<int> _getErrandNotificationCountStream() {
     final uid = FirestoreService.currentUserId;
     if (uid == null) return Stream<int>.value(0);
-    // Use combined stream for both requester tasks and interacted tasks
-    return TasksService.getTotalPostActivityUnreadStream(uid);
+    // Combine task activity with volunteer_accepted notifications for total errand badge
+    return Rx.combineLatest2<int, int, int>(
+      TasksService.getTotalPostActivityUnreadStream(uid),
+      NotificationsService.getVolunteerAcceptedUnreadCountStream(uid),
+      (taskActivityCount, volunteerAcceptedCount) => taskActivityCount + volunteerAcceptedCount,
+    );
   }
 
   Stream<int> _getPostCommentsNotificationCountStream() {
@@ -316,8 +322,12 @@ class _HomeScreenState extends State<HomeScreen> {
   Stream<int> _getMarketplaceNotificationCountStream() {
     final uid = FirestoreService.currentUserId;
     if (uid == null) return Stream<int>.value(0);
-    // Use combined stream for both seller products and interacted posts
-    return ProductsService.getTotalProductActivityUnreadStream(uid);
+    // Combine product messages with post comments for total marketplace badge
+    return Rx.combineLatest2<int, int, int>(
+      ProductsService.getTotalProductActivityUnreadStream(uid),
+      PostsService.getTotalUnreadCommentsOnMyPostsStream(uid),
+      (productCount, postCommentsCount) => productCount + postCommentsCount,
+    );
   }
 
   Stream<int> _getTaskChatUnreadCountStream() {

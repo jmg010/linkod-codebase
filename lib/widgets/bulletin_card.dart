@@ -17,7 +17,8 @@ class BulletinCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final category = bulletin.category;
-    final hasImage = bulletin.imageUrl != null;
+    final allImageUrls = bulletin.allImageUrls;
+    final hasImages = allImageUrls.isNotEmpty;
 
     return GestureDetector(
       onTap: () {
@@ -44,29 +45,6 @@ class BulletinCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Image banner (if exists)
-              if (hasImage)
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16),
-                  ),
-                  child: AspectRatio(
-                    aspectRatio: 16 / 9,
-                    child: Image.network(
-                      bulletin.imageUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        color: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade300,
-                        child: Icon(
-                          Icons.image_not_supported_outlined,
-                          color: isDark ? Colors.grey.shade600 : Colors.grey.shade500,
-                          size: 32,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-
               // Content padding
               Padding(
                 padding: const EdgeInsets.all(14),
@@ -154,6 +132,29 @@ class BulletinCard extends StatelessWidget {
                   ],
                 ),
               ),
+
+              // Image banner (if exists) - Now below content
+              if (hasImages)
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    bottom: Radius.circular(16),
+                  ),
+                  child: AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: Image.network(
+                      allImageUrls.first,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade300,
+                        child: Icon(
+                          Icons.image_not_supported_outlined,
+                          color: isDark ? Colors.grey.shade600 : Colors.grey.shade500,
+                          size: 32,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),

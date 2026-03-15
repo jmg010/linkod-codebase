@@ -103,19 +103,11 @@ class TasksService {
       }
     }
 
-    // Listen to requester tasks unread (pending volunteers)
-    final requesterSub = getRequesterTasksStream(userId).asyncMap((tasks) async {
-      try {
-        int total = 0;
-        for (final t in tasks) {
-          // Count pending volunteers + unread chat messages
-          final chatUnread = await TaskChatService.getUnreadCountStream(t.id, userId).first;
-          total += t.pendingVolunteersCount + chatUnread;
-        }
-        return total;
-      } catch (_) {
-        return 0;
-      }
+    // Listen to requester tasks unread (pending volunteers only - NOT chat)
+    final requesterSub = getRequesterTasksStream(userId).map((tasks) {
+      // Only count pending volunteers, NOT chat messages
+      // Chat messages are counted separately by getTotalUnreadForUserStream
+      return tasks.fold<int>(0, (sum, t) => sum + t.pendingVolunteersCount);
     }).listen((count) {
       _requesterUnread = count;
       emitSum();

@@ -29,6 +29,8 @@ class _MenuScreenState extends State<MenuScreen> {
   String? _profileImageUrl;
   bool _isLoadingUser = true;
   int? _purok;
+  List<String> _demographicCategories = [];
+  String? _location;
 
   @override
   void initState() {
@@ -65,6 +67,19 @@ class _MenuScreenState extends State<MenuScreen> {
               _getPhoneNumber(widget.userRole);
           _profileImageUrl = data?['profileImageUrl'] as String?;
           _purok = (data?['purok'] as num?)?.toInt();
+          _location = data?['location'] as String?;
+          // Load demographic categories
+          final categories = data?['categories'];
+          debugPrint('Raw categories: $categories');
+          if (categories is List) {
+            _demographicCategories = categories
+                .map((e) => e?.toString() ?? '')
+                .where((s) => s.isNotEmpty)
+                .toList();
+            debugPrint('Processed _demographicCategories: $_demographicCategories');
+          } else {
+            _demographicCategories = [];
+          }
           _isLoadingUser = false;
         });
       } else {
@@ -72,6 +87,8 @@ class _MenuScreenState extends State<MenuScreen> {
           _userName = _getUserName(widget.userRole);
           _phoneNumber = _getPhoneNumber(widget.userRole);
           _purok = null;
+          _demographicCategories = [];
+          _location = null;
           _isLoadingUser = false;
         });
       }
@@ -81,6 +98,8 @@ class _MenuScreenState extends State<MenuScreen> {
         _userName = _getUserName(widget.userRole);
         _phoneNumber = _getPhoneNumber(widget.userRole);
         _purok = null;
+        _demographicCategories = [];
+        _location = null;
         _isLoadingUser = false;
       });
     }
@@ -209,6 +228,32 @@ class _MenuScreenState extends State<MenuScreen> {
                           color: isDark ? Colors.white : Colors.black87,
                         ),
                       ),
+                      const SizedBox(height: 4),
+                      // Purok and Demographic Categories
+                      if (!_isLoadingUser &&
+                          (_purok != null || _demographicCategories.isNotEmpty))
+                        Text(
+                          _buildPurokAndCategories(),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color:
+                                isDark
+                                    ? Colors.grey.shade400
+                                    : Colors.grey.shade600,
+                          ),
+                        ),
+                      // Location
+                      if (!_isLoadingUser && _location != null && _location!.isNotEmpty)
+                        Text(
+                          _location!,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color:
+                                isDark
+                                    ? Colors.grey.shade400
+                                    : Colors.grey.shade600,
+                          ),
+                        ),
                       const SizedBox(height: 8),
                       // Phone Number (from Firestore or fallback to role-based)
                       Text(
@@ -224,19 +269,6 @@ class _MenuScreenState extends State<MenuScreen> {
                                   : Colors.grey.shade600,
                         ),
                       ),
-                      if (!_isLoadingUser && _purok != null) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          purokDisplayName(_purok!),
-                          style: TextStyle(
-                            fontSize: 13,
-                            color:
-                                isDark
-                                    ? Colors.grey.shade400
-                                    : Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
                     ],
                   ),
                 ),
@@ -927,6 +959,23 @@ class _MenuScreenState extends State<MenuScreen> {
       case UserRole.resident:
         return '09703985626';
     }
+  }
+
+  String _buildPurokAndCategories() {
+    final parts = <String>[];
+    
+    // Add purok if available
+    if (_purok != null) {
+      parts.add(purokDisplayName(_purok!));
+    }
+    
+    // Add demographic categories if available
+    if (_demographicCategories.isNotEmpty) {
+      parts.add(_demographicCategories.join(', '));
+    }
+    
+    // Join with bullet separator
+    return parts.join(' • ');
   }
 }
 

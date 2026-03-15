@@ -327,6 +327,20 @@ service cloud.firestore {
     // }
 
     match /notifications/{notificationId} {
+      // Allow list queries when user filters by their own userId
+      allow list: if isSignedIn()
+        && request.query.limit <= 100
+        && (
+          // Query filters by userId == request.auth.uid
+          (request.query.filters[0].field == 'userId'
+            && request.query.filters[0].op == '=='
+            && request.query.filters[0].value == request.auth.uid)
+          || (request.query.filters.size() > 1
+            && request.query.filters[0].field == 'userId'
+            && request.query.filters[0].op == '=='
+            && request.query.filters[0].value == request.auth.uid)
+        );
+
       // Owner can read/update/delete their own notifications
       allow read, update, delete: if isSignedIn()
         && resource.data.userId == request.auth.uid;

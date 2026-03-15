@@ -293,9 +293,6 @@ class BulletinDetailScreen extends StatelessWidget {
                 _buildDescription(bulletin.description, isDark),
 
                 const SizedBox(height: 24),
-
-                // Posted by footer
-                _buildPostedByFooter(isDark),
               ],
             ),
           ),
@@ -368,67 +365,6 @@ class BulletinDetailScreen extends StatelessWidget {
           if (i < paragraphs.length - 1) const SizedBox(height: 16),
         ],
       ],
-    );
-  }
-
-  Widget _buildPostedByFooter(bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF20BF6B).withOpacity(0.08),
-            const Color(0xFF20BF6B).withOpacity(0.04),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFF20BF6B).withOpacity(0.15),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF20BF6B).withOpacity(0.15),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.account_balance,
-              size: 20,
-              color: Color(0xFF20BF6B),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Posted by Barangay Office',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: isDark ? Colors.white : Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Official barangay announcement',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

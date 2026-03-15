@@ -37,23 +37,6 @@ class BarangayInfoPostingCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Media Preview Section (Image, PDF, or Document Placeholder)
-              if (hasMedia) ...[
-                BulletinMediaPreview(
-                  bulletin: bulletin,
-                  height: 180,
-                  borderRadius: 12,
-                ),
-                const SizedBox(height: 16),
-              ] else ...[
-                // Document-style placeholder when no media
-                DocumentPlaceholder(
-                  height: 160,
-                  borderRadius: 12,
-                ),
-                const SizedBox(height: 16),
-              ],
-
               // Title
               Text(
                 bulletin.title,
@@ -89,6 +72,23 @@ class BarangayInfoPostingCard extends StatelessWidget {
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
               ),
+
+              // Media Preview Section (Image, PDF, or Document Placeholder) - Now below description
+              if (hasMedia) ...[
+                const SizedBox(height: 16),
+                BulletinMediaPreview(
+                  bulletin: bulletin,
+                  height: 180,
+                  borderRadius: 12,
+                ),
+              ] else ...[
+                // Document-style placeholder when no media
+                const SizedBox(height: 16),
+                DocumentPlaceholder(
+                  height: 160,
+                  borderRadius: 12,
+                ),
+              ],
 
               const SizedBox(height: 16),
 

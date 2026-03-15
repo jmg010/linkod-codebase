@@ -15,6 +15,7 @@ class MessageItem extends StatelessWidget {
   final VoidCallback? onDelete;
   final bool canDelete;
   final Function(String)? onDeleteReply;
+  final Function(String, String)? onReplyToReply;
   final String? currentUserId;
   final String? avatarUrl;
   final String? purok;
@@ -31,6 +32,7 @@ class MessageItem extends StatelessWidget {
     this.onDelete,
     this.canDelete = false,
     this.onDeleteReply,
+    this.onReplyToReply,
     this.currentUserId,
     this.avatarUrl,
     this.purok,
@@ -140,6 +142,7 @@ class MessageItem extends StatelessWidget {
             replies: replies,
             userDataCache: repliesUserDataCache ?? {},
             onDeleteReply: onDeleteReply,
+            onReply: onReplyToReply,
             currentUserId: currentUserId,
           ),
         ],

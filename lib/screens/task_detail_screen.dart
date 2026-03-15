@@ -269,6 +269,25 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               letterSpacing: 0.1,
             ),
           ),
+          const SizedBox(height: 12),
+          // Posted by
+          Row(
+            children: [
+              Icon(
+                Icons.person_outline,
+                size: 16,
+                color: isDark ? Colors.grey.shade400 : const Color(0xFF6E6E6E),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Posted by: ${widget.task.requesterName}',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: isDark ? Colors.grey.shade300 : const Color(0xFF4C4C4C),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 20),
           // Description Section
           _buildSectionHeader('Description'),
@@ -280,6 +299,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               color: isDark ? Colors.grey.shade300 : const Color(0xFF4C4C4C),
               height: 1.5,
             ),
+            softWrap: true,
+            overflow: TextOverflow.visible,
           ),
           const SizedBox(height: 20),
           // Contact Section

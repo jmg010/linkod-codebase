@@ -247,64 +247,66 @@ class _ProductCardImageState extends State<_ProductCardImage> {
     if (product.imageUrls.length == 1) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(14),
-        child: Container(
-          height: 160,
-          width: double.infinity,
-          color:
-              Theme.of(context).brightness == Brightness.dark
-                  ? const Color(0xFF2C2C2C)
-                  : Colors.grey.shade100,
-          child: OptimizedNetworkImage(
-            imageUrl: product.imageUrls.first,
-            height: 160,
-            fit: BoxFit.cover,
-            cacheWidth: 400,
-            cacheHeight: 400,
-            borderRadius: BorderRadius.circular(14),
-            errorWidget: _errorPlaceholder(
-              Theme.of(context).brightness == Brightness.dark,
+        child: AspectRatio(
+          aspectRatio: 16 / 9,
+          child: Container(
+            width: double.infinity,
+            color:
+                Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF2C2C2C)
+                    : Colors.grey.shade100,
+            child: OptimizedNetworkImage(
+              imageUrl: product.imageUrls.first,
+              fit: BoxFit.cover,
+              cacheWidth: 800,
+              cacheHeight: 450,
+              borderRadius: BorderRadius.circular(14),
+              errorWidget: _errorPlaceholder(
+                Theme.of(context).brightness == Brightness.dark,
+              ),
+              onTap:
+                  () => openFullScreenImages(
+                    context,
+                    product.imageUrls,
+                    initialIndex: 0,
+                  ),
             ),
-            onTap:
-                () => openFullScreenImages(
-                  context,
-                  product.imageUrls,
-                  initialIndex: 0,
-                ),
           ),
         ),
       );
     }
     return ClipRRect(
       borderRadius: BorderRadius.circular(14),
-      child: Container(
-        height: 160,
-        width: double.infinity,
-        color:
-            Theme.of(context).brightness == Brightness.dark
-                ? const Color(0xFF2C2C2C)
-                : Colors.grey.shade100,
-        child: PageView.builder(
-          controller: _pageController,
-          itemCount: product.imageUrls.length,
-          itemBuilder: (context, index) {
-            return GestureDetector(
-              onTap:
-                  () => openFullScreenImages(
-                    context,
-                    product.imageUrls,
-                    initialIndex: index,
-                  ),
-              child: OptimizedNetworkImage(
-                imageUrl: product.imageUrls[index],
-                height: 160,
-                fit: BoxFit.cover,
-                cacheWidth: 400,
-                cacheHeight: 400,
-                borderRadius: BorderRadius.circular(14),
-                errorWidget: _errorPlaceholder(),
-              ),
-            );
-          },
+      child: AspectRatio(
+        aspectRatio: 16 / 9,
+        child: Container(
+          width: double.infinity,
+          color:
+              Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFF2C2C2C)
+                  : Colors.grey.shade100,
+          child: PageView.builder(
+            controller: _pageController,
+            itemCount: product.imageUrls.length,
+            itemBuilder: (context, index) {
+              return GestureDetector(
+                onTap:
+                    () => openFullScreenImages(
+                      context,
+                      product.imageUrls,
+                      initialIndex: index,
+                    ),
+                child: OptimizedNetworkImage(
+                  imageUrl: product.imageUrls[index],
+                  fit: BoxFit.cover,
+                  cacheWidth: 800,
+                  cacheHeight: 450,
+                  borderRadius: BorderRadius.circular(14),
+                  errorWidget: _errorPlaceholder(),
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
