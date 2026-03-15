@@ -10,6 +10,7 @@ import '../services/storage_service.dart';
 import '../widgets/optimized_image.dart';
 import '../theme_notifier.dart';
 import 'edit_profile_screen.dart';
+import 'help_center_screen.dart';
 import 'login_screen.dart';
 import 'report_problem_screen.dart';
 
@@ -181,9 +182,10 @@ class _MenuScreenState extends State<MenuScreen> {
                                   color: const Color(0xFF20BF6B),
                                   shape: BoxShape.circle,
                                   border: Border.all(
-                                    color: isDark
-                                        ? const Color(0xFF1E1E1E)
-                                        : Colors.white,
+                                    color:
+                                        isDark
+                                            ? const Color(0xFF1E1E1E)
+                                            : Colors.white,
                                     width: 2,
                                   ),
                                 ),
@@ -353,10 +355,10 @@ class _MenuScreenState extends State<MenuScreen> {
                         icon: Icons.help_outline,
                         title: 'Help Center',
                         onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Help Center coming soon!'),
-                              duration: Duration(seconds: 2),
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const HelpCenterScreen(),
                             ),
                           );
                         },
