@@ -244,14 +244,14 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
         title: Text(
           'Help Center',
           style: TextStyle(
-            color: Colors.white,
+            color: isDark ? Colors.white : Colors.black87,
             fontSize: 22,
             fontWeight: FontWeight.bold,
           ),
         ),
         backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         elevation: 0,
-        iconTheme: IconThemeData(color: Colors.white),
+        iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
       ),
       body: Column(
         children: [
