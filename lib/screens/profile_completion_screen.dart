@@ -44,6 +44,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
   bool obscure = true;
   bool isLoading = false;
   bool _noMiddleName = false;
+  String? _selectedPurok;
 
   /// Proof of residence: picked file is uploaded to Firebase Storage on submit; URL stored in awaitingApproval.
   XFile? _proofFile;
@@ -64,6 +65,13 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
   ];
 
   final List<String> selectedCategories = [];
+  final List<String> _purokOptions = const [
+    'Purok 1',
+    'Purok 2',
+    'Purok 3',
+    'Purok 4',
+    'Purok 5',
+  ];
 
   @override
   void dispose() {
@@ -191,6 +199,33 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
+                      ),
+
+                      const SizedBox(height: 18),
+
+                      // PUROK
+                      const Text("Purok"),
+                      const SizedBox(height: 6),
+                      DropdownButtonFormField<String>(
+                        value: _selectedPurok,
+                        decoration: InputDecoration(
+                          hintText: 'Select your Purok',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        items:
+                            _purokOptions
+                                .map(
+                                  (purok) => DropdownMenuItem<String>(
+                                    value: purok,
+                                    child: Text(purok),
+                                  ),
+                                )
+                                .toList(),
+                        onChanged: (value) {
+                          setState(() => _selectedPurok = value);
+                        },
                       ),
 
                       const SizedBox(height: 18),
@@ -423,6 +458,15 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
       return;
     }
 
+    if (_selectedPurok == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select your purok.')),
+      );
+      return;
+    }
+
+    final selectedPurokNumber = int.parse(_selectedPurok!.split(' ').last);
+
     setState(() => isLoading = true);
 
     try {
@@ -469,6 +513,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
         'fullName': fullName,
         'displayName': displayName,
         'phoneNumber': OtpService.normalizePhone(widget.phoneNumber),
+        'purok': selectedPurokNumber,
         'password': password,
         'role': 'user',
         'category': categoryString,
