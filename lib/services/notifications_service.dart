@@ -87,6 +87,61 @@ class NotificationsService {
         .map((snapshot) => snapshot.docs.length);
   }
 
+  /// Stream of unread marketplace interaction notifications.
+  /// Includes comments/messages/replies related to products.
+  static Stream<int> getUnreadMarketplaceActivityCountStream(String userId) {
+    return _notificationsCollection
+        .where('userId', isEqualTo: userId)
+        .where('isRead', isEqualTo: false)
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs.where((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            final hasProductId =
+                (data['productId'] as String?)?.isNotEmpty ?? false;
+
+            // Treat any unread notification linked to a product as marketplace activity.
+            if (hasProductId) return true;
+
+            // Keep product approval notifications in marketplace badge even
+            // when productId is missing in legacy documents.
+            final type = data['type'] as String?;
+            return type == 'product_approved';
+          }).length;
+        });
+  }
+
+  /// Mark unread marketplace notifications as read for a specific product.
+  static Future<void> markMarketplaceActivityAsReadByProduct(
+    String userId,
+    String productId,
+  ) async {
+    final notifications =
+        await _notificationsCollection
+            .where('userId', isEqualTo: userId)
+            .where('productId', isEqualTo: productId)
+            .where('isRead', isEqualTo: false)
+            .get();
+
+    if (notifications.docs.isEmpty) return;
+
+    final batch = FirestoreService.instance.batch();
+    int unreadCount = 0;
+
+    for (final doc in notifications.docs) {
+      batch.update(doc.reference, {'isRead': true});
+      unreadCount++;
+    }
+
+    if (unreadCount == 0) return;
+
+    final userRef = FirestoreService.instance.collection('users').doc(userId);
+    batch.set(userRef, {
+      'unreadNotificationCount': FieldValue.increment(-unreadCount),
+    }, SetOptions(merge: true));
+    await batch.commit();
+  }
+
   /// Mark volunteer_accepted notifications as read for a specific task.
   /// Called when user opens a task from Interacted Posts to clear the badge.
   static Future<void> markVolunteerAcceptedAsReadByTask(

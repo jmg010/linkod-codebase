@@ -70,23 +70,24 @@ class _HomeScreenState extends State<HomeScreen> {
     // First, load from local cache for immediate display
     final prefs = await SharedPreferences.getInstance();
     final cachedLogoUrl = prefs.getString('barangayLogoUrl');
-    
+
     if (cachedLogoUrl != null && cachedLogoUrl.isNotEmpty && mounted) {
       setState(() {
         _barangayLogoUrl = cachedLogoUrl;
       });
     }
-    
+
     // Then fetch from Firestore in background to check for updates
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('barangaySettings')
-          .doc('branding')
-          .get();
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('barangaySettings')
+              .doc('branding')
+              .get();
       if (doc.exists && mounted) {
         final data = doc.data();
         final newLogoUrl = data?['barangayLogoUrl'] as String?;
-        
+
         // Update cache and state if changed
         if (newLogoUrl != null && newLogoUrl != cachedLogoUrl) {
           await prefs.setString('barangayLogoUrl', newLogoUrl);
@@ -309,7 +310,8 @@ class _HomeScreenState extends State<HomeScreen> {
     return Rx.combineLatest2<int, int, int>(
       TasksService.getTotalPostActivityUnreadStream(uid),
       NotificationsService.getVolunteerAcceptedUnreadCountStream(uid),
-      (taskActivityCount, volunteerAcceptedCount) => taskActivityCount + volunteerAcceptedCount,
+      (taskActivityCount, volunteerAcceptedCount) =>
+          taskActivityCount + volunteerAcceptedCount,
     );
   }
 
@@ -322,12 +324,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Stream<int> _getMarketplaceNotificationCountStream() {
     final uid = FirestoreService.currentUserId;
     if (uid == null) return Stream<int>.value(0);
-    // Combine product messages with post comments for total marketplace badge
-    return Rx.combineLatest2<int, int, int>(
-      ProductsService.getTotalProductActivityUnreadStream(uid),
-      PostsService.getTotalUnreadCommentsOnMyPostsStream(uid),
-      (productCount, postCommentsCount) => productCount + postCommentsCount,
-    );
+    return NotificationsService.getUnreadMarketplaceActivityCountStream(uid);
   }
 
   Stream<int> _getTaskChatUnreadCountStream() {

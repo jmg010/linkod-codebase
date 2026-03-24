@@ -10,26 +10,28 @@ class TaskChatService {
   static DocumentReference<Map<String, dynamic>> _taskRef(String taskId) =>
       FirestoreService.instance.collection('tasks').doc(taskId);
 
-  static CollectionReference<Map<String, dynamic>> _messagesRef(String taskId) =>
-      _taskRef(taskId).collection('chat_messages');
+  static CollectionReference<Map<String, dynamic>> _messagesRef(
+    String taskId,
+  ) => _taskRef(taskId).collection('chat_messages');
 
-  static DocumentReference<Map<String, dynamic>> _readDoc(String taskId, String userId) =>
-      _taskRef(taskId).collection('chat_read').doc(userId);
+  static DocumentReference<Map<String, dynamic>> _readDoc(
+    String taskId,
+    String userId,
+  ) => _taskRef(taskId).collection('chat_read').doc(userId);
 
   /// Stream of messages for this task chat (owner + approved volunteer only).
   static Stream<List<TaskChatMessageModel>> getMessagesStream(String taskId) {
-    return _messagesRef(taskId)
-        .orderBy('createdAt', descending: false)
-        .snapshots()
-        .map((snapshot) {
-          return snapshot.docs.map((doc) {
-            final data = doc.data() as Map<String, dynamic>;
-            return TaskChatMessageModel.fromMap(
-              {...data, 'createdAt': FirestoreService.parseTimestamp(data['createdAt'])},
-              id: doc.id,
-            );
-          }).toList();
-        });
+    return _messagesRef(
+      taskId,
+    ).orderBy('createdAt', descending: false).snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return TaskChatMessageModel.fromMap({
+          ...data,
+          'createdAt': FirestoreService.parseTimestamp(data['createdAt']),
+        }, id: doc.id);
+      }).toList();
+    });
   }
 
   /// Send a message. Caller must ensure user is owner or assigned volunteer.
@@ -58,7 +60,9 @@ class TaskChatService {
         receiverId = senderId == requesterId ? assignedTo : requesterId;
       }
 
-      if (receiverId != null && receiverId.isNotEmpty && receiverId != senderId) {
+      if (receiverId != null &&
+          receiverId.isNotEmpty &&
+          receiverId != senderId) {
         final batch = FirestoreService.instance.batch();
         final notifRef =
             FirestoreService.instance.collection('notifications').doc();
@@ -72,13 +76,12 @@ class TaskChatService {
           'message': '$senderName sent you a message in your errand chat',
           'createdAt': FieldValue.serverTimestamp(),
         });
-        final userRef =
-            FirestoreService.instance.collection('users').doc(receiverId);
-        batch.set(
-          userRef,
-          {'unreadNotificationCount': FieldValue.increment(1)},
-          SetOptions(merge: true),
-        );
+        final userRef = FirestoreService.instance
+            .collection('users')
+            .doc(receiverId);
+        batch.set(userRef, {
+          'unreadNotificationCount': FieldValue.increment(1),
+        }, SetOptions(merge: true));
         await batch.commit();
       }
     } catch (e) {
@@ -101,11 +104,16 @@ class TaskChatService {
     return getMessagesStream(taskId).asyncExpand((messages) {
       return _readDoc(taskId, currentUserId).snapshots().map((readSnap) {
         final data = readSnap.data() as Map<String, dynamic>?;
-        final lastReadAt = data?['lastReadAt'] != null
-            ? (data!['lastReadAt'] as Timestamp).toDate()
-            : DateTime(1970);
+        final lastReadAt =
+            data?['lastReadAt'] != null
+                ? (data!['lastReadAt'] as Timestamp).toDate()
+                : DateTime(1970);
         return messages
-            .where((m) => m.senderId != currentUserId && m.createdAt.isAfter(lastReadAt))
+            .where(
+              (m) =>
+                  m.senderId != currentUserId &&
+                  m.createdAt.isAfter(lastReadAt),
+            )
             .length;
       });
     });
@@ -121,7 +129,10 @@ class TaskChatService {
 
     void emitSum() {
       if (!controller.isClosed) {
-        final sum = _currentTaskIds.fold<int>(0, (s, id) => s + (unreadByTask[id] ?? 0));
+        final sum = _currentTaskIds.fold<int>(
+          0,
+          (s, id) => s + (unreadByTask[id] ?? 0),
+        );
         controller.add(sum);
       }
     }
@@ -181,7 +192,10 @@ class TaskChatService {
 
     void emitSum() {
       if (!controller.isClosed) {
-        final sum = _currentTaskIds.fold<int>(0, (s, id) => s + (unreadByTask[id] ?? 0));
+        final sum = _currentTaskIds.fold<int>(
+          0,
+          (s, id) => s + (unreadByTask[id] ?? 0),
+        );
         controller.add(sum);
       }
     }
@@ -233,7 +247,10 @@ class TaskChatService {
 
     void emitSum() {
       if (!controller.isClosed) {
-        final sum = _currentTaskIds.fold<int>(0, (s, id) => s + (unreadByTask[id] ?? 0));
+        final sum = _currentTaskIds.fold<int>(
+          0,
+          (s, id) => s + (unreadByTask[id] ?? 0),
+        );
         controller.add(sum);
       }
     }

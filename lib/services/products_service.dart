@@ -6,18 +6,25 @@ import '../models/product_model.dart';
 import 'firestore_service.dart';
 
 class ProductsService {
-  static final CollectionReference _productsCollection =
-      FirestoreService.instance.collection('products');
+  static final CollectionReference _productsCollection = FirestoreService
+      .instance
+      .collection('products');
 
   /// Get all available products (Gatekeeper: only Approved)
   static Stream<List<ProductModel>> getProductsStream() {
     return _productsCollection
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => ProductModel.fromFirestore(doc))
-            .where((product) => product.isAvailable && product.status == 'Approved')
-            .toList());
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map((doc) => ProductModel.fromFirestore(doc))
+                  .where(
+                    (product) =>
+                        product.isAvailable && product.status == 'Approved',
+                  )
+                  .toList(),
+        );
   }
 
   /// Get products by seller
@@ -26,10 +33,11 @@ class ProductsService {
         .where('sellerId', isEqualTo: sellerId)
         .snapshots()
         .map((snapshot) {
-          final products = snapshot.docs
-              .map((doc) => ProductModel.fromFirestore(doc))
-              .where((product) => product.isAvailable) // Filter in code
-              .toList();
+          final products =
+              snapshot.docs
+                  .map((doc) => ProductModel.fromFirestore(doc))
+                  .where((product) => product.isAvailable) // Filter in code
+                  .toList();
           // Sort by createdAt descending in code to avoid index requirement
           products.sort((a, b) => b.createdAt.compareTo(a.createdAt));
           return products;
@@ -37,15 +45,23 @@ class ProductsService {
   }
 
   /// Get products by category (Gatekeeper: only Approved)
-  static Stream<List<ProductModel>> getProductsByCategoryStream(String category) {
+  static Stream<List<ProductModel>> getProductsByCategoryStream(
+    String category,
+  ) {
     return _productsCollection
         .where('category', isEqualTo: category)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => ProductModel.fromFirestore(doc))
-            .where((product) => product.isAvailable && product.status == 'Approved')
-            .toList());
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map((doc) => ProductModel.fromFirestore(doc))
+                  .where(
+                    (product) =>
+                        product.isAvailable && product.status == 'Approved',
+                  )
+                  .toList(),
+        );
   }
 
   /// Create a new product
@@ -55,7 +71,10 @@ class ProductsService {
   }
 
   /// Update a product
-  static Future<void> updateProduct(String productId, Map<String, dynamic> updates) async {
+  static Future<void> updateProduct(
+    String productId,
+    Map<String, dynamic> updates,
+  ) async {
     updates['updatedAt'] = FieldValue.serverTimestamp();
     await _productsCollection.doc(productId).update(updates);
   }
@@ -77,7 +96,9 @@ class ProductsService {
     bool isSeller, {
     String? parentId,
   }) async {
-    final messagesRef = _productsCollection.doc(productId).collection('messages');
+    final messagesRef = _productsCollection
+        .doc(productId)
+        .collection('messages');
     final data = <String, dynamic>{
       'senderId': senderId,
       'senderName': senderName,
@@ -87,7 +108,7 @@ class ProductsService {
     };
     if (parentId != null) data['parentId'] = parentId;
     final docRef = await messagesRef.add(data);
-    
+
     // Increment messagesCount
     await _productsCollection.doc(productId).update({
       'messagesCount': FieldValue.increment(1),
@@ -100,10 +121,11 @@ class ProductsService {
       final productData = productSnap.data() as Map<String, dynamic>?;
       final sellerId = productData?['sellerId'] as String?;
       final sellerName = productData?['sellerName'] as String? ?? 'Unknown';
-      final productTitle = productData?['title'] as String? ?? 'Unknown Product';
-      
+      final productTitle =
+          productData?['title'] as String? ?? 'Unknown Product';
+
       print('Creating product message notification for seller: $sellerId');
-      
+
       // Record this interaction for the sender (for Activity Log)
       if (!isSeller && senderId.isNotEmpty) {
         await recordUserProductInteraction(
@@ -114,7 +136,7 @@ class ProductsService {
           sellerName,
         );
       }
-      
+
       if (!isSeller && sellerId != null && sellerId != senderId) {
         final batch = FirestoreService.instance.batch();
         final notifRef =
@@ -126,16 +148,15 @@ class ProductsService {
           'productId': productId,
           'messageId': docRef.id,
           'isRead': false,
-          'message': '$senderName sent you a message about your product',
+          'message': '$senderName sent you a message in your product post',
           'createdAt': FieldValue.serverTimestamp(),
         });
-        final userRef =
-            FirestoreService.instance.collection('users').doc(sellerId);
-        batch.set(
-          userRef,
-          {'unreadNotificationCount': FieldValue.increment(1)},
-          SetOptions(merge: true),
-        );
+        final userRef = FirestoreService.instance
+            .collection('users')
+            .doc(sellerId);
+        batch.set(userRef, {
+          'unreadNotificationCount': FieldValue.increment(1),
+        }, SetOptions(merge: true));
         await batch.commit();
         print(
           'Product message notification created successfully for product: $productId',
@@ -155,8 +176,7 @@ class ProductsService {
         if (parentMsg.exists) {
           final parentData = parentMsg.data() as Map<String, dynamic>?;
           final parentSenderId = parentData?['senderId'] as String?;
-          if (parentSenderId != null &&
-              parentSenderId != senderId) {
+          if (parentSenderId != null && parentSenderId != senderId) {
             final batch = FirestoreService.instance.batch();
             final notifRef =
                 FirestoreService.instance.collection('notifications').doc();
@@ -171,15 +191,16 @@ class ProductsService {
               'message': '$senderName replied to your message',
               'createdAt': FieldValue.serverTimestamp(),
             });
-            final userRef =
-                FirestoreService.instance.collection('users').doc(parentSenderId);
-            batch.set(
-              userRef,
-              {'unreadNotificationCount': FieldValue.increment(1)},
-              SetOptions(merge: true),
-            );
+            final userRef = FirestoreService.instance
+                .collection('users')
+                .doc(parentSenderId);
+            batch.set(userRef, {
+              'unreadNotificationCount': FieldValue.increment(1),
+            }, SetOptions(merge: true));
             await batch.commit();
-            print('Reply notification created for parent sender: $parentSenderId');
+            print(
+              'Reply notification created for parent sender: $parentSenderId',
+            );
           }
         }
       } catch (e) {
@@ -192,14 +213,18 @@ class ProductsService {
 
   /// Delete a message from a product
   static Future<void> deleteMessage(String productId, String messageId) async {
-    final messageRef = _productsCollection.doc(productId).collection('messages').doc(messageId);
+    final messageRef = _productsCollection
+        .doc(productId)
+        .collection('messages')
+        .doc(messageId);
     await messageRef.delete();
-    
+
     // Decrement messagesCount
     await _productsCollection.doc(productId).update({
       'messagesCount': FieldValue.increment(-1),
     });
   }
+
   static Stream<List<MessageModel>> getMessagesStream(String productId) {
     return _productsCollection
         .doc(productId)
@@ -209,40 +234,53 @@ class ProductsService {
         .map((snapshot) {
           return snapshot.docs.map((doc) {
             final data = doc.data() as Map<String, dynamic>;
-            return MessageModel.fromMap(
-              {...data, 'createdAt': FirestoreService.parseTimestamp(data['createdAt'])},
-              id: doc.id,
-            );
+            return MessageModel.fromMap({
+              ...data,
+              'createdAt': FirestoreService.parseTimestamp(data['createdAt']),
+            }, id: doc.id);
           }).toList();
         });
   }
 
-  static DocumentReference<Map<String, dynamic>> _messageReadDoc(String productId, String userId) =>
+  static DocumentReference<Map<String, dynamic>> _messageReadDoc(
+    String productId,
+    String userId,
+  ) =>
       _productsCollection.doc(productId).collection('message_read').doc(userId);
 
   /// Mark product messages as read by this user (e.g. when seller opens product detail).
-  static Future<void> markProductMessagesAsRead(String productId, String userId) async {
-    await _messageReadDoc(productId, userId).set(
-      {'lastReadAt': FieldValue.serverTimestamp()},
-      SetOptions(merge: true),
-    );
+  static Future<void> markProductMessagesAsRead(
+    String productId,
+    String userId,
+  ) async {
+    await _messageReadDoc(productId, userId).set({
+      'lastReadAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
   /// Unread = messages from non-seller after lastReadAt for the given viewer (typically the seller).
-  static Stream<int> getUnreadProductMessagesCountStream(String productId, String viewerUserId) {
+  static Stream<int> getUnreadProductMessagesCountStream(
+    String productId,
+    String viewerUserId,
+  ) {
     // Important: unread count must update both when new messages arrive AND when the
     // viewer marks the thread as read (message_read/{userId} changes).
     return getMessagesStream(productId).asyncExpand((messages) {
-      return _messageReadDoc(productId, viewerUserId).snapshots().map((readSnap) {
+      return _messageReadDoc(productId, viewerUserId).snapshots().map((
+        readSnap,
+      ) {
         try {
           final data = readSnap.data() as Map<String, dynamic>?;
           final raw = data?['lastReadAt'];
-          final lastReadAt = raw is Timestamp
-              ? raw.toDate()
-              : (raw is DateTime ? raw : DateTime(1970));
+          final lastReadAt =
+              raw is Timestamp
+                  ? raw.toDate()
+                  : (raw is DateTime ? raw : DateTime(1970));
           return messages
               .where(
-                (m) => m.senderId != viewerUserId && m.createdAt.isAfter(lastReadAt),
+                (m) =>
+                    m.senderId != viewerUserId &&
+                    m.createdAt.isAfter(lastReadAt),
               )
               .length;
         } catch (_) {
@@ -254,7 +292,9 @@ class ProductsService {
 
   /// Total unread product message count for a seller (across all their products).
   /// Reactive: updates when messages or read state change on any of the seller's products.
-  static Stream<int> getTotalUnreadProductMessagesForSellerStream(String sellerId) {
+  static Stream<int> getTotalUnreadProductMessagesForSellerStream(
+    String sellerId,
+  ) {
     final controller = StreamController<int>.broadcast();
     final Map<String, int> unreadByProduct = {};
     final Map<String, StreamSubscription<int>> productSubs = {};
@@ -262,7 +302,10 @@ class ProductsService {
 
     void emitSum() {
       if (!controller.isClosed) {
-        final sum = _currentProducts.fold<int>(0, (s, p) => s + (unreadByProduct[p.id] ?? 0));
+        final sum = _currentProducts.fold<int>(
+          0,
+          (s, p) => s + (unreadByProduct[p.id] ?? 0),
+        );
         controller.add(sum);
       }
     }
@@ -279,7 +322,9 @@ class ProductsService {
       _currentProducts = products;
       for (final p in products) {
         if (productSubs.containsKey(p.id)) continue;
-        final sub = getUnreadProductMessagesCountStream(p.id, sellerId).listen((count) {
+        final sub = getUnreadProductMessagesCountStream(p.id, sellerId).listen((
+          count,
+        ) {
           unreadByProduct[p.id] = count;
           emitSum();
         });
@@ -303,17 +348,20 @@ class ProductsService {
 
   /// Stream of seller's products with unread message count per product (for My Products red dots).
   /// Reactive: updates when messages or read state change on any product.
-  static Stream<List<MapEntry<ProductModel, int>>> getSellerProductsWithUnreadStream(String sellerId) {
-    final controller = StreamController<List<MapEntry<ProductModel, int>>>.broadcast();
+  static Stream<List<MapEntry<ProductModel, int>>>
+  getSellerProductsWithUnreadStream(String sellerId) {
+    final controller =
+        StreamController<List<MapEntry<ProductModel, int>>>.broadcast();
     final Map<String, int> unreadByProduct = {};
     final Map<String, StreamSubscription<int>> productSubs = {};
     List<ProductModel> _currentProducts = [];
 
     void emitList() {
       if (!controller.isClosed) {
-        final list = _currentProducts
-            .map((p) => MapEntry(p, unreadByProduct[p.id] ?? 0))
-            .toList();
+        final list =
+            _currentProducts
+                .map((p) => MapEntry(p, unreadByProduct[p.id] ?? 0))
+                .toList();
         controller.add(list);
       }
     }
@@ -331,7 +379,9 @@ class ProductsService {
       for (final p in products) {
         if (productSubs.containsKey(p.id)) continue;
         unreadByProduct[p.id] = 0;
-        final sub = getUnreadProductMessagesCountStream(p.id, sellerId).listen((count) {
+        final sub = getUnreadProductMessagesCountStream(p.id, sellerId).listen((
+          count,
+        ) {
           unreadByProduct[p.id] = count;
           emitList();
         });
@@ -354,8 +404,9 @@ class ProductsService {
 
   // ==================== INTERACTED PRODUCTS (Activity Log) ====================
 
-  static final CollectionReference _interactionsCollection =
-      FirestoreService.instance.collection('user_product_interactions');
+  static final CollectionReference _interactionsCollection = FirestoreService
+      .instance
+      .collection('user_product_interactions');
 
   /// Record that a user has interacted with a product (called when sending a message)
   static Future<void> recordUserProductInteraction(
@@ -378,17 +429,20 @@ class ProductsService {
   }
 
   /// Get all products that a user has interacted with (Activity Log)
-  static Stream<List<MapEntry<ProductModel, int>>> getUserInteractedProductsStream(String userId) {
-    final controller = StreamController<List<MapEntry<ProductModel, int>>>.broadcast();
+  static Stream<List<MapEntry<ProductModel, int>>>
+  getUserInteractedProductsStream(String userId) {
+    final controller =
+        StreamController<List<MapEntry<ProductModel, int>>>.broadcast();
     final Map<String, int> unreadByProduct = {};
     final Map<String, StreamSubscription<int>> productSubs = {};
     List<ProductModel> _currentProducts = [];
 
     void emitList() {
       if (!controller.isClosed) {
-        final list = _currentProducts
-            .map((p) => MapEntry(p, unreadByProduct[p.id] ?? 0))
-            .toList();
+        final list =
+            _currentProducts
+                .map((p) => MapEntry(p, unreadByProduct[p.id] ?? 0))
+                .toList();
         controller.add(list);
       }
     }
@@ -407,7 +461,9 @@ class ProductsService {
         if (productSubs.containsKey(p.id)) continue;
         unreadByProduct[p.id] = 0;
         // For interacted products, user is not the seller, so we track unread replies from seller
-        final sub = _getUnreadRepliesFromSellerStream(p.id, userId).listen((count) {
+        final sub = _getUnreadRepliesFromSellerStream(p.id, userId).listen((
+          count,
+        ) {
           unreadByProduct[p.id] = count;
           emitList();
         });
@@ -422,23 +478,31 @@ class ProductsService {
         .orderBy('lastInteractedAt', descending: true)
         .snapshots()
         .asyncMap((snapshot) async {
-          final productIds = snapshot.docs
-              .map((doc) => (doc.data() as Map<String, dynamic>)['productId'] as String?)
-              .where((id) => id != null)
-              .cast<String>()
-              .toList();
-          
+          final productIds =
+              snapshot.docs
+                  .map(
+                    (doc) =>
+                        (doc.data() as Map<String, dynamic>)['productId']
+                            as String?,
+                  )
+                  .where((id) => id != null)
+                  .cast<String>()
+                  .toList();
+
           if (productIds.isEmpty) return <ProductModel>[];
-          
+
           // Fetch the actual product documents
           final products = <ProductModel>[];
           for (final batch in _chunks(productIds, 10)) {
-            final query = await _productsCollection
-                .where(FieldPath.documentId, whereIn: batch)
-                .get();
-            products.addAll(query.docs
-                .map((doc) => ProductModel.fromFirestore(doc))
-                .where((p) => p.isAvailable));
+            final query =
+                await _productsCollection
+                    .where(FieldPath.documentId, whereIn: batch)
+                    .get();
+            products.addAll(
+              query.docs
+                  .map((doc) => ProductModel.fromFirestore(doc))
+                  .where((p) => p.isAvailable),
+            );
           }
           // Sort by the order from interactions (most recent first)
           final idOrder = Map.fromIterables(
@@ -463,15 +527,19 @@ class ProductsService {
   }
 
   /// Get unread replies from seller for a specific product (for user's Activity Log)
-  static Stream<int> _getUnreadRepliesFromSellerStream(String productId, String userId) {
+  static Stream<int> _getUnreadRepliesFromSellerStream(
+    String productId,
+    String userId,
+  ) {
     return getMessagesStream(productId).asyncExpand((messages) {
       return _messageReadDoc(productId, userId).snapshots().map((readSnap) {
         try {
           final data = readSnap.data() as Map<String, dynamic>?;
           final raw = data?['lastReadAt'];
-          final lastReadAt = raw is Timestamp
-              ? raw.toDate()
-              : (raw is DateTime ? raw : DateTime(1970));
+          final lastReadAt =
+              raw is Timestamp
+                  ? raw.toDate()
+                  : (raw is DateTime ? raw : DateTime(1970));
           // Count messages from seller (not from user) after lastReadAt
           return messages
               .where(
@@ -494,7 +562,10 @@ class ProductsService {
 
     void emitSum() {
       if (!controller.isClosed) {
-        final sum = _currentProductIds.fold<int>(0, (s, id) => s + (unreadByProduct[id] ?? 0));
+        final sum = _currentProductIds.fold<int>(
+          0,
+          (s, id) => s + (unreadByProduct[id] ?? 0),
+        );
         controller.add(sum);
       }
     }
@@ -512,7 +583,9 @@ class ProductsService {
       for (final id in productIds) {
         if (productSubs.containsKey(id)) continue;
         unreadByProduct[id] = 0;
-        final sub = _getUnreadRepliesFromSellerStream(id, userId).listen((count) {
+        final sub = _getUnreadRepliesFromSellerStream(id, userId).listen((
+          count,
+        ) {
           unreadByProduct[id] = count;
           emitSum();
         });
@@ -524,11 +597,18 @@ class ProductsService {
     final sub = _interactionsCollection
         .where('userId', isEqualTo: userId)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => (doc.data() as Map<String, dynamic>)['productId'] as String?)
-            .where((id) => id != null)
-            .cast<String>()
-            .toList())
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map(
+                    (doc) =>
+                        (doc.data() as Map<String, dynamic>)['productId']
+                            as String?,
+                  )
+                  .where((id) => id != null)
+                  .cast<String>()
+                  .toList(),
+        )
         .listen((productIds) {
           setProductIds(productIds);
         });
@@ -560,13 +640,17 @@ class ProductsService {
     }
 
     // Listen to seller products unread
-    final sellerSub = getTotalUnreadProductMessagesForSellerStream(userId).listen((count) {
+    final sellerSub = getTotalUnreadProductMessagesForSellerStream(
+      userId,
+    ).listen((count) {
       _sellerUnread = count;
       emitSum();
     });
 
     // Listen to interacted posts unread
-    final interactedSub = getTotalUnreadRepliesForUserStream(userId).listen((count) {
+    final interactedSub = getTotalUnreadRepliesForUserStream(userId).listen((
+      count,
+    ) {
       _interactedUnread = count;
       emitSum();
     });
@@ -586,7 +670,12 @@ class ProductsService {
   static List<List<T>> _chunks<T>(List<T> list, int chunkSize) {
     final chunks = <List<T>>[];
     for (var i = 0; i < list.length; i += chunkSize) {
-      chunks.add(list.sublist(i, i + chunkSize > list.length ? list.length : i + chunkSize));
+      chunks.add(
+        list.sublist(
+          i,
+          i + chunkSize > list.length ? list.length : i + chunkSize,
+        ),
+      );
     }
     return chunks;
   }

@@ -80,6 +80,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     if (uid != null && widget.product.sellerId == uid) {
       _hasMarkedMessagesRead = true;
       ProductsService.markProductMessagesAsRead(widget.product.id, uid);
+      NotificationsService.markMarketplaceActivityAsReadByProduct(
+        uid,
+        widget.product.id,
+      );
       _didAddMessageFocusListener = true;
       _messageFocusNode.addListener(_onMessageFocusChanged);
     }

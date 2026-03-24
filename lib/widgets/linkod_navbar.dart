@@ -92,7 +92,10 @@ class LinkodNavbar extends StatelessWidget {
                       height: 40,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: barangayLogoUrl != null ? null : Colors.grey.shade200,
+                        color:
+                            barangayLogoUrl != null
+                                ? null
+                                : Colors.grey.shade200,
                         border: Border.all(
                           color: Colors.grey.shade300,
                           width: 1,
@@ -100,28 +103,31 @@ class LinkodNavbar extends StatelessWidget {
                       ),
                       alignment: Alignment.center,
                       clipBehavior: Clip.hardEdge,
-                      child: barangayLogoUrl != null
-                          ? CachedNetworkImage(
-                              imageUrl: barangayLogoUrl!,
-                              fit: BoxFit.contain,
-                              width: 40,
-                              height: 40,
-                              placeholder: (context, url) => Icon(
+                      child:
+                          barangayLogoUrl != null
+                              ? CachedNetworkImage(
+                                imageUrl: barangayLogoUrl!,
+                                fit: BoxFit.contain,
+                                width: 40,
+                                height: 40,
+                                placeholder:
+                                    (context, url) => Icon(
+                                      Icons.image_outlined,
+                                      size: 18,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                errorWidget:
+                                    (context, url, error) => Icon(
+                                      Icons.image_outlined,
+                                      size: 18,
+                                      color: Colors.grey.shade600,
+                                    ),
+                              )
+                              : Icon(
                                 Icons.image_outlined,
                                 size: 18,
                                 color: Colors.grey.shade600,
                               ),
-                              errorWidget: (context, url, error) => Icon(
-                                Icons.image_outlined,
-                                size: 18,
-                                color: Colors.grey.shade600,
-                              ),
-                            )
-                          : Icon(
-                              Icons.image_outlined,
-                              size: 18,
-                              color: Colors.grey.shade600,
-                            ),
                     ),
                   ),
                 ),
@@ -162,7 +168,7 @@ class LinkodNavbar extends StatelessWidget {
               ),
               _NavIcon(
                 icon: Icons.handshake,
-                label: 'Errands',
+                label: 'Job/Errands',
                 isActive: currentDestination == NavDestination.errandJobPost,
                 onTap:
                     () => onDestinationChanged?.call(

@@ -22,8 +22,10 @@ class OptimizedNetworkImage extends StatelessWidget {
   final double? width;
   final double? height;
   final BoxFit fit;
+
   /// Decode at this width (pixels) to reduce memory. Omit for full resolution.
   final int? cacheWidth;
+
   /// Decode at this height (pixels). Omit for full resolution.
   final int? cacheHeight;
   final BorderRadius? borderRadius;
@@ -33,47 +35,57 @@ class OptimizedNetworkImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Providing both decode dimensions can distort some portrait images before
+    // painting. Prefer width-only decode so BoxFit handles crop without squeeze.
+    final effectiveMemCacheWidth = cacheWidth;
+    final effectiveMemCacheHeight =
+        (cacheWidth != null && cacheHeight != null) ? null : cacheHeight;
+
     Widget child = CachedNetworkImage(
       imageUrl: imageUrl,
       width: width,
       height: height,
       fit: fit,
-      memCacheWidth: cacheWidth,
-      memCacheHeight: cacheHeight,
-      placeholder: (_, __) => SizedBox(
-        width: width,
-        height: height,
-        child: placeholder ??
-            Container(
-              color: Colors.grey.shade200,
-              alignment: Alignment.center,
-              child: const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
-      ),
-      errorWidget: (_, __, ___) => SizedBox(
-        width: width,
-        height: height,
-        child: errorWidget ??
-            Container(
-              color: Colors.grey.shade300,
-              alignment: Alignment.center,
-              child: Icon(Icons.image_not_supported_outlined,
-                  size: 40, color: Colors.grey.shade600),
-            ),
-      ),
+      memCacheWidth: effectiveMemCacheWidth,
+      memCacheHeight: effectiveMemCacheHeight,
+      placeholder:
+          (_, __) => SizedBox(
+            width: width,
+            height: height,
+            child:
+                placeholder ??
+                Container(
+                  color: Colors.grey.shade200,
+                  alignment: Alignment.center,
+                  child: const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+          ),
+      errorWidget:
+          (_, __, ___) => SizedBox(
+            width: width,
+            height: height,
+            child:
+                errorWidget ??
+                Container(
+                  color: Colors.grey.shade300,
+                  alignment: Alignment.center,
+                  child: Icon(
+                    Icons.image_not_supported_outlined,
+                    size: 40,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+          ),
     );
     if (borderRadius != null) {
       child = ClipRRect(borderRadius: borderRadius!, child: child);
     }
     if (onTap != null) {
-      child = GestureDetector(
-        onTap: onTap,
-        child: child,
-      );
+      child = GestureDetector(onTap: onTap, child: child);
     }
     return child;
   }
@@ -93,10 +105,11 @@ void openFullScreenImages(
   Navigator.of(context).push(
     MaterialPageRoute<void>(
       fullscreenDialog: true,
-      builder: (context) => FullScreenImageScreen(
-        imageUrls: imageUrls,
-        initialIndex: initialIndex.clamp(0, imageUrls.length - 1),
-      ),
+      builder:
+          (context) => FullScreenImageScreen(
+            imageUrls: imageUrls,
+            initialIndex: initialIndex.clamp(0, imageUrls.length - 1),
+          ),
     ),
   );
 }
@@ -157,7 +170,8 @@ class _FullScreenImageScreenState extends State<FullScreenImageScreen> {
               return GestureDetector(
                 onTap: () => setState(() => _showControls = !_showControls),
                 onVerticalDragEnd: (details) {
-                  if (details.primaryVelocity != null && details.primaryVelocity! > 200) {
+                  if (details.primaryVelocity != null &&
+                      details.primaryVelocity! > 200) {
                     _close();
                   }
                 },
@@ -183,13 +197,14 @@ class _FullScreenImageScreenState extends State<FullScreenImageScreen> {
                           ),
                         );
                       },
-                      errorBuilder: (_, __, ___) => const Center(
-                        child: Icon(
-                          Icons.image_not_supported,
-                          color: Colors.white54,
-                          size: 48,
-                        ),
-                      ),
+                      errorBuilder:
+                          (_, __, ___) => const Center(
+                            child: Icon(
+                              Icons.image_not_supported,
+                              color: Colors.white54,
+                              size: 48,
+                            ),
+                          ),
                     ),
                   ),
                 ),
