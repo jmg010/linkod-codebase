@@ -82,6 +82,75 @@ class _LoginScreenState extends State<LoginScreen> {
     return '$normalized@linkod.com';
   }
 
+  int? _extractPurokNumber(dynamic raw) {
+    if (raw is num) {
+      final value = raw.toInt();
+      if (value >= 1 && value <= 5) return value;
+    }
+    if (raw is String) {
+      final match = RegExp(r'(\d+)').firstMatch(raw);
+      if (match != null) {
+        final parsed = int.tryParse(match.group(1)!);
+        if (parsed != null && parsed >= 1 && parsed <= 5) return parsed;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _recoverAndBackfillPurok({
+    required String uid,
+    required String loginPhone,
+    required Map<String, dynamic>? userData,
+  }) async {
+    final existing = _extractPurokNumber(userData?['purok']);
+    if (existing != null) return;
+
+    final fromLocation = _extractPurokNumber(userData?['location']);
+    if (fromLocation != null) {
+      await FirebaseFirestore.instance.collection('users').doc(uid).update({
+        'purok': fromLocation,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      return;
+    }
+
+    try {
+      final awaitingByOwner =
+          await FirebaseFirestore.instance
+              .collection('awaitingApproval')
+              .where('requestedByUid', isEqualTo: uid)
+              .limit(1)
+              .get();
+      if (awaitingByOwner.docs.isNotEmpty) {
+        final purok = _extractPurokNumber(
+          awaitingByOwner.docs.first.data()['purok'],
+        );
+        if (purok != null) {
+          await FirebaseFirestore.instance.collection('users').doc(uid).update({
+            'purok': purok,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+          return;
+        }
+      }
+    } catch (_) {
+      // Non-blocking: user may not have access to awaitingApproval or doc may not exist.
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final savedPhone = prefs.getString('last_registered_phone');
+    final savedPurok = prefs.getInt('last_registered_purok');
+    if (savedPhone == loginPhone &&
+        savedPurok != null &&
+        savedPurok >= 1 &&
+        savedPurok <= 5) {
+      await FirebaseFirestore.instance.collection('users').doc(uid).update({
+        'purok': savedPurok,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
   Future<void> _handleLogin() async {
     if (isLoading) return;
 
@@ -137,6 +206,11 @@ class _LoginScreenState extends State<LoginScreen> {
       UserRole role = UserRole.resident;
       if (doc.exists) {
         final data = doc.data();
+        await _recoverAndBackfillPurok(
+          uid: user.uid,
+          loginPhone: phone,
+          userData: data,
+        );
         final accountStatus =
             (data?['accountStatus'] as String?)?.toLowerCase();
         final isApproved = data?['isApproved'] as bool? ?? false;

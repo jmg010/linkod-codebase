@@ -2,11 +2,11 @@
 /// Used in profile, menu, and when creating posts/products/errands.
 
 const List<String> purokLabels = [
-  'Purok Uno',
-  'Purok Dos',
-  'Purok Tres',
-  'Purok Quatro',
-  'Purok Singko',
+  'Purok 1',
+  'Purok 2',
+  'Purok 3',
+  'Purok 4',
+  'Purok 5',
 ];
 
 /// 1-based purok number (1..5) to display label.

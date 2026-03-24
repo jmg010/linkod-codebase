@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../constants/purok.dart';
@@ -33,6 +34,71 @@ class _MenuScreenState extends State<MenuScreen> {
   List<String> _demographicCategories = [];
   String? _location;
 
+  int? _extractPurokNumber(dynamic raw) {
+    if (raw is num) {
+      final value = raw.toInt();
+      if (value >= 1 && value <= 5) return value;
+    }
+    if (raw is String) {
+      final match = RegExp(r'(\d+)').firstMatch(raw);
+      if (match != null) {
+        final parsed = int.tryParse(match.group(1)!);
+        if (parsed != null && parsed >= 1 && parsed <= 5) return parsed;
+      }
+    }
+    return null;
+  }
+
+  Future<int?> _resolvePurokForUser({
+    required String uid,
+    required Map<String, dynamic>? userData,
+  }) async {
+    final fromUsers = _extractPurokNumber(userData?['purok']);
+    if (fromUsers != null) return fromUsers;
+
+    final fromLocation = _extractPurokNumber(userData?['location']);
+    if (fromLocation != null) {
+      try {
+        await FirestoreService.instance.collection('users').doc(uid).set({
+          'purok': fromLocation,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      } catch (_) {
+        // Non-blocking: menu can still render with resolved purok.
+      }
+      return fromLocation;
+    }
+
+    try {
+      final awaitingSnapshot =
+          await FirestoreService.instance
+              .collection('awaitingApproval')
+              .where('uid', isEqualTo: uid)
+              .limit(1)
+              .get();
+
+      if (awaitingSnapshot.docs.isNotEmpty) {
+        final awaitingData = awaitingSnapshot.docs.first.data();
+        final fromAwaiting = _extractPurokNumber(awaitingData['purok']);
+        if (fromAwaiting != null) {
+          try {
+            await FirestoreService.instance.collection('users').doc(uid).set({
+              'purok': fromAwaiting,
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+          } catch (_) {
+            // Non-blocking: menu can still render with resolved purok.
+          }
+          return fromAwaiting;
+        }
+      }
+    } catch (_) {
+      // Non-blocking: fallback lookup failure should not break profile loading.
+    }
+
+    return null;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -60,6 +126,10 @@ class _MenuScreenState extends State<MenuScreen> {
 
       if (userDoc.exists) {
         final data = userDoc.data();
+        final resolvedPurok = await _resolvePurokForUser(
+          uid: currentUser.uid,
+          userData: data,
+        );
         setState(() {
           _userName = NameFormatter.fromUserDataFull(
             data,
@@ -69,7 +139,7 @@ class _MenuScreenState extends State<MenuScreen> {
               data?['phoneNumber'] as String? ??
               _getPhoneNumber(widget.userRole);
           _profileImageUrl = data?['profileImageUrl'] as String?;
-          _purok = (data?['purok'] as num?)?.toInt();
+          _purok = resolvedPurok;
           _location = data?['location'] as String?;
           // Load demographic categories
           final categories = data?['categories'];
@@ -229,6 +299,7 @@ class _MenuScreenState extends State<MenuScreen> {
                         _isLoadingUser
                             ? 'Loading...'
                             : (_userName ?? _getUserName(widget.userRole)),
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.w700,

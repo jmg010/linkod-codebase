@@ -506,6 +506,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
       // Store approval request in awaitingApproval
       await firestore.collection('awaitingApproval').add({
         'uid': uid,
+        'requestedByUid': uid,
         'firstName': firstName,
         'middleName': _noMiddleName ? '' : middleName,
         'lastName': lastName,
@@ -523,10 +524,21 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
         'fcmTokens': fcmTokens,
       });
 
+      // Backfill purok only when users/{uid} already exists (owners cannot create users docs by rules).
+      final userDocRef = firestore.collection('users').doc(uid);
+      final userDoc = await userDocRef.get();
+      if (userDoc.exists) {
+        await userDocRef.update({
+          'purok': selectedPurokNumber,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
       // Save registration data for auto-fill on login screen
       await _saveRegistrationData(
         OtpService.normalizePhone(widget.phoneNumber),
         password,
+        selectedPurokNumber,
       );
 
       // Sign out so they see login screen with "pending approval" message
@@ -661,11 +673,16 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
     }
   }
 
-  Future<void> _saveRegistrationData(String phone, String password) async {
+  Future<void> _saveRegistrationData(
+    String phone,
+    String password,
+    int selectedPurok,
+  ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('last_registered_phone', phone);
       await prefs.setString('last_registered_password', password);
+      await prefs.setInt('last_registered_purok', selectedPurok);
     } catch (e) {
       // Silently fail if storage fails
       debugPrint('Failed to save registration data: $e');
