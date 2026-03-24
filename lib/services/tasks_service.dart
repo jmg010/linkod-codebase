@@ -5,13 +5,14 @@ import 'firestore_service.dart';
 import 'task_chat_service.dart';
 
 class TasksService {
-  static final CollectionReference _tasksCollection =
-      FirestoreService.instance.collection('tasks');
+  static final CollectionReference _tasksCollection = FirestoreService.instance
+      .collection('tasks');
 
   // ==================== INTERACTED TASKS (Activity Log) ====================
 
-  static final CollectionReference _interactionsCollection =
-      FirestoreService.instance.collection('user_task_interactions');
+  static final CollectionReference _interactionsCollection = FirestoreService
+      .instance
+      .collection('user_task_interactions');
 
   /// Record that a user has interacted with a task (called when volunteering or chatting)
   static Future<void> recordUserTaskInteraction(
@@ -34,17 +35,21 @@ class TasksService {
 
   /// Get all tasks that a user has been ASSIGNED to (for INTERACTED POSTS tab)
   /// Matches the badge logic: getTotalUnreadForAssignedStream
-  static Stream<List<MapEntry<TaskModel, int>>> getUserInteractedTasksStream(String userId) {
-    final controller = StreamController<List<MapEntry<TaskModel, int>>>.broadcast();
+  static Stream<List<MapEntry<TaskModel, int>>> getUserInteractedTasksStream(
+    String userId,
+  ) {
+    final controller =
+        StreamController<List<MapEntry<TaskModel, int>>>.broadcast();
     final Map<String, int> unreadByTask = {};
     final Map<String, StreamSubscription<int>> taskSubs = {};
     List<TaskModel> _currentTasks = [];
 
     void emitList() {
       if (!controller.isClosed) {
-        final list = _currentTasks
-            .map((t) => MapEntry(t, unreadByTask[t.id] ?? 0))
-            .toList();
+        final list =
+            _currentTasks
+                .map((t) => MapEntry(t, unreadByTask[t.id] ?? 0))
+                .toList();
         controller.add(list);
       }
     }
@@ -63,7 +68,9 @@ class TasksService {
         if (taskSubs.containsKey(t.id)) continue;
         unreadByTask[t.id] = 0;
         // Track unread chat messages for this assigned task
-        final sub = TaskChatService.getUnreadCountStream(t.id, userId).listen((count) {
+        final sub = TaskChatService.getUnreadCountStream(t.id, userId).listen((
+          count,
+        ) {
           unreadByTask[t.id] = count;
           emitList();
         });
@@ -103,18 +110,22 @@ class TasksService {
       }
     }
 
-    // Listen to requester tasks unread (pending volunteers only - NOT chat)
-    final requesterSub = getRequesterTasksStream(userId).map((tasks) {
-      // Only count pending volunteers, NOT chat messages
-      // Chat messages are counted separately by getTotalUnreadForUserStream
-      return tasks.fold<int>(0, (sum, t) => sum + t.pendingVolunteersCount);
-    }).listen((count) {
-      _requesterUnread = count;
-      emitSum();
-    });
+    // Listen to requester tasks unread (new unseen volunteers only - NOT chat)
+    final requesterSub = getRequesterTasksStream(userId)
+        .map((tasks) {
+          // Only count unseen new volunteers, NOT chat messages
+          // Chat messages are counted separately by getTotalUnreadForUserStream
+          return tasks.fold<int>(0, (sum, t) => sum + t.unreadVolunteersCount);
+        })
+        .listen((count) {
+          _requesterUnread = count;
+          emitSum();
+        });
 
     // Listen to interacted tasks unread
-    final interactedSub = TaskChatService.getTotalUnreadForUserStream(userId).listen((count) {
+    final interactedSub = TaskChatService.getTotalUnreadForUserStream(
+      userId,
+    ).listen((count) {
       _interactedUnread = count;
       emitSum();
     });
@@ -134,7 +145,12 @@ class TasksService {
   static List<List<T>> _chunks<T>(List<T> list, int chunkSize) {
     final chunks = <List<T>>[];
     for (var i = 0; i < list.length; i += chunkSize) {
-      chunks.add(list.sublist(i, i + chunkSize > list.length ? list.length : i + chunkSize));
+      chunks.add(
+        list.sublist(
+          i,
+          i + chunkSize > list.length ? list.length : i + chunkSize,
+        ),
+      );
     }
     return chunks;
   }
@@ -144,10 +160,16 @@ class TasksService {
     return _tasksCollection
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => TaskModel.fromFirestore(doc))
-            .where((task) => task.isActive && task.approvalStatus == 'Approved')
-            .toList());
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map((doc) => TaskModel.fromFirestore(doc))
+                  .where(
+                    (task) =>
+                        task.isActive && task.approvalStatus == 'Approved',
+                  )
+                  .toList(),
+        );
   }
 
   /// Get tasks by status (Gatekeeper: only Approved)
@@ -156,10 +178,16 @@ class TasksService {
         .where('status', isEqualTo: status)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => TaskModel.fromFirestore(doc))
-            .where((task) => task.isActive && task.approvalStatus == 'Approved')
-            .toList());
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map((doc) => TaskModel.fromFirestore(doc))
+                  .where(
+                    (task) =>
+                        task.isActive && task.approvalStatus == 'Approved',
+                  )
+                  .toList(),
+        );
   }
 
   /// Get tasks by requester
@@ -168,10 +196,11 @@ class TasksService {
         .where('requesterId', isEqualTo: requesterId)
         .snapshots()
         .map((snapshot) {
-          final tasks = snapshot.docs
-              .map((doc) => TaskModel.fromFirestore(doc))
-              .where((task) => task.isActive)
-              .toList();
+          final tasks =
+              snapshot.docs
+                  .map((doc) => TaskModel.fromFirestore(doc))
+                  .where((task) => task.isActive)
+                  .toList();
           tasks.sort((a, b) => b.createdAt.compareTo(a.createdAt));
           return tasks;
         });
@@ -183,10 +212,61 @@ class TasksService {
         .where('assignedTo', isEqualTo: userId)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => TaskModel.fromFirestore(doc))
-            .where((task) => task.isActive && task.approvalStatus == 'Approved')
-            .toList());
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map((doc) => TaskModel.fromFirestore(doc))
+                  .where(
+                    (task) =>
+                        task.isActive && task.approvalStatus == 'Approved',
+                  )
+                  .toList(),
+        );
+  }
+
+  /// Stream a single task by id.
+  static Stream<TaskModel?> getTaskStream(String taskId) {
+    return _tasksCollection.doc(taskId).snapshots().map((doc) {
+      if (!doc.exists) return null;
+      return TaskModel.fromFirestore(doc);
+    });
+  }
+
+  /// Marks newly volunteered requests as seen by the task owner.
+  static Future<void> markVolunteerRequestsSeen(
+    String taskId,
+    String ownerId,
+  ) async {
+    final taskRef = _tasksCollection.doc(taskId);
+    await FirestoreService.instance.runTransaction((tx) async {
+      final snap = await tx.get(taskRef);
+      if (!snap.exists) return;
+      final data = snap.data() as Map<String, dynamic>;
+      final requesterId = data['requesterId'] as String?;
+      if (requesterId == null || requesterId != ownerId) return;
+      final unread = (data['unreadVolunteersCount'] as num?)?.toInt() ?? 0;
+      if (unread <= 0) return;
+      tx.update(taskRef, {
+        'unreadVolunteersCount': 0,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
+  static Future<void> _decrementUnreadVolunteersIfAny(
+    DocumentReference taskRef,
+  ) async {
+    await FirestoreService.instance.runTransaction((tx) async {
+      final snap = await tx.get(taskRef);
+      if (!snap.exists) return;
+      final data = snap.data() as Map<String, dynamic>;
+      final unread = (data['unreadVolunteersCount'] as num?)?.toInt() ?? 0;
+      if (unread <= 0) return;
+      tx.update(taskRef, {
+        'unreadVolunteersCount': unread - 1,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    });
   }
 
   /// Create a new task
@@ -196,7 +276,10 @@ class TasksService {
   }
 
   /// Update a task
-  static Future<void> updateTask(String taskId, Map<String, dynamic> updates) async {
+  static Future<void> updateTask(
+    String taskId,
+    Map<String, dynamic> updates,
+  ) async {
     updates['updatedAt'] = FieldValue.serverTimestamp();
     await _tasksCollection.doc(taskId).update(updates);
   }
@@ -217,13 +300,14 @@ class TasksService {
   ) async {
     final taskRef = _tasksCollection.doc(taskId);
     final volunteersRef = taskRef.collection('volunteers');
-    
+
     // Check if already volunteered
-    final existingVolunteer = await volunteersRef.where('volunteerId', isEqualTo: volunteerId).get();
+    final existingVolunteer =
+        await volunteersRef.where('volunteerId', isEqualTo: volunteerId).get();
     if (existingVolunteer.docs.isNotEmpty) {
       throw Exception('You have already volunteered for this task');
     }
-    
+
     // Add volunteer
     await volunteersRef.add({
       'volunteerId': volunteerId,
@@ -231,11 +315,12 @@ class TasksService {
       'volunteeredAt': FieldValue.serverTimestamp(),
       'status': 'pending',
     });
-    
-    // Increment volunteersCount and pendingVolunteersCount
+
+    // Increment totals and unread-new counter for owner badge.
     await taskRef.update({
       'volunteersCount': FieldValue.increment(1),
       'pendingVolunteersCount': FieldValue.increment(1),
+      'unreadVolunteersCount': FieldValue.increment(1),
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
@@ -246,7 +331,7 @@ class TasksService {
       final requesterId = taskData?['requesterId'] as String?;
       final requesterName = taskData?['requesterName'] as String? ?? 'Unknown';
       final taskTitle = taskData?['title'] as String? ?? 'Unknown Task';
-      
+
       // Record this interaction for the volunteer (for Activity Log)
       if (volunteerId.isNotEmpty) {
         await recordUserTaskInteraction(
@@ -257,7 +342,7 @@ class TasksService {
           requesterName,
         );
       }
-      
+
       if (requesterId != null && requesterId != volunteerId) {
         final batch = FirestoreService.instance.batch();
         final notifRef =
@@ -271,22 +356,26 @@ class TasksService {
           'message': '$volunteerName volunteered for your errand',
           'createdAt': FieldValue.serverTimestamp(),
         });
-        final userRef =
-            FirestoreService.instance.collection('users').doc(requesterId);
-        batch.set(
-          userRef,
-          {'unreadNotificationCount': FieldValue.increment(1)},
-          SetOptions(merge: true),
-        );
+        final userRef = FirestoreService.instance
+            .collection('users')
+            .doc(requesterId);
+        batch.set(userRef, {
+          'unreadNotificationCount': FieldValue.increment(1),
+        }, SetOptions(merge: true));
         await batch.commit();
       }
     } catch (e) {
-      print('FAILED to create task volunteer notification for task $taskId: $e');
+      print(
+        'FAILED to create task volunteer notification for task $taskId: $e',
+      );
     }
   }
 
   /// Stream of current user's volunteer record for a task (if any). Map keys: volunteerDocId, status (pending|accepted|rejected).
-  static Stream<Map<String, dynamic>?> getMyVolunteerStatusStream(String taskId, String userId) {
+  static Stream<Map<String, dynamic>?> getMyVolunteerStatusStream(
+    String taskId,
+    String userId,
+  ) {
     return _tasksCollection
         .doc(taskId)
         .collection('volunteers')
@@ -313,19 +402,23 @@ class TasksService {
         .collection('volunteers')
         .orderBy('volunteeredAt', descending: false)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  return <String, dynamic>{
-                    'volunteerDocId': doc.id,
-                    ...data,
-                    'volunteeredAt': FirestoreService.parseTimestamp(data['volunteeredAt']),
-                    'acceptedAt': data['acceptedAt'] != null
-                        ? FirestoreService.parseTimestamp(data['acceptedAt'])
-                        : null,
-                  };
-                })
-            .toList());
+        .map(
+          (snapshot) =>
+              snapshot.docs.map((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                return <String, dynamic>{
+                  'volunteerDocId': doc.id,
+                  ...data,
+                  'volunteeredAt': FirestoreService.parseTimestamp(
+                    data['volunteeredAt'],
+                  ),
+                  'acceptedAt':
+                      data['acceptedAt'] != null
+                          ? FirestoreService.parseTimestamp(data['acceptedAt'])
+                          : null,
+                };
+              }).toList(),
+        );
   }
 
   /// Accept a volunteer
@@ -337,22 +430,22 @@ class TasksService {
     final taskRef = _tasksCollection.doc(taskId);
     final volunteersRef = taskRef.collection('volunteers');
     final volunteerDoc = await volunteersRef.doc(volunteerDocId).get();
-    
+
     if (!volunteerDoc.exists) {
       throw Exception('Volunteer not found');
     }
-    
+
     final volunteerData = volunteerDoc.data() as Map<String, dynamic>;
     final volunteerId = volunteerData['volunteerId'] as String;
     final volunteerName = volunteerData['volunteerName'] as String;
-    
+
     // Update volunteer status
     await volunteersRef.doc(volunteerDocId).update({
       'status': 'accepted',
       'acceptedAt': FieldValue.serverTimestamp(),
       'acceptedBy': requesterId,
     });
-    
+
     // Update task with assigned volunteer and decrement pendingVolunteersCount
     await taskRef.update({
       'assignedTo': volunteerId,
@@ -361,6 +454,7 @@ class TasksService {
       'pendingVolunteersCount': FieldValue.increment(-1),
       'updatedAt': FieldValue.serverTimestamp(),
     });
+    await _decrementUnreadVolunteersIfAny(taskRef);
 
     // Notify the volunteer that they were accepted (Firestore-only).
     try {
@@ -376,16 +470,17 @@ class TasksService {
         'message': 'You were accepted as volunteer for an errand',
         'createdAt': FieldValue.serverTimestamp(),
       });
-      final userRef =
-          FirestoreService.instance.collection('users').doc(volunteerId);
-      batch.set(
-        userRef,
-        {'unreadNotificationCount': FieldValue.increment(1)},
-        SetOptions(merge: true),
-      );
+      final userRef = FirestoreService.instance
+          .collection('users')
+          .doc(volunteerId);
+      batch.set(userRef, {
+        'unreadNotificationCount': FieldValue.increment(1),
+      }, SetOptions(merge: true));
       await batch.commit();
     } catch (e) {
-      print('FAILED to create volunteer_accepted notification for task $taskId: $e');
+      print(
+        'FAILED to create volunteer_accepted notification for task $taskId: $e',
+      );
     }
   }
 
@@ -393,10 +488,11 @@ class TasksService {
   static Future<void> cancelVolunteer(String taskId, String volunteerId) async {
     final taskRef = _tasksCollection.doc(taskId);
     final volunteersRef = taskRef.collection('volunteers');
-    final query = await volunteersRef
-        .where('volunteerId', isEqualTo: volunteerId)
-        .limit(1)
-        .get();
+    final query =
+        await volunteersRef
+            .where('volunteerId', isEqualTo: volunteerId)
+            .limit(1)
+            .get();
     if (query.docs.isEmpty) {
       throw Exception('No volunteer application found');
     }
@@ -411,12 +507,17 @@ class TasksService {
       'pendingVolunteersCount': FieldValue.increment(-1),
       'updatedAt': FieldValue.serverTimestamp(),
     });
+    await _decrementUnreadVolunteersIfAny(taskRef);
   }
 
   /// Reject a volunteer (owner only). If they were the accepted one, revert task.
-  static Future<void> rejectVolunteer(String taskId, String volunteerDocId) async {
+  static Future<void> rejectVolunteer(
+    String taskId,
+    String volunteerDocId,
+  ) async {
     final taskRef = _tasksCollection.doc(taskId);
-    final volunteerDoc = await taskRef.collection('volunteers').doc(volunteerDocId).get();
+    final volunteerDoc =
+        await taskRef.collection('volunteers').doc(volunteerDocId).get();
     if (!volunteerDoc.exists) {
       throw Exception('Volunteer not found');
     }
@@ -450,6 +551,7 @@ class TasksService {
       'pendingVolunteersCount': FieldValue.increment(-1),
       'updatedAt': FieldValue.serverTimestamp(),
     });
+    await _decrementUnreadVolunteersIfAny(taskRef);
 
     if (volunteerId != null && assignedTo == volunteerId) {
       await taskRef.update({

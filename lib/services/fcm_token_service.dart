@@ -68,8 +68,9 @@ class FcmTokenService {
       unawaited(_registerTokenForCurrentUser());
     });
 
-    _tokenRefreshSub =
-        FirebaseMessaging.instance.onTokenRefresh.listen((_) async {
+    _tokenRefreshSub = FirebaseMessaging.instance.onTokenRefresh.listen((
+      _,
+    ) async {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
       await _registerTokenForCurrentUser();
@@ -120,7 +121,9 @@ class FcmTokenService {
       if (token == null || token.trim().isEmpty) {
         if (kDebugMode) {
           // ignore: avoid_print
-          print('FcmTokenService: addTokenToAwaitingApprovalDocument — no token');
+          print(
+            'FcmTokenService: addTokenToAwaitingApprovalDocument — no token',
+          );
         }
         return;
       }
@@ -160,16 +163,17 @@ class FcmTokenService {
 
   Future<void> _requestPermissionIfNeeded() async {
     if (kIsWeb) return;
-    
+
     // Check if this is first run - only request permission on first run
     final prefs = await SharedPreferences.getInstance();
-    final permissionRequested = prefs.getBool('notification_permission_requested') ?? false;
-    
+    final permissionRequested =
+        prefs.getBool('notification_permission_requested') ?? false;
+
     if (permissionRequested) {
       // Permission already requested, skip
       return;
     }
-    
+
     if (defaultTargetPlatform == TargetPlatform.iOS) {
       await FirebaseMessaging.instance.requestPermission(
         alert: true,
@@ -180,10 +184,14 @@ class FcmTokenService {
     } else if (defaultTargetPlatform == TargetPlatform.android) {
       // For Android 13+ (API 33+), request POST_NOTIFICATIONS permission
       if (Platform.isAndroid) {
-        final androidImplementation = FlutterLocalNotificationsPlugin()
-            .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+        final androidImplementation =
+            FlutterLocalNotificationsPlugin()
+                .resolvePlatformSpecificImplementation<
+                  AndroidFlutterLocalNotificationsPlugin
+                >();
         if (androidImplementation != null) {
-          final granted = await androidImplementation.requestNotificationsPermission();
+          final granted =
+              await androidImplementation.requestNotificationsPermission();
           if (granted == true) {
             await prefs.setBool('notification_permission_requested', true);
           }
@@ -201,33 +209,58 @@ class FcmTokenService {
     final token = await FirebaseMessaging.instance.getToken();
     if (token == null || token.trim().isEmpty) return;
 
-    final approved = await _isUserApproved(user.uid);
-    if (approved) {
+    final shouldUseDevices = await _shouldSaveTokenToUserDevices(user.uid);
+    if (shouldUseDevices) {
       await _saveTokenToDevices(uid: user.uid, token: token);
     } else {
       await _saveTokenToAwaitingApproval(uid: user.uid, token: token);
     }
   }
 
-  Future<bool> _isUserApproved(String uid) async {
+  /// Determines where to store token for the current session.
+  ///
+  /// For backward compatibility, a user doc without `isApproved` is treated as
+  /// active unless accountStatus is explicitly pending/declined/suspended.
+  Future<bool> _shouldSaveTokenToUserDevices(String uid) async {
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .get();
+      final doc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (!doc.exists) return false;
+
       final data = doc.data();
-      return data?['isApproved'] as bool? ?? false;
+      final isApproved = data?['isApproved'] as bool?;
+      final accountStatus = (data?['accountStatus'] as String?)?.toLowerCase();
+
+      if (accountStatus == 'pending' ||
+          accountStatus == 'declined' ||
+          accountStatus == 'suspended') {
+        return false;
+      }
+
+      if (isApproved == true || accountStatus == 'active') {
+        return true;
+      }
+
+      // Legacy docs may not have isApproved/accountStatus but are valid users.
+      if (isApproved == null && accountStatus == null) {
+        return true;
+      }
+
+      return false;
     } catch (e) {
       if (kDebugMode) {
         // ignore: avoid_print
-        print('FcmTokenService: _isUserApproved failed: $e');
+        print('FcmTokenService: _shouldSaveTokenToUserDevices failed: $e');
       }
       return false;
     }
   }
 
   /// Store token in users/{uid}/devices/{tokenId}. Used when user is approved and logged in.
-  Future<void> _saveTokenToDevices({required String uid, required String token}) async {
+  Future<void> _saveTokenToDevices({
+    required String uid,
+    required String token,
+  }) async {
     try {
       final tid = tokenIdFromToken(token);
       await FirebaseFirestore.instance
@@ -236,10 +269,10 @@ class FcmTokenService {
           .collection('devices')
           .doc(tid)
           .set({
-        'fcmToken': token,
-        'platform': _platform,
-        'lastActive': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+            'fcmToken': token,
+            'platform': _platform,
+            'lastActive': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
     } catch (e) {
       if (kDebugMode) {
         // ignore: avoid_print
@@ -250,13 +283,17 @@ class FcmTokenService {
 
   /// Add token to awaitingApproval doc (fcmTokens array) when user is not approved.
   /// Finds doc by uid field; avoids duplicates via arrayUnion.
-  Future<void> _saveTokenToAwaitingApproval({required String uid, required String token}) async {
+  Future<void> _saveTokenToAwaitingApproval({
+    required String uid,
+    required String token,
+  }) async {
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('awaitingApproval')
-          .where('uid', isEqualTo: uid)
-          .limit(1)
-          .get();
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collection('awaitingApproval')
+              .where('uid', isEqualTo: uid)
+              .limit(1)
+              .get();
 
       if (snapshot.docs.isEmpty) return;
 

@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../models/task_chat_message_model.dart';
 import '../services/task_chat_service.dart';
@@ -38,6 +39,7 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
   String? _otherPartyPhone;
   String? _otherPartyDemographicCategory;
   bool _hasLoadedOtherPartyData = false;
+  bool _isHandlingAccessRevoked = false;
 
   static String _formatDateHeader(DateTime date) {
     final now = DateTime.now();
@@ -138,6 +140,10 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
       _controller.clear();
       TaskChatService.markChatRead(widget.taskId, widget.currentUserId);
     } catch (e) {
+      if (_isPermissionDeniedError(e)) {
+        _handleAccessRevoked();
+        return;
+      }
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -146,6 +152,43 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
     } finally {
       if (mounted) setState(() => _isSending = false);
     }
+  }
+
+  bool _isPermissionDeniedError(Object? error) {
+    if (error is FirebaseException) {
+      return error.code == 'permission-denied';
+    }
+    final raw = (error ?? '').toString().toLowerCase();
+    return raw.contains('permission-denied') ||
+        raw.contains('does not have permission');
+  }
+
+  void _handleAccessRevoked() {
+    if (_isHandlingAccessRevoked || !mounted) return;
+    _isHandlingAccessRevoked = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder:
+            (dialogContext) => AlertDialog(
+              title: const Text('Chat Closed'),
+              content: const Text(
+                'You no longer have access to this task chat. You may have been removed as volunteer.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop();
+    });
   }
 
   @override
@@ -199,6 +242,19 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (snapshot.hasError) {
+                  if (_isPermissionDeniedError(snapshot.error)) {
+                    _handleAccessRevoked();
+                    return Center(
+                      child: Text(
+                        'You were removed from this task, closing chat...',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade700,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    );
+                  }
                   return Center(
                     child: Text(
                       'Error: ${snapshot.error}',

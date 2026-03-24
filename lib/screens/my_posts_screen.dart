@@ -110,7 +110,8 @@ class _MyPostsScreenState extends State<MyPostsScreen>
                       if (uid == null) return;
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => SearchScreen(mode: SearchMode.myTasks),
+                          builder:
+                              (_) => SearchScreen(mode: SearchMode.myTasks),
                         ),
                       );
                     },
@@ -163,29 +164,38 @@ class _TabBarWithBadge extends StatelessWidget {
           builder: (context, requesterTasksSnapshot) {
             final requesterChatUnread = requesterChatSnapshot.data ?? 0;
             final requesterTasks = requesterTasksSnapshot.data ?? [];
-            final pendingVolunteersCount = requesterTasks.fold<int>(
+            final unreadVolunteersCount = requesterTasks.fold<int>(
               0,
-              (sum, task) => sum + task.pendingVolunteersCount,
+              (sum, task) => sum + task.unreadVolunteersCount,
             );
-            final myPostsUnread = requesterChatUnread + pendingVolunteersCount;
+            final myPostsUnread = requesterChatUnread + unreadVolunteersCount;
 
             return StreamBuilder<int>(
               stream: TaskChatService.getTotalUnreadForAssignedStream(userId),
               initialData: 0,
               builder: (context, assignedSnapshot) {
                 return StreamBuilder<int>(
-                  stream: NotificationsService.getVolunteerAcceptedUnreadCountStream(userId),
+                  stream:
+                      NotificationsService.getVolunteerAcceptedUnreadCountStream(
+                        userId,
+                      ),
                   initialData: 0,
                   builder: (context, volunteerAcceptedSnapshot) {
                     final assignedUnread = assignedSnapshot.data ?? 0;
-                    final volunteerAcceptedUnread = volunteerAcceptedSnapshot.data ?? 0;
+                    final volunteerAcceptedUnread =
+                        volunteerAcceptedSnapshot.data ?? 0;
                     // Interacted posts = assigned tasks chat + volunteer_accepted notifications
-                    final interactedUnread = assignedUnread + volunteerAcceptedUnread;
-                    final isDark = Theme.of(context).brightness == Brightness.dark;
+                    final interactedUnread =
+                        assignedUnread + volunteerAcceptedUnread;
+                    final isDark =
+                        Theme.of(context).brightness == Brightness.dark;
 
                     return Container(
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1E1E1E) : Colors.grey.shade200,
+                        color:
+                            isDark
+                                ? const Color(0xFF1E1E1E)
+                                : Colors.grey.shade200,
                         borderRadius: BorderRadius.circular(24),
                       ),
                       child: AnimatedBuilder(
@@ -198,7 +208,8 @@ class _TabBarWithBadge extends StatelessWidget {
                                 child: _TabButton(
                                   label: 'MY POSTS',
                                   isSelected: tabController.index == 0,
-                                  badgeCount: myPostsUnread > 0 ? myPostsUnread : null,
+                                  badgeCount:
+                                      myPostsUnread > 0 ? myPostsUnread : null,
                                   onTap: () => tabController.animateTo(0),
                                 ),
                               ),
@@ -208,7 +219,9 @@ class _TabBarWithBadge extends StatelessWidget {
                                   label: 'INTERACTED POSTS',
                                   isSelected: tabController.index == 1,
                                   badgeCount:
-                                      interactedUnread > 0 ? interactedUnread : null,
+                                      interactedUnread > 0
+                                          ? interactedUnread
+                                          : null,
                                   onTap: () => tabController.animateTo(1),
                                 ),
                               ),
@@ -382,13 +395,13 @@ class _MyPostsTab extends StatelessWidget {
           itemBuilder: (context, index) {
             final task = tasks[index];
             final status = _mapStatus(task.status);
-            final pendingCount = task.pendingVolunteersCount;
+            final unreadVolunteerCount = task.unreadVolunteersCount;
             return StreamBuilder<int>(
               stream: TaskChatService.getUnreadCountStream(task.id, userId),
               initialData: 0,
               builder: (context, chatSnap) {
                 final unreadChat = chatSnap.data ?? 0;
-                final totalUnread = pendingCount + unreadChat;
+                final totalUnread = unreadVolunteerCount + unreadChat;
                 return _MyPostCard(
                   title: task.title,
                   description: task.description,
@@ -513,7 +526,10 @@ class _InteractedPostsTab extends StatelessWidget {
               imageUrls: task.imageUrls,
               onViewPressed: () {
                 // Mark volunteer_accepted notification as read when viewing the task
-                NotificationsService.markVolunteerAcceptedAsReadByTask(userId, task.id);
+                NotificationsService.markVolunteerAcceptedAsReadByTask(
+                  userId,
+                  task.id,
+                );
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder:
@@ -919,7 +935,8 @@ class _MyPostCardImage extends StatelessWidget {
             cacheWidth: 800,
             cacheHeight: 450,
             borderRadius: BorderRadius.circular(12),
-            onTap: () => openFullScreenImages(context, imageUrls, initialIndex: 0),
+            onTap:
+                () => openFullScreenImages(context, imageUrls, initialIndex: 0),
           ),
         ),
       );
@@ -932,7 +949,12 @@ class _MyPostCardImage extends StatelessWidget {
           itemCount: imageUrls.length,
           itemBuilder: (context, index) {
             return GestureDetector(
-              onTap: () => openFullScreenImages(context, imageUrls, initialIndex: index),
+              onTap:
+                  () => openFullScreenImages(
+                    context,
+                    imageUrls,
+                    initialIndex: index,
+                  ),
               child: OptimizedNetworkImage(
                 imageUrl: imageUrls[index],
                 fit: BoxFit.cover,

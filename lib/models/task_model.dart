@@ -18,6 +18,9 @@ class TaskModel {
 
   /// Number of volunteers currently in "pending" status. Used for errand badge counts.
   final int pendingVolunteersCount;
+
+  /// Number of new pending volunteers not yet seen by the task owner.
+  final int unreadVolunteersCount;
   final bool isActive;
 
   /// Gatekeeper: Pending (awaiting admin) or Approved (visible on feed).
@@ -48,6 +51,7 @@ class TaskModel {
     this.contactNumber,
     this.volunteersCount = 0,
     this.pendingVolunteersCount = 0,
+    this.unreadVolunteersCount = 0,
     this.isActive = true,
     this.approvalStatus = 'Pending',
     this.category,
@@ -72,6 +76,7 @@ class TaskModel {
       'contactNumber': contactNumber,
       'volunteersCount': volunteersCount,
       'pendingVolunteersCount': pendingVolunteersCount,
+      'unreadVolunteersCount': unreadVolunteersCount,
       'isActive': isActive,
       'approvalStatus': approvalStatus,
       'category': category,
@@ -106,6 +111,8 @@ class TaskModel {
       volunteersCount: (json['volunteersCount'] as num?)?.toInt() ?? 0,
       pendingVolunteersCount:
           (json['pendingVolunteersCount'] as num?)?.toInt() ?? 0,
+      unreadVolunteersCount:
+          (json['unreadVolunteersCount'] as num?)?.toInt() ?? 0,
       isActive: json['isActive'] as bool? ?? true,
       approvalStatus: json['approvalStatus'] as String? ?? 'Approved',
       category: json['category'] as String?,

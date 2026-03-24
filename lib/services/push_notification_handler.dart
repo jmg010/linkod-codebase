@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +13,7 @@ import '../screens/product_detail_screen.dart';
 import '../screens/task_detail_screen.dart';
 import '../screens/task_edit_screen.dart';
 import 'firestore_service.dart';
+import 'notifications_service.dart';
 import 'otp_service.dart';
 
 /// Handles incoming FCM messages: shows a notification when in foreground and
@@ -71,6 +74,29 @@ class PushNotificationHandler {
   void _onNotificationTap(NotificationResponse response) {
     final payload = response.payload;
     if (payload == null || payload.isEmpty) return;
+
+    if (payload.startsWith('data:')) {
+      final raw = payload.substring('data:'.length);
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) {
+          PushNotificationHandler.handleNotificationNavigation(
+            _navigatorKey,
+            decoded,
+          );
+          return;
+        }
+        if (decoded is Map) {
+          PushNotificationHandler.handleNotificationNavigation(
+            _navigatorKey,
+            Map<String, dynamic>.from(decoded),
+          );
+          return;
+        }
+      } catch (_) {
+        // fall through to legacy payload handling
+      }
+    }
 
     if (payload == 'account_approved') {
       _navigateToLoginClearStack();
@@ -242,14 +268,52 @@ class PushNotificationHandler {
       contentType = 'post';
     }
 
+    // For interaction types (task/product/chat/reply/etc.), carry full data so
+    // taps can use the shared navigation handler.
+    if ((payload == null || payload.isEmpty) && message.data.isNotEmpty) {
+      payload = 'data:${jsonEncode(message.data)}';
+      contentType = 'notification';
+    }
+
     if (payload == null || payload.isEmpty) return;
 
     final title =
         message.notification?.title ??
-        (contentType == 'announcement' ? 'Announcement' : 'Post');
+        (() {
+          switch (type) {
+            case 'task_volunteer':
+              return 'New volunteer';
+            case 'volunteer_accepted':
+              return 'You were accepted';
+            case 'task_chat_message':
+              return 'New task message';
+            case 'product_message':
+              return 'New marketplace message';
+            case 'reply':
+              return 'New reply';
+            case 'comment':
+              return 'New comment';
+            case 'like':
+              return 'New like';
+            default:
+              return contentType == 'announcement'
+                  ? 'Announcement'
+                  : 'Notification';
+          }
+        })();
     final body =
         message.notification?.body ??
-        (contentType == 'announcement' ? 'New announcement' : 'New post');
+        (contentType == 'announcement'
+            ? 'New announcement'
+            : (type == 'task_volunteer'
+                ? 'Someone volunteered for your errand.'
+                : type == 'volunteer_accepted'
+                ? 'You were accepted as volunteer.'
+                : type == 'task_chat_message'
+                ? 'You received a new errand chat message.'
+                : type == 'product_message'
+                ? 'You received a new marketplace message.'
+                : 'You have a new notification.'));
 
     _localNotifications.show(
       message.hashCode % 0x7FFFFFFF,
@@ -292,10 +356,15 @@ class PushNotificationHandler {
     }
     final announcementId = message.data['announcementId'] as String?;
     final postId = message.data['postId'] as String?;
+    final productId = message.data['productId'] as String?;
+    final taskId = message.data['taskId'] as String?;
     if (announcementId != null && announcementId.isNotEmpty) {
       _pushAnnouncementDetail(announcementId);
-    } else if (postId != null && postId.isNotEmpty) {
-      // Use handleNotificationNavigation so like/comment open the specific post (and comments if type is comment)
+      return;
+    }
+    if ((postId != null && postId.isNotEmpty) ||
+        (productId != null && productId.isNotEmpty) ||
+        (taskId != null && taskId.isNotEmpty)) {
       PushNotificationHandler.handleNotificationNavigation(
         _navigatorKey,
         Map<String, dynamic>.from(message.data),
@@ -344,6 +413,15 @@ class PushNotificationHandler {
     final String? productId = _str(data['productId']);
     final String? taskId = _str(data['taskId']);
     final String? type = _str(data['type']);
+    final String? notificationId = _str(data['notificationId']);
+
+    if (notificationId != null && notificationId.isNotEmpty) {
+      try {
+        await NotificationsService.markAsRead(notificationId);
+      } catch (_) {
+        // Non-blocking: navigation should continue even if read status update fails.
+      }
+    }
 
     final context = navigatorKey.currentContext;
     if (context == null) return;
@@ -407,7 +485,6 @@ class PushNotificationHandler {
                 .get();
         if (snap.exists) {
           final product = ProductModel.fromFirestore(snap);
-          final String? notificationId = _str(data['notificationId']);
           Navigator.of(context).push(
             MaterialPageRoute<void>(
               builder:
@@ -495,6 +572,8 @@ class PushNotificationHandler {
 
     final announcementId = message.data['announcementId'] as String?;
     final postId = message.data['postId'] as String?;
+    final productId = message.data['productId'] as String?;
+    final taskId = message.data['taskId'] as String?;
     if (announcementId != null && announcementId.isNotEmpty) {
       Navigator.of(context).push(
         MaterialPageRoute<void>(
@@ -502,8 +581,9 @@ class PushNotificationHandler {
               (_) => AnnouncementDetailScreen(announcementId: announcementId),
         ),
       );
-    } else if (postId != null && postId.isNotEmpty) {
-      // Redirect to that specific post (and open comments if type is comment/like)
+    } else if ((postId != null && postId.isNotEmpty) ||
+        (productId != null && productId.isNotEmpty) ||
+        (taskId != null && taskId.isNotEmpty)) {
       await PushNotificationHandler.handleNotificationNavigation(
         navigatorKey,
         Map<String, dynamic>.from(message.data),

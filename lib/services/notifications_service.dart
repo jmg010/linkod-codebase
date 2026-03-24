@@ -2,25 +2,31 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firestore_service.dart';
 
 class NotificationsService {
-  static final CollectionReference _notificationsCollection =
-      FirestoreService.instance.collection('notifications');
+  static final CollectionReference _notificationsCollection = FirestoreService
+      .instance
+      .collection('notifications');
 
   /// Get notifications for a user
-  static Stream<List<Map<String, dynamic>>> getUserNotificationsStream(String userId) {
+  static Stream<List<Map<String, dynamic>>> getUserNotificationsStream(
+    String userId,
+  ) {
     return _notificationsCollection
         .where('userId', isEqualTo: userId)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  return {
-                    'notificationId': doc.id,
-                    ...data,
-                    'createdAt': FirestoreService.parseTimestamp(data['createdAt']),
-                  };
-                })
-            .toList());
+        .map(
+          (snapshot) =>
+              snapshot.docs.map((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                return {
+                  'notificationId': doc.id,
+                  ...data,
+                  'createdAt': FirestoreService.parseTimestamp(
+                    data['createdAt'],
+                  ),
+                };
+              }).toList(),
+        );
   }
 
   /// Get unread notifications count
@@ -83,33 +89,36 @@ class NotificationsService {
 
   /// Mark volunteer_accepted notifications as read for a specific task.
   /// Called when user opens a task from Interacted Posts to clear the badge.
-  static Future<void> markVolunteerAcceptedAsReadByTask(String userId, String taskId) async {
-    final notifications = await _notificationsCollection
-        .where('userId', isEqualTo: userId)
-        .where('type', isEqualTo: 'volunteer_accepted')
-        .where('taskId', isEqualTo: taskId)
-        .where('isRead', isEqualTo: false)
-        .get();
-    
+  static Future<void> markVolunteerAcceptedAsReadByTask(
+    String userId,
+    String taskId,
+  ) async {
+    final notifications =
+        await _notificationsCollection
+            .where('userId', isEqualTo: userId)
+            .where('type', isEqualTo: 'volunteer_accepted')
+            .where('taskId', isEqualTo: taskId)
+            .where('isRead', isEqualTo: false)
+            .get();
+
     if (notifications.docs.isEmpty) return;
-    
+
     final batch = FirestoreService.instance.batch();
     int unreadCount = 0;
-    
+
     for (final doc in notifications.docs) {
       batch.update(doc.reference, {'isRead': true});
       unreadCount++;
     }
-    
+
     await batch.commit();
-    
+
     // Decrement unreadNotificationCount on user document
     if (unreadCount > 0) {
       final userRef = FirestoreService.instance.collection('users').doc(userId);
-      await userRef.set(
-        {'unreadNotificationCount': FieldValue.increment(-unreadCount)},
-        SetOptions(merge: true),
-      );
+      await userRef.set({
+        'unreadNotificationCount': FieldValue.increment(-unreadCount),
+      }, SetOptions(merge: true));
     }
   }
 
@@ -125,28 +134,37 @@ class NotificationsService {
       final userId = data['userId'] as String?;
       tx.update(docRef, {'isRead': true});
       if (userId != null) {
-        final userRef =
-            FirestoreService.instance.collection('users').doc(userId);
-        tx.set(
-          userRef,
-          {'unreadNotificationCount': FieldValue.increment(-1)},
-          SetOptions(merge: true),
-        );
+        final userRef = FirestoreService.instance
+            .collection('users')
+            .doc(userId);
+        tx.set(userRef, {
+          'unreadNotificationCount': FieldValue.increment(-1),
+        }, SetOptions(merge: true));
       }
     });
   }
 
   /// Mark all notifications as read
   static Future<void> markAllAsRead(String userId) async {
-    final unread = await _notificationsCollection
-        .where('userId', isEqualTo: userId)
-        .where('isRead', isEqualTo: false)
-        .get();
-    
+    final unread =
+        await _notificationsCollection
+            .where('userId', isEqualTo: userId)
+            .where('isRead', isEqualTo: false)
+            .get();
+
+    if (unread.docs.isEmpty) {
+      await FirestoreService.instance.collection('users').doc(userId).set({
+        'unreadNotificationCount': 0,
+      }, SetOptions(merge: true));
+      return;
+    }
+
     final batch = FirestoreService.instance.batch();
     for (final doc in unread.docs) {
       batch.update(doc.reference, {'isRead': true});
     }
+    final userRef = FirestoreService.instance.collection('users').doc(userId);
+    batch.set(userRef, {'unreadNotificationCount': 0}, SetOptions(merge: true));
     await batch.commit();
   }
 

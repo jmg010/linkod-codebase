@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../models/task_model.dart';
 import '../services/tasks_service.dart';
@@ -38,6 +40,14 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
     _taskDescription = widget.task.description;
     _taskCategory = widget.task.category;
     _taskContact = widget.contactNumber ?? widget.task.contactNumber ?? '';
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(
+        TasksService.markVolunteerRequestsSeen(
+          widget.task.id,
+          widget.task.requesterId,
+        ),
+      );
+    });
   }
 
   Future<void> _confirmRemoveVolunteer(
@@ -294,7 +304,17 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
     }
   }
 
-  void _showVolunteersDropdown(BuildContext context) {
+  void _showVolunteersDropdown(
+    BuildContext context, {
+    required int totalCount,
+    required int unreadCount,
+  }) {
+    unawaited(
+      TasksService.markVolunteerRequestsSeen(
+        widget.task.id,
+        widget.task.requesterId,
+      ),
+    );
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -323,11 +343,11 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
-                      const Padding(
-                        padding: EdgeInsets.all(16),
+                      Padding(
+                        padding: const EdgeInsets.all(16),
                         child: Text(
-                          'Volunteers',
-                          style: TextStyle(
+                          'Volunteers ($totalCount total, $unreadCount new)',
+                          style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
                             color: Colors.black87,
@@ -496,18 +516,15 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                     constraints: const BoxConstraints(),
                   ),
                   const Spacer(),
-                  StreamBuilder<List<Map<String, dynamic>>>(
-                    stream: TasksService.getVolunteersStream(widget.task.id),
-                    builder: (context, volSnap) {
-                      final volunteers = volSnap.data ?? [];
-                      final pendingCount =
-                          volunteers
-                              .where(
-                                (v) =>
-                                    (v['status'] as String? ?? 'pending') ==
-                                    'pending',
-                              )
-                              .length;
+                  StreamBuilder<TaskModel?>(
+                    stream: TasksService.getTaskStream(widget.task.id),
+                    builder: (context, taskSnap) {
+                      final task = taskSnap.data;
+                      final totalCount =
+                          task?.volunteersCount ?? widget.task.volunteersCount;
+                      final unreadCount =
+                          task?.unreadVolunteersCount ??
+                          widget.task.unreadVolunteersCount;
                       return Stack(
                         clipBehavior: Clip.none,
                         children: [
@@ -516,7 +533,12 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                                 isDark ? const Color(0xFF2C2C2C) : Colors.white,
                             borderRadius: BorderRadius.circular(14),
                             child: InkWell(
-                              onTap: () => _showVolunteersDropdown(context),
+                              onTap:
+                                  () => _showVolunteersDropdown(
+                                    context,
+                                    totalCount: totalCount,
+                                    unreadCount: unreadCount,
+                                  ),
                               borderRadius: BorderRadius.circular(14),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
@@ -536,7 +558,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text(
-                                      'Volunteers',
+                                      'Volunteers ($totalCount)',
                                       style: TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
@@ -560,16 +582,30 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                               ),
                             ),
                           ),
-                          if (pendingCount > 0)
+                          if (unreadCount > 0)
                             Positioned(
-                              right: -2,
-                              top: -2,
+                              right: -6,
+                              top: -8,
                               child: Container(
-                                width: 10,
-                                height: 10,
-                                decoration: const BoxDecoration(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                constraints: const BoxConstraints(minWidth: 18),
+                                decoration: BoxDecoration(
                                   color: Colors.red,
-                                  shape: BoxShape.circle,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  unreadCount > 99
+                                      ? '99+'
+                                      : unreadCount.toString(),
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                               ),
                             ),

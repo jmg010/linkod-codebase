@@ -274,7 +274,7 @@ service cloud.firestore {
       // pendingVolunteersCount and updatedAt (increment on volunteer, decrement on cancel/reject)
       allow update: if isSignedIn()
         && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['volunteersCount', 'pendingVolunteersCount', 'updatedAt']);
+             .hasOnly(['volunteersCount', 'pendingVolunteersCount', 'unreadVolunteersCount', 'updatedAt']);
 
       // Participants can delete their own tasks? (Keep legacy behavior)
       allow delete: if isSignedIn()
