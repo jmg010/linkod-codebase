@@ -8,6 +8,7 @@ import '../services/name_formatter.dart';
 class MessageAvatar extends StatelessWidget {
   final String? avatarUrl;
   final String name;
+  final String? profileName;
   final double size;
   final String? purok;
   final String? phoneNumber;
@@ -17,6 +18,7 @@ class MessageAvatar extends StatelessWidget {
     super.key,
     this.avatarUrl,
     required this.name,
+    this.profileName,
     this.size = 32,
     this.purok,
     this.phoneNumber,
@@ -39,7 +41,7 @@ class MessageAvatar extends StatelessWidget {
           builder:
               (_) => ResidentProfileDialog(
                 avatarUrl: avatarUrl,
-                name: name,
+                name: profileName ?? name,
                 purok: purok,
                 phoneNumber: phoneNumber,
                 isSeller: isSeller,
@@ -94,6 +96,7 @@ class MessageAvatar extends StatelessWidget {
 /// Used for both parent and reply messages with configurable styling.
 class MessageBubble extends StatelessWidget {
   final String sender;
+  final String? profileName;
   final String message;
   final bool isSeller;
   final bool isReply;
@@ -104,6 +107,7 @@ class MessageBubble extends StatelessWidget {
   const MessageBubble({
     super.key,
     required this.sender,
+    this.profileName,
     required this.message,
     required this.isSeller,
     this.isReply = false,
@@ -128,6 +132,7 @@ class MessageBubble extends StatelessWidget {
         MessageAvatar(
           avatarUrl: avatarUrl,
           name: senderDisplayName,
+          profileName: profileName,
           size: avatarSize,
           purok: purok,
           phoneNumber: phoneNumber,

@@ -9,6 +9,7 @@ import '../services/notifications_service.dart';
 import '../services/products_service.dart';
 import '../services/firestore_service.dart';
 import '../services/name_formatter.dart';
+import '../widgets/resident_profile_dialog.dart';
 import 'sell_product_screen.dart';
 
 class ProductDetailScreen extends StatefulWidget {
@@ -117,10 +118,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           'avatarUrl': data?['profileImageUrl'] as String?,
           'purok': data?['purok'] != null ? 'Purok ${data?['purok']}' : null,
           'phoneNumber': data?['phoneNumber'] as String?,
-          'fullName': NameFormatter.fromUserDataDisplay(
-            data,
-            fallback: 'Unknown',
-          ),
+          'fullName': NameFormatter.fromUserDataFull(data, fallback: 'Unknown'),
           'location': data?['location'] as String?,
         };
         _userDataCache[uid] = userData;
@@ -157,6 +155,68 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         });
       }
     }
+  }
+
+  Future<void> _showSellerProfileDialog() async {
+    final userData = await _fetchUserData(_currentProduct.sellerId);
+    if (!mounted) return;
+
+    final displayName =
+        userData['fullName']?.isNotEmpty == true
+            ? userData['fullName']!
+            : NameFormatter.fromAnyFull(
+              fullName: _currentProduct.sellerName,
+              fallback: 'Seller',
+            );
+
+    await showDialog(
+      context: context,
+      builder:
+          (_) => ResidentProfileDialog(
+            avatarUrl: userData['avatarUrl'],
+            name: displayName,
+            purok: userData['purok'],
+            phoneNumber: userData['phoneNumber'],
+            isSeller: true,
+          ),
+    );
+  }
+
+  Widget _buildPosterAvatar({
+    required String displayName,
+    required String? avatarUrl,
+  }) {
+    final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U';
+
+    if (avatarUrl != null && avatarUrl.isNotEmpty) {
+      return ClipOval(
+        child: OptimizedNetworkImage(
+          imageUrl: avatarUrl,
+          width: 34,
+          height: 34,
+          fit: BoxFit.cover,
+          cacheWidth: 68,
+          cacheHeight: 68,
+          errorWidget: _buildPosterAvatarFallback(initial),
+        ),
+      );
+    }
+
+    return _buildPosterAvatarFallback(initial);
+  }
+
+  Widget _buildPosterAvatarFallback(String initial) {
+    return CircleAvatar(
+      radius: 17,
+      backgroundColor: const Color(0xFF20BF6B),
+      child: Text(
+        initial,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
   }
 
   void _onMessageFocusChanged() {
@@ -660,26 +720,45 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                   ),
                                 ),
                             const SizedBox(height: 16),
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.storefront_outlined,
-                                  size: 18,
-                                  color: Color(0xFF20BF6B),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Seller: ${product.sellerName}',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color:
-                                          isDark ? Colors.white : Colors.black,
+                            FutureBuilder<Map<String, String?>>(
+                              future: _fetchUserData(product.sellerId),
+                              builder: (context, snapshot) {
+                                final userData = snapshot.data;
+                                final sellerName =
+                                    userData?['fullName']?.isNotEmpty == true
+                                        ? userData!['fullName']!
+                                        : NameFormatter.fromAnyDisplay(
+                                          fullName: product.sellerName,
+                                          fallback: 'Seller',
+                                        );
+                                final avatarUrl = userData?['avatarUrl'];
+
+                                return Row(
+                                  children: [
+                                    GestureDetector(
+                                      onTap: _showSellerProfileDialog,
+                                      child: _buildPosterAvatar(
+                                        displayName: sellerName,
+                                        avatarUrl: avatarUrl,
+                                      ),
                                     ),
-                                  ),
-                                ),
-                              ],
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        'Seller: $sellerName',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color:
+                                              isDark
+                                                  ? Colors.white
+                                                  : Colors.black,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
                             ),
                             if (!_isEditing && replyingToId == null) ...[
                               const SizedBox(height: 16),
@@ -804,6 +883,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                           children: [
                                             MessageItem(
                                               message: msg,
+                                              profileName:
+                                                  senderUserData?['fullName'],
                                               replies: replies,
                                               isExpanded: isExpanded,
                                               onReply: () {

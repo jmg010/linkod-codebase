@@ -1055,12 +1055,19 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
         final phoneNumber = userData?['phoneNumber'];
 
         void showProfileDialog() {
+          final profileName =
+              userData?['fullName']?.isNotEmpty == true
+                  ? userData!['fullName']!
+                  : NameFormatter.fromAnyFull(
+                    fullName: volunteerName,
+                    fallback: 'Unknown',
+                  );
           showDialog(
             context: context,
             builder:
                 (_) => ResidentProfileDialog(
                   avatarUrl: avatarUrl,
-                  name: volunteerName,
+                  name: profileName,
                   purok: purok,
                   phoneNumber: phoneNumber,
                   isSeller: false,
@@ -1252,10 +1259,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
           'avatarUrl': data?['profileImageUrl'] as String?,
           'purok': data?['purok'] != null ? 'Purok ${data?['purok']}' : null,
           'phoneNumber': data?['phoneNumber'] as String?,
-          'fullName': NameFormatter.fromUserDataDisplay(
-            data,
-            fallback: 'Unknown',
-          ),
+          'fullName': NameFormatter.fromUserDataFull(data, fallback: 'Unknown'),
         };
         _volunteerDataCache[volunteerId] = userData;
         return userData;

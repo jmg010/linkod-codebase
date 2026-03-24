@@ -7,6 +7,7 @@ import 'message_bubble.dart';
 /// Displays a reply message nested under its parent with a vertical thread line.
 class ReplyItem extends StatelessWidget {
   final MessageModel reply;
+  final String? profileName;
   final VoidCallback? onDelete;
   final VoidCallback? onReply;
   final bool canDelete;
@@ -17,6 +18,7 @@ class ReplyItem extends StatelessWidget {
   const ReplyItem({
     super.key,
     required this.reply,
+    this.profileName,
     this.onDelete,
     this.onReply,
     this.canDelete = false,
@@ -52,6 +54,7 @@ class ReplyItem extends StatelessWidget {
                 children: [
                   MessageBubble(
                     sender: reply.senderName,
+                    profileName: profileName,
                     message: reply.message,
                     isSeller: reply.isSeller,
                     isReply: true,
@@ -194,6 +197,7 @@ class ReplyThread extends StatelessWidget {
             final userData = userDataCache[reply.senderId];
             return ReplyItem(
               reply: reply,
+              profileName: userData?['fullName'],
               onDelete:
                   onDeleteReply != null ? () => onDeleteReply!(reply.id) : null,
               onReply:

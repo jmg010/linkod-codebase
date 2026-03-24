@@ -6,6 +6,7 @@ import '../services/firestore_service.dart';
 import '../services/name_formatter.dart';
 import '../services/task_chat_service.dart';
 import '../widgets/optimized_image.dart';
+import '../widgets/resident_profile_dialog.dart';
 import 'task_edit_screen.dart';
 import 'task_chat_screen.dart';
 
@@ -26,6 +27,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   bool _isEditingConfirmedVolunteer = false;
   final PageController _imagePageController = PageController();
   int _imagePageIndex = 0;
+  final Map<String, Map<String, String?>> _userDataCache = {};
 
   @override
   void initState() {
@@ -207,6 +209,104 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
+  Future<Map<String, String?>> _fetchUserData(String uid) async {
+    if (_userDataCache.containsKey(uid)) {
+      return _userDataCache[uid]!;
+    }
+
+    try {
+      final userDoc =
+          await FirestoreService.instance.collection('users').doc(uid).get();
+
+      if (userDoc.exists) {
+        final data = userDoc.data();
+        final userData = {
+          'avatarUrl': data?['profileImageUrl'] as String?,
+          'purok': data?['purok'] != null ? 'Purok ${data?['purok']}' : null,
+          'phoneNumber': data?['phoneNumber'] as String?,
+          'fullName': NameFormatter.fromUserDataFull(
+            data,
+            fallback: widget.task.requesterName,
+          ),
+        };
+        _userDataCache[uid] = userData;
+        return userData;
+      }
+    } catch (e) {
+      debugPrint('Error fetching requester profile: $e');
+    }
+
+    final fallback = {
+      'avatarUrl': null,
+      'purok': null,
+      'phoneNumber': null,
+      'fullName': widget.task.requesterName,
+    };
+    _userDataCache[uid] = fallback;
+    return fallback;
+  }
+
+  Future<void> _showRequesterProfileDialog() async {
+    final userData = await _fetchUserData(widget.task.requesterId);
+    if (!mounted) return;
+
+    final name =
+        userData['fullName']?.isNotEmpty == true
+            ? userData['fullName']!
+            : NameFormatter.fromAnyFull(
+              fullName: widget.task.requesterName,
+              fallback: 'User',
+            );
+
+    await showDialog(
+      context: context,
+      builder:
+          (_) => ResidentProfileDialog(
+            avatarUrl: userData['avatarUrl'],
+            name: name,
+            purok: userData['purok'],
+            phoneNumber: userData['phoneNumber'],
+          ),
+    );
+  }
+
+  Widget _buildPosterAvatar({
+    required String displayName,
+    required String? avatarUrl,
+  }) {
+    final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U';
+
+    if (avatarUrl != null && avatarUrl.isNotEmpty) {
+      return ClipOval(
+        child: OptimizedNetworkImage(
+          imageUrl: avatarUrl,
+          width: 30,
+          height: 30,
+          fit: BoxFit.cover,
+          cacheWidth: 60,
+          cacheHeight: 60,
+          errorWidget: _buildPosterAvatarFallback(initial),
+        ),
+      );
+    }
+
+    return _buildPosterAvatarFallback(initial);
+  }
+
+  Widget _buildPosterAvatarFallback(String initial) {
+    return CircleAvatar(
+      radius: 15,
+      backgroundColor: const Color(0xFF20BF6B),
+      child: Text(
+        initial,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -284,23 +384,41 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           ),
           const SizedBox(height: 12),
           // Posted by
-          Row(
-            children: [
-              Icon(
-                Icons.person_outline,
-                size: 16,
-                color: isDark ? Colors.grey.shade400 : const Color(0xFF6E6E6E),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                'Posted by: $requesterDisplayName',
-                style: TextStyle(
-                  fontSize: 14,
-                  color:
-                      isDark ? Colors.grey.shade300 : const Color(0xFF4C4C4C),
-                ),
-              ),
-            ],
+          FutureBuilder<Map<String, String?>>(
+            future: _fetchUserData(widget.task.requesterId),
+            builder: (context, snapshot) {
+              final userData = snapshot.data;
+              final displayName =
+                  userData?['fullName']?.isNotEmpty == true
+                      ? userData!['fullName']!
+                      : requesterDisplayName;
+              final avatarUrl = userData?['avatarUrl'];
+
+              return Row(
+                children: [
+                  GestureDetector(
+                    onTap: _showRequesterProfileDialog,
+                    child: _buildPosterAvatar(
+                      displayName: displayName,
+                      avatarUrl: avatarUrl,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Posted by: $displayName',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color:
+                            isDark
+                                ? Colors.grey.shade300
+                                : const Color(0xFF4C4C4C),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 20),
           // Description Section

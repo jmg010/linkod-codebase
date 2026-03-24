@@ -8,6 +8,7 @@ import 'reply_item.dart';
 /// and a reply button below. Replies are shown indented with thread lines.
 class MessageItem extends StatelessWidget {
   final MessageModel message;
+  final String? profileName;
   final List<MessageModel> replies;
   final bool isExpanded;
   final VoidCallback onReply;
@@ -25,6 +26,7 @@ class MessageItem extends StatelessWidget {
   const MessageItem({
     super.key,
     required this.message,
+    this.profileName,
     this.replies = const [],
     this.isExpanded = false,
     required this.onReply,
@@ -52,6 +54,7 @@ class MessageItem extends StatelessWidget {
         // Parent message bubble
         MessageBubble(
           sender: message.senderName,
+          profileName: profileName,
           message: message.message,
           isSeller: message.isSeller,
           isReply: false,
@@ -78,10 +81,7 @@ class MessageItem extends StatelessWidget {
                 ),
                 child: const Text(
                   'Reply',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                 ),
               ),
               if (canDelete && onDelete != null) ...[
@@ -100,10 +100,7 @@ class MessageItem extends StatelessWidget {
                   ),
                   child: const Text(
                     'Delete',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                   ),
                 ),
               ],
@@ -155,43 +152,44 @@ class MessageItem extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: isDark ? const Color(0xFF1F2937) : Colors.white,
-        title: Text(
-          'Delete message?',
-          style: TextStyle(
-            color: isDark ? Colors.white : Colors.black87,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        content: Text(
-          'This will remove your message. This action cannot be undone.',
-          style: TextStyle(
-            color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(
-              'Cancel',
+      builder:
+          (ctx) => AlertDialog(
+            backgroundColor: isDark ? const Color(0xFF1F2937) : Colors.white,
+            title: Text(
+              'Delete message?',
               style: TextStyle(
-                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text(
-              'Delete',
-              style: TextStyle(
-                color: Color(0xFF20BF6B),
+                color: isDark ? Colors.white : Colors.black87,
                 fontWeight: FontWeight.w600,
               ),
             ),
+            content: Text(
+              'This will remove your message. This action cannot be undone.',
+              style: TextStyle(
+                color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text(
+                  'Delete',
+                  style: TextStyle(
+                    color: Color(0xFF20BF6B),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
     );
     if (confirm == true) {
       onDelete?.call();
