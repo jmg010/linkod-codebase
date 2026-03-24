@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/message_model.dart';
+import '../services/name_formatter.dart';
 import 'message_bubble.dart';
 
 /// Reply item widget with thread line and indentation.
@@ -122,43 +123,44 @@ class ReplyItem extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: isDark ? const Color(0xFF1F2937) : Colors.white,
-        title: Text(
-          'Delete reply?',
-          style: TextStyle(
-            color: isDark ? Colors.white : Colors.black87,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        content: Text(
-          'This will remove your reply. This action cannot be undone.',
-          style: TextStyle(
-            color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(
-              'Cancel',
+      builder:
+          (ctx) => AlertDialog(
+            backgroundColor: isDark ? const Color(0xFF1F2937) : Colors.white,
+            title: Text(
+              'Delete reply?',
               style: TextStyle(
-                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text(
-              'Delete',
-              style: TextStyle(
-                color: Color(0xFF20BF6B),
+                color: isDark ? Colors.white : Colors.black87,
                 fontWeight: FontWeight.w600,
               ),
             ),
+            content: Text(
+              'This will remove your reply. This action cannot be undone.',
+              style: TextStyle(
+                color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text(
+                  'Delete',
+                  style: TextStyle(
+                    color: Color(0xFF20BF6B),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
     );
     if (confirm == true) {
       onDelete?.call();
@@ -187,18 +189,29 @@ class ReplyThread extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: replies.map((reply) {
-        final userData = userDataCache[reply.senderId];
-        return ReplyItem(
-          reply: reply,
-          onDelete: onDeleteReply != null ? () => onDeleteReply!(reply.id) : null,
-          onReply: onReply != null ? () => onReply!(reply.id, reply.senderName) : null,
-          canDelete: reply.senderId == currentUserId,
-          avatarUrl: userData?['avatarUrl'],
-          purok: userData?['purok'],
-          phoneNumber: userData?['phoneNumber'],
-        );
-      }).toList(),
+      children:
+          replies.map((reply) {
+            final userData = userDataCache[reply.senderId];
+            return ReplyItem(
+              reply: reply,
+              onDelete:
+                  onDeleteReply != null ? () => onDeleteReply!(reply.id) : null,
+              onReply:
+                  onReply != null
+                      ? () => onReply!(
+                        reply.id,
+                        NameFormatter.fromAnyDisplay(
+                          fullName: reply.senderName,
+                          fallback: 'User',
+                        ),
+                      )
+                      : null,
+              canDelete: reply.senderId == currentUserId,
+              avatarUrl: userData?['avatarUrl'],
+              purok: userData?['purok'],
+              phoneNumber: userData?['phoneNumber'],
+            );
+          }).toList(),
     );
   }
 }

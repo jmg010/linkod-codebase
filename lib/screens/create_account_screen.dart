@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/fcm_token_service.dart';
+import '../services/name_formatter.dart';
 import '../services/storage_service.dart';
 import '../widgets/xfile_preview_image.dart';
 import 'login_screen.dart';
@@ -22,12 +23,15 @@ class CreateAccountScreen extends StatefulWidget {
 }
 
 class _CreateAccountScreenState extends State<CreateAccountScreen> {
-  final TextEditingController nameController = TextEditingController();
+  final TextEditingController firstNameController = TextEditingController();
+  final TextEditingController middleNameController = TextEditingController();
+  final TextEditingController lastNameController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
   bool obscure = true;
   bool isLoading = false;
+  bool _noMiddleName = false;
 
   /// Proof of residence: picked file is uploaded to Firebase Storage on submit; URL stored in awaitingApproval.
   XFile? _proofFile;
@@ -48,6 +52,16 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   ];
 
   final List<String> selectedCategories = [];
+
+  @override
+  void dispose() {
+    firstNameController.dispose();
+    middleNameController.dispose();
+    lastNameController.dispose();
+    phoneController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -98,11 +112,59 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // FULL NAME
-                      const Text("Full Name "),
+                      // FIRST NAME
+                      const Text("First Name "),
                       const SizedBox(height: 6),
                       TextField(
-                        controller: nameController,
+                        controller: firstNameController,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 18),
+
+                      // MIDDLE NAME
+                      const Text("Middle Name "),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: middleNameController,
+                        enabled: !_noMiddleName,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: InputDecoration(
+                          hintText:
+                              _noMiddleName ? 'No middle name selected' : null,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                      CheckboxListTile(
+                        value: _noMiddleName,
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('I do not have a middle name'),
+                        controlAffinity: ListTileControlAffinity.leading,
+                        onChanged: (value) {
+                          setState(() {
+                            _noMiddleName = value ?? false;
+                            if (_noMiddleName) {
+                              middleNameController.clear();
+                            }
+                          });
+                        },
+                      ),
+
+                      const SizedBox(height: 6),
+
+                      // LAST NAME
+                      const Text("Last Name "),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: lastNameController,
+                        textCapitalization: TextCapitalization.words,
                         decoration: InputDecoration(
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -342,16 +404,45 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   }
 
   Future<void> _signup() async {
-    final name = nameController.text.trim();
+    final firstName = firstNameController.text.trim();
+    final middleName = middleNameController.text.trim();
+    final lastName = lastNameController.text.trim();
     final phoneRaw = phoneController.text.trim();
     final password = passwordController.text;
 
-    if (name.isEmpty || phoneRaw.isEmpty || password.isEmpty) {
+    if (firstName.isEmpty ||
+        lastName.isEmpty ||
+        phoneRaw.isEmpty ||
+        password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill in all required fields.')),
       );
       return;
     }
+
+    if (!_noMiddleName && middleName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Please provide your middle name or check no middle name.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final fullName = NameFormatter.buildFullName(
+      firstName: firstName,
+      middleName: middleName,
+      lastName: lastName,
+      hasMiddleName: !_noMiddleName,
+    );
+    final displayName = NameFormatter.buildDisplayName(
+      firstName: firstName,
+      middleName: middleName,
+      lastName: lastName,
+      hasMiddleName: !_noMiddleName,
+    );
 
     final digitsOnly = _digitsOnly(phoneRaw);
     if (digitsOnly.length < kPhilippineMobileMinDigits ||
@@ -445,7 +536,12 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         // Store approval request in awaitingApproval
         await firestore.collection('awaitingApproval').add({
           'uid': uid,
-          'fullName': name,
+          'firstName': firstName,
+          'middleName': _noMiddleName ? '' : middleName,
+          'lastName': lastName,
+          'hasMiddleName': !_noMiddleName,
+          'fullName': fullName,
+          'displayName': displayName,
           'phoneNumber': phone,
           'password': password,
           'role': 'user',

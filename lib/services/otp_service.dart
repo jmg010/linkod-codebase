@@ -69,6 +69,7 @@ class OtpService {
   /// Calls Cloud Function 'requestOtp' with:
   /// - phoneNumber: user's phone number
   /// - fcmToken: device's FCM token
+  /// - email: compatibility field for backend validators that require email
   ///
   /// Returns true if request successful, false if rate limited
   /// Throws exception on other errors
@@ -81,12 +82,14 @@ class OtpService {
 
       // ensure phone is in normalized 0-prefixed format
       final normalizedPhone = normalizePhone(phoneNumber);
+      final email = _phoneToEmail(normalizedPhone);
 
       // Call the Cloud Function
       final callable = functions.httpsCallable('requestOtp');
       final result = await callable.call({
         'phoneNumber': normalizedPhone,
         'fcmToken': fcmToken,
+        'email': email,
       });
 
       return result.data['success'] == true;
@@ -106,6 +109,7 @@ class OtpService {
   /// Calls Cloud Function 'verifyOtp' with:
   /// - phoneNumber: user's phone number
   /// - otp: 6-digit code from notification
+  /// - email: compatibility field for backend validators that require email
   ///
   /// Returns true if OTP is valid and account marked as verified
   /// Throws exception on errors
@@ -120,12 +124,14 @@ class OtpService {
 
     try {
       final functions = FirebaseFunctions.instance;
+      final normalizedPhone = normalizePhone(phoneNumber);
 
       // Call the Cloud Function
       final callable = functions.httpsCallable('verifyOtp');
       final result = await callable.call({
-        'phoneNumber': phoneNumber,
+        'phoneNumber': normalizedPhone,
         'otp': otp,
+        'email': _phoneToEmail(normalizedPhone),
       });
 
       if (result.data['success'] == true) {
@@ -185,5 +191,9 @@ class OtpService {
       return '0' + cleaned.substring(2);
     }
     return cleaned;
+  }
+
+  static String _phoneToEmail(String normalizedPhone) {
+    return '${normalizedPhone.trim()}@linkod.com';
   }
 }

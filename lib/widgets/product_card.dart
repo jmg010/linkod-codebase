@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'optimized_image.dart';
 import '../models/product_model.dart';
+import '../services/name_formatter.dart';
 
 class ProductCard extends StatelessWidget {
   final ProductModel product;
@@ -18,6 +19,10 @@ class ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sellerDisplayName = NameFormatter.fromAnyDisplay(
+      fullName: product.sellerName,
+      fallback: 'User',
+    );
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final String dateText = _formatDate(product.createdAt);
     final bool hasImages = product.imageUrls.isNotEmpty;
@@ -116,7 +121,7 @@ class ProductCard extends StatelessWidget {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    'Posted by: ${product.sellerName}',
+                    'Posted by: $sellerDisplayName',
                     style: TextStyle(
                       fontSize: 13,
                       color:

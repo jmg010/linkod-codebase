@@ -8,6 +8,7 @@ import '../models/product_model.dart';
 import '../services/notifications_service.dart';
 import '../services/products_service.dart';
 import '../services/firestore_service.dart';
+import '../services/name_formatter.dart';
 import 'sell_product_screen.dart';
 
 class ProductDetailScreen extends StatefulWidget {
@@ -107,20 +108,19 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     }
 
     try {
-      final userDoc = await FirestoreService.instance
-          .collection('users')
-          .doc(uid)
-          .get();
+      final userDoc =
+          await FirestoreService.instance.collection('users').doc(uid).get();
 
       if (userDoc.exists) {
         final data = userDoc.data();
         final userData = {
           'avatarUrl': data?['profileImageUrl'] as String?,
-          'purok': data?['purok'] != null
-              ? 'Purok ${data?['purok']}'
-              : null,
+          'purok': data?['purok'] != null ? 'Purok ${data?['purok']}' : null,
           'phoneNumber': data?['phoneNumber'] as String?,
-          'fullName': data?['fullName'] as String? ?? 'Unknown',
+          'fullName': NameFormatter.fromUserDataDisplay(
+            data,
+            fallback: 'Unknown',
+          ),
           'location': data?['location'] as String?,
         };
         _userDataCache[uid] = userData;
@@ -208,9 +208,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     _editDescriptionController.text = _currentProduct.description;
     // Pre-fill with user account location if product location is default
     final uid = FirestoreService.auth.currentUser?.uid;
-    final String? userLocation = uid != null ? (_userDataCache[uid]?['location'] as String?) : null;
+    final String? userLocation =
+        uid != null ? (_userDataCache[uid]?['location'] as String?) : null;
     final productLocation = _currentProduct.location;
-    if (productLocation == 'Location not specified' && userLocation != null && userLocation.isNotEmpty) {
+    if (productLocation == 'Location not specified' &&
+        userLocation != null &&
+        userLocation.isNotEmpty) {
       _editLocationController.text = userLocation;
     } else {
       _editLocationController.text = productLocation;
@@ -432,7 +435,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                             style: TextStyle(
                                               fontSize: 18,
                                               fontWeight: FontWeight.w700,
-                                              color: isDark ? Colors.white : Colors.black,
+                                              color:
+                                                  isDark
+                                                      ? Colors.white
+                                                      : Colors.black,
                                             ),
                                           ),
                                 ),
@@ -777,14 +783,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                             replyingToId == msg.id;
 
                                         // Fetch user data for message sender
-                                        final senderUserData = _userDataCache[msg.senderId];
+                                        final senderUserData =
+                                            _userDataCache[msg.senderId];
 
                                         // Build replies user data cache
-                                        final Map<String, Map<String, String?>> repliesUserData = {};
+                                        final Map<String, Map<String, String?>>
+                                        repliesUserData = {};
                                         for (final reply in replies) {
-                                          final userData = _userDataCache[reply.senderId];
+                                          final userData =
+                                              _userDataCache[reply.senderId];
                                           if (userData != null) {
-                                            repliesUserData[reply.senderId] = userData;
+                                            repliesUserData[reply.senderId] =
+                                                userData;
                                           }
                                         }
 
@@ -802,70 +812,97 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                                   replyingToName =
                                                       msg.senderName;
                                                   replyingToSubCommentId = null;
-                                                  replyingToSubCommentName = null;
+                                                  replyingToSubCommentName =
+                                                      null;
                                                   expandedMessageIds.add(
                                                     msg.id,
                                                   );
                                                 });
                                                 WidgetsBinding.instance
                                                     .addPostFrameCallback((_) {
-                                                  _messageFocusNode
-                                                      .requestFocus();
-                                                });
+                                                      _messageFocusNode
+                                                          .requestFocus();
+                                                    });
                                               },
                                               onToggleReplies: () {
                                                 setState(() {
                                                   if (expandedMessageIds
                                                       .contains(msg.id)) {
-                                                    expandedMessageIds
-                                                        .remove(msg.id);
+                                                    expandedMessageIds.remove(
+                                                      msg.id,
+                                                    );
                                                   } else {
-                                                    expandedMessageIds
-                                                        .add(msg.id);
+                                                    expandedMessageIds.add(
+                                                      msg.id,
+                                                    );
                                                   }
                                                 });
                                               },
-                                              onDelete: () => _deleteMessage(msg.id),
-                                              canDelete: msg.senderId == FirestoreService.auth.currentUser?.uid,
-                                              onDeleteReply: (replyId) => _deleteMessage(replyId),
-                                              onReplyToReply: (replyId, replySenderName) {
+                                              onDelete:
+                                                  () => _deleteMessage(msg.id),
+                                              canDelete:
+                                                  msg.senderId ==
+                                                  FirestoreService
+                                                      .auth
+                                                      .currentUser
+                                                      ?.uid,
+                                              onDeleteReply:
+                                                  (replyId) =>
+                                                      _deleteMessage(replyId),
+                                              onReplyToReply: (
+                                                replyId,
+                                                replySenderName,
+                                              ) {
                                                 setState(() {
                                                   replyingToId = msg.id;
-                                                  replyingToName = msg.senderName;
-                                                  replyingToSubCommentId = replyId;
-                                                  replyingToSubCommentName = replySenderName;
-                                                  expandedMessageIds.add(msg.id);
+                                                  replyingToName =
+                                                      msg.senderName;
+                                                  replyingToSubCommentId =
+                                                      replyId;
+                                                  replyingToSubCommentName =
+                                                      replySenderName;
+                                                  expandedMessageIds.add(
+                                                    msg.id,
+                                                  );
                                                 });
                                                 WidgetsBinding.instance
                                                     .addPostFrameCallback((_) {
-                                                  _messageFocusNode
-                                                      .requestFocus();
-                                                });
+                                                      _messageFocusNode
+                                                          .requestFocus();
+                                                    });
                                               },
-                                              currentUserId: FirestoreService.auth.currentUser?.uid,
-                                              avatarUrl: senderUserData?['avatarUrl'],
+                                              currentUserId:
+                                                  FirestoreService
+                                                      .auth
+                                                      .currentUser
+                                                      ?.uid,
+                                              avatarUrl:
+                                                  senderUserData?['avatarUrl'],
                                               purok: senderUserData?['purok'],
-                                              phoneNumber: senderUserData?['phoneNumber'],
-                                              repliesUserDataCache: repliesUserData,
+                                              phoneNumber:
+                                                  senderUserData?['phoneNumber'],
+                                              repliesUserDataCache:
+                                                  repliesUserData,
                                             ),
                                             if (showInlineReply)
                                               Padding(
-                                                padding:
-                                                    const EdgeInsets.only(
+                                                padding: const EdgeInsets.only(
                                                   left: 42,
                                                   bottom: 12,
                                                 ),
-                                                child:
-                                                    _buildInlineReplyComposer(
+                                                child: _buildInlineReplyComposer(
                                                   replyingToName:
                                                       replyingToName ?? '',
-                                                  replyingToSubCommentName: replyingToSubCommentName,
+                                                  replyingToSubCommentName:
+                                                      replyingToSubCommentName,
                                                   onCancel: () {
                                                     setState(() {
                                                       replyingToId = null;
                                                       replyingToName = null;
-                                                      replyingToSubCommentId = null;
-                                                      replyingToSubCommentName = null;
+                                                      replyingToSubCommentId =
+                                                          null;
+                                                      replyingToSubCommentName =
+                                                          null;
                                                     });
                                                   },
                                                 ),
@@ -944,9 +981,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ),
           child: IconButton(
             icon: const Icon(Icons.arrow_back_ios_new, size: 18),
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.white
-                : Colors.black87,
+            color:
+                Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white
+                    : Colors.black87,
             onPressed: () => Navigator.of(context).pop(),
           ),
         ),
@@ -997,7 +1035,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               .doc(currentUser.uid)
               .get();
 
-      final userName = userDoc.data()?['fullName'] as String? ?? 'User';
+      final userName = NameFormatter.fromUserDataDisplay(userDoc.data());
       final isSeller = currentUser.uid == widget.product.sellerId;
 
       await ProductsService.addMessage(

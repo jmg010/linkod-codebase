@@ -6,6 +6,7 @@ import '../constants/purok.dart';
 import '../models/user_role.dart';
 import '../services/fcm_token_service.dart';
 import '../services/firestore_service.dart';
+import '../services/name_formatter.dart';
 import '../services/storage_service.dart';
 import '../widgets/optimized_image.dart';
 import '../theme_notifier.dart';
@@ -61,8 +62,10 @@ class _MenuScreenState extends State<MenuScreen> {
       if (userDoc.exists) {
         final data = userDoc.data();
         setState(() {
-          _userName =
-              data?['fullName'] as String? ?? _getUserName(widget.userRole);
+          _userName = NameFormatter.fromUserDataFull(
+            data,
+            fallback: _getUserName(widget.userRole),
+          );
           _phoneNumber =
               data?['phoneNumber'] as String? ??
               _getPhoneNumber(widget.userRole);
@@ -73,11 +76,14 @@ class _MenuScreenState extends State<MenuScreen> {
           final categories = data?['categories'];
           debugPrint('Raw categories: $categories');
           if (categories is List) {
-            _demographicCategories = categories
-                .map((e) => e?.toString() ?? '')
-                .where((s) => s.isNotEmpty)
-                .toList();
-            debugPrint('Processed _demographicCategories: $_demographicCategories');
+            _demographicCategories =
+                categories
+                    .map((e) => e?.toString() ?? '')
+                    .where((s) => s.isNotEmpty)
+                    .toList();
+            debugPrint(
+              'Processed _demographicCategories: $_demographicCategories',
+            );
           } else {
             _demographicCategories = [];
           }
@@ -245,7 +251,9 @@ class _MenuScreenState extends State<MenuScreen> {
                           ),
                         ),
                       // Location
-                      if (!_isLoadingUser && _location != null && _location!.isNotEmpty)
+                      if (!_isLoadingUser &&
+                          _location != null &&
+                          _location!.isNotEmpty)
                         Text(
                           _location!,
                           style: TextStyle(
@@ -965,17 +973,17 @@ class _MenuScreenState extends State<MenuScreen> {
 
   String _buildPurokAndCategories() {
     final parts = <String>[];
-    
+
     // Add purok if available
     if (_purok != null) {
       parts.add(purokDisplayName(_purok!));
     }
-    
+
     // Add demographic categories if available
     if (_demographicCategories.isNotEmpty) {
       parts.add(_demographicCategories.join(', '));
     }
-    
+
     // Join with bullet separator
     return parts.join(' • ');
   }

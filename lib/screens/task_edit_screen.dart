@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/task_model.dart';
 import '../services/tasks_service.dart';
 import '../services/firestore_service.dart';
+import '../services/name_formatter.dart';
 import '../services/task_chat_service.dart';
 import '../widgets/resident_profile_dialog.dart';
 import '../widgets/optimized_image.dart';
@@ -220,13 +221,17 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
   void _openChatWithVolunteer(String volunteerId, String volunteerName) {
     final currentUser = FirestoreService.auth.currentUser;
     if (currentUser == null) return;
+    final volunteerDisplayName = NameFormatter.fromAnyDisplay(
+      fullName: volunteerName,
+      fallback: 'Volunteer',
+    );
     Navigator.of(context).push(
       MaterialPageRoute(
         builder:
             (_) => TaskChatScreen(
               taskId: widget.task.id,
               taskTitle: widget.task.title,
-              otherPartyName: volunteerName,
+              otherPartyName: volunteerDisplayName,
               otherPartyId: volunteerId,
               currentUserId: currentUser.uid,
             ),
@@ -1052,13 +1057,14 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
         void showProfileDialog() {
           showDialog(
             context: context,
-            builder: (_) => ResidentProfileDialog(
-              avatarUrl: avatarUrl,
-              name: volunteerName,
-              purok: purok,
-              phoneNumber: phoneNumber,
-              isSeller: false,
-            ),
+            builder:
+                (_) => ResidentProfileDialog(
+                  avatarUrl: avatarUrl,
+                  name: volunteerName,
+                  purok: purok,
+                  phoneNumber: phoneNumber,
+                  isSeller: false,
+                ),
           );
         }
 
@@ -1082,22 +1088,28 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: isDark ? Colors.green.shade700 : Colors.green.shade300,
+                      color:
+                          isDark
+                              ? Colors.green.shade700
+                              : Colors.green.shade300,
                       width: 2,
                     ),
                   ),
                   child: ClipOval(
-                    child: avatarUrl != null && avatarUrl.isNotEmpty
-                        ? OptimizedNetworkImage(
-                            imageUrl: avatarUrl,
-                            width: 40,
-                            height: 40,
-                            fit: BoxFit.cover,
-                            cacheWidth: 80,
-                            cacheHeight: 80,
-                            errorWidget: _buildVolunteerAvatarFallback(volunteerName),
-                          )
-                        : _buildVolunteerAvatarFallback(volunteerName),
+                    child:
+                        avatarUrl != null && avatarUrl.isNotEmpty
+                            ? OptimizedNetworkImage(
+                              imageUrl: avatarUrl,
+                              width: 40,
+                              height: 40,
+                              fit: BoxFit.cover,
+                              cacheWidth: 80,
+                              cacheHeight: 80,
+                              errorWidget: _buildVolunteerAvatarFallback(
+                                volunteerName,
+                              ),
+                            )
+                            : _buildVolunteerAvatarFallback(volunteerName),
                   ),
                 ),
               ),
@@ -1111,7 +1123,10 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.green.shade300 : Colors.green.shade800,
+                      color:
+                          isDark
+                              ? Colors.green.shade300
+                              : Colors.green.shade800,
                     ),
                   ),
                 ),
@@ -1132,7 +1147,11 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                                 volunteerDocId,
                                 volunteerName,
                               ),
-                      icon: Icon(Icons.close, size: 22, color: Colors.red.shade700),
+                      icon: Icon(
+                        Icons.close,
+                        size: 22,
+                        color: Colors.red.shade700,
+                      ),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(
                         minWidth: 44,
@@ -1146,12 +1165,15 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                     children: [
                       IconButton(
                         onPressed:
-                            () =>
-                                _openChatWithVolunteer(volunteerId, volunteerName),
+                            () => _openChatWithVolunteer(
+                              volunteerId,
+                              volunteerName,
+                            ),
                         icon: Icon(
                           Icons.message_outlined,
                           size: 22,
-                          color: isDark ? Colors.white : const Color(0xFF4C4C4C),
+                          color:
+                              isDark ? Colors.white : const Color(0xFF4C4C4C),
                         ),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(
@@ -1218,20 +1240,22 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
     }
 
     try {
-      final userDoc = await FirestoreService.instance
-          .collection('users')
-          .doc(volunteerId)
-          .get();
+      final userDoc =
+          await FirestoreService.instance
+              .collection('users')
+              .doc(volunteerId)
+              .get();
 
       if (userDoc.exists) {
         final data = userDoc.data();
         final userData = {
           'avatarUrl': data?['profileImageUrl'] as String?,
-          'purok': data?['purok'] != null
-              ? 'Purok ${data?['purok']}'
-              : null,
+          'purok': data?['purok'] != null ? 'Purok ${data?['purok']}' : null,
           'phoneNumber': data?['phoneNumber'] as String?,
-          'fullName': data?['fullName'] as String? ?? 'Unknown',
+          'fullName': NameFormatter.fromUserDataDisplay(
+            data,
+            fallback: 'Unknown',
+          ),
         };
         _volunteerDataCache[volunteerId] = userData;
         return userData;

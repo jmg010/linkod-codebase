@@ -8,6 +8,7 @@ import '../models/task_model.dart';
 import '../services/tasks_service.dart';
 import '../services/firestore_service.dart';
 import '../services/admin_settings_service.dart';
+import '../services/name_formatter.dart';
 import '../services/storage_service.dart';
 import '../widgets/optimized_image.dart';
 
@@ -210,7 +211,10 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
           'contactNumber': _contactController.text.trim(),
           'category': _selectedCategory,
           'imageUrls': imageUrls,
-          'location': _locationController.text.trim().isEmpty ? 'Location not specified' : _locationController.text.trim(),
+          'location':
+              _locationController.text.trim().isEmpty
+                  ? 'Location not specified'
+                  : _locationController.text.trim(),
         });
         if (mounted) {
           Navigator.of(context).pop();
@@ -256,7 +260,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
     }
 
     final userData = userDoc.data() as Map<String, dynamic>;
-    final userName = userData['fullName'] as String? ?? 'User';
+    final userName = NameFormatter.fromUserDataDisplay(userData);
 
     if (_isPosting) return;
     setState(() => _isPosting = true);
@@ -291,7 +295,10 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
         approvalStatus: initialApprovalStatus, // Set based on auto-approve flag
         category: _selectedCategory,
         imageUrls: imageUrls,
-        location: _locationController.text.trim().isEmpty ? 'Location not specified' : _locationController.text.trim(),
+        location:
+            _locationController.text.trim().isEmpty
+                ? 'Location not specified'
+                : _locationController.text.trim(),
       );
 
       await TasksService.createTask(task);
@@ -839,8 +846,11 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
       controller: controller,
       maxLines: maxLines,
       minLines: minLines ?? (isMultiline ? 2 : 1),
-      keyboardType: keyboardType ?? (isMultiline ? TextInputType.multiline : TextInputType.text),
-      textInputAction: isMultiline ? TextInputAction.newline : TextInputAction.next,
+      keyboardType:
+          keyboardType ??
+          (isMultiline ? TextInputType.multiline : TextInputType.text),
+      textInputAction:
+          isMultiline ? TextInputAction.newline : TextInputAction.next,
       validator: validator,
       style: TextStyle(color: isDark ? Colors.white : Colors.black87),
       decoration: InputDecoration(

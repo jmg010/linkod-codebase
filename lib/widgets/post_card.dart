@@ -4,6 +4,7 @@ import '../models/post_model.dart';
 import '../ui_constants.dart';
 import '../services/posts_service.dart';
 import '../services/firestore_service.dart';
+import '../services/name_formatter.dart';
 import '../screens/post_detail_screen.dart';
 import 'optimized_image.dart';
 
@@ -85,7 +86,7 @@ class _PostCardState extends State<PostCard> {
               .doc(currentUser.uid)
               .get();
 
-      final userName = userDoc.data()?['fullName'] as String? ?? 'User';
+      final userName = NameFormatter.fromUserDataDisplay(userDoc.data());
 
       await PostsService.likePost(widget.post.id, currentUser.uid, userName);
 
@@ -340,8 +341,12 @@ class _PostHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final displayUserName = NameFormatter.fromAnyDisplay(
+      fullName: post.userName,
+      fallback: 'User',
+    );
     final initial =
-        post.userName.isNotEmpty ? post.userName[0].toUpperCase() : 'U';
+        displayUserName.isNotEmpty ? displayUserName[0].toUpperCase() : 'U';
     final timestamp = _formatDate(post.createdAt);
 
     return Row(
@@ -364,7 +369,7 @@ class _PostHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                post.userName,
+                displayUserName,
                 style: kHeadlineSmall.copyWith(
                   color:
                       Theme.of(context).brightness == Brightness.dark
@@ -648,7 +653,7 @@ class _CommentSheetState extends State<_CommentSheet> {
               .doc(currentUser.uid)
               .get();
 
-      final userName = userDoc.data()?['fullName'] as String? ?? 'User';
+      final userName = NameFormatter.fromUserDataDisplay(userDoc.data());
 
       await PostsService.addComment(
         widget.postId,
@@ -782,6 +787,10 @@ class _CommentSheetState extends State<_CommentSheet> {
                         widget.initialCommentId != null &&
                         widget.initialCommentId!.isNotEmpty &&
                         commentId == widget.initialCommentId;
+                    final commentUserName = NameFormatter.fromAnyDisplay(
+                      fullName: comment['userName'] as String?,
+                      fallback: 'Unknown',
+                    );
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 16),
                       child: AnimatedContainer(
@@ -801,7 +810,9 @@ class _CommentSheetState extends State<_CommentSheet> {
                               radius: 16,
                               backgroundColor: kFacebookBlue,
                               child: Text(
-                                (comment['userName'] as String? ?? 'U')[0]
+                                (commentUserName.isNotEmpty
+                                        ? commentUserName
+                                        : 'U')[0]
                                     .toUpperCase(),
                                 style: const TextStyle(
                                   color: Colors.white,
@@ -816,7 +827,7 @@ class _CommentSheetState extends State<_CommentSheet> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    comment['userName'] as String? ?? 'Unknown',
+                                    commentUserName,
                                     style: TextStyle(
                                       fontWeight: FontWeight.w600,
                                       fontSize: 14,

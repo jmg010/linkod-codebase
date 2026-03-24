@@ -24,6 +24,7 @@ const messaging = admin.messaging();
 const OTP_EXPIRATION_SECONDS = 120; // 2 minutes
 const MAX_OTP_REQUESTS_PER_PERIOD = 3;
 const RATE_LIMIT_PERIOD_MINUTES = 30;
+const ENABLE_OTP_RATE_LIMIT = false;
 
 /**
  * Generates a random 6-digit OTP
@@ -97,43 +98,45 @@ exports.requestOtp = functions.https.onCall(async (data, context) => {
       );
     }
 
-    // Check rate limiting
-    const thirtyMinutesAgo = new Date(Date.now() - RATE_LIMIT_PERIOD_MINUTES * 60 * 1000);
-    // fetch up to MAX_OTP_REQUESTS_PER_PERIOD records for this phone; avoid ordering
-    // by requestedAt or adding additional filters to prevent composite index errors.
-    let snapshot;
-    try {
-      snapshot = await db
-        .collection('pendingOtps')
-        .where('phoneNumber', '==', phoneNumber)
-        .limit(MAX_OTP_REQUESTS_PER_PERIOD)
-        .get();
-    } catch (innerErr) {
-      console.error('Error querying rate limit docs:', innerErr);
-      throw innerErr; // rethrow so the outer catch can convert
-    }
+    if (ENABLE_OTP_RATE_LIMIT) {
+      // Check rate limiting
+      const thirtyMinutesAgo = new Date(Date.now() - RATE_LIMIT_PERIOD_MINUTES * 60 * 1000);
+      // fetch up to MAX_OTP_REQUESTS_PER_PERIOD records for this phone; avoid ordering
+      // by requestedAt or adding additional filters to prevent composite index errors.
+      let snapshot;
+      try {
+        snapshot = await db
+          .collection('pendingOtps')
+          .where('phoneNumber', '==', phoneNumber)
+          .limit(MAX_OTP_REQUESTS_PER_PERIOD)
+          .get();
+      } catch (innerErr) {
+        console.error('Error querying rate limit docs:', innerErr);
+        throw innerErr; // rethrow so the outer catch can convert
+      }
 
-    console.error('rateLimit snapshot size:', snapshot.size);
+      console.error('rateLimit snapshot size:', snapshot.size);
 
-    // count documents within period and still pending
-    const recentRequestsCount = snapshot.docs
-      .map(doc => doc.data())
-      .filter(d => {
-        const reqAt = d.requestedAt && d.requestedAt.toDate ? d.requestedAt.toDate() : null;
-        return (
-          d.status === 'pending' &&
-          reqAt &&
-          reqAt >= thirtyMinutesAgo
+      // count documents within period and still pending
+      const recentRequestsCount = snapshot.docs
+        .map(doc => doc.data())
+        .filter(d => {
+          const reqAt = d.requestedAt && d.requestedAt.toDate ? d.requestedAt.toDate() : null;
+          return (
+            d.status === 'pending' &&
+            reqAt &&
+            reqAt >= thirtyMinutesAgo
+          );
+        }).length;
+
+      console.error('recentRequestsCount:', recentRequestsCount);
+
+      if (recentRequestsCount >= MAX_OTP_REQUESTS_PER_PERIOD) {
+        throw new functions.https.HttpsError(
+          'resource-exhausted',
+          `Too many OTP requests. Maximum ${MAX_OTP_REQUESTS_PER_PERIOD} requests per ${RATE_LIMIT_PERIOD_MINUTES} minutes.`
         );
-      }).length;
-
-    console.error('recentRequestsCount:', recentRequestsCount);
-
-    if (recentRequestsCount >= MAX_OTP_REQUESTS_PER_PERIOD) {
-      throw new functions.https.HttpsError(
-        'resource-exhausted',
-        `Too many OTP requests. Maximum ${MAX_OTP_REQUESTS_PER_PERIOD} requests per ${RATE_LIMIT_PERIOD_MINUTES} minutes.`
-      );
+      }
     }
 
     // Generate OTP

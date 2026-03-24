@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/task_chat_message_model.dart';
 import '../services/task_chat_service.dart';
 import '../services/firestore_service.dart';
+import '../services/name_formatter.dart';
 import '../widgets/resident_profile_dialog.dart';
 import '../widgets/optimized_image.dart';
 
@@ -67,18 +68,18 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
   Future<void> _loadOtherPartyData() async {
     if (_hasLoadedOtherPartyData) return;
     try {
-      final userDoc = await FirestoreService.instance
-          .collection('users')
-          .doc(widget.otherPartyId)
-          .get();
+      final userDoc =
+          await FirestoreService.instance
+              .collection('users')
+              .doc(widget.otherPartyId)
+              .get();
 
       if (userDoc.exists && mounted) {
         final data = userDoc.data();
         setState(() {
           _otherPartyAvatarUrl = data?['profileImageUrl'] as String?;
-          _otherPartyPurok = data?['purok'] != null
-              ? 'Purok ${data?['purok']}'
-              : null;
+          _otherPartyPurok =
+              data?['purok'] != null ? 'Purok ${data?['purok']}' : null;
           _otherPartyPhone = data?['phoneNumber'] as String?;
           _hasLoadedOtherPartyData = true;
         });
@@ -104,7 +105,7 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
             .collection('users')
             .doc(widget.currentUserId)
             .get();
-    final senderName = userDoc.data()?['fullName'] as String? ?? 'User';
+    final senderName = NameFormatter.fromUserDataDisplay(userDoc.data());
 
     setState(() => _isSending = true);
     try {
@@ -129,6 +130,10 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final otherPartyDisplayName = NameFormatter.fromAnyDisplay(
+      fullName: widget.otherPartyName,
+      fallback: 'User',
+    );
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
@@ -146,7 +151,7 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              widget.otherPartyName,
+              otherPartyDisplayName,
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -251,12 +256,18 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
                       );
                     }
                     final msg = item as TaskChatMessageModel;
+                    final senderDisplayName = NameFormatter.fromAnyDisplay(
+                      fullName: msg.senderName,
+                      fallback: 'User',
+                    );
                     final isMe = msg.senderId == widget.currentUserId;
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 10),
                       child: Row(
                         mainAxisAlignment:
-                            isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+                            isMe
+                                ? MainAxisAlignment.end
+                                : MainAxisAlignment.start,
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           // Profile picture for other party (left side)
@@ -265,13 +276,14 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
                               onTap: () {
                                 showDialog(
                                   context: context,
-                                  builder: (_) => ResidentProfileDialog(
-                                    avatarUrl: _otherPartyAvatarUrl,
-                                    name: msg.senderName,
-                                    purok: _otherPartyPurok,
-                                    phoneNumber: _otherPartyPhone,
-                                    isSeller: false,
-                                  ),
+                                  builder:
+                                      (_) => ResidentProfileDialog(
+                                        avatarUrl: _otherPartyAvatarUrl,
+                                        name: msg.senderName,
+                                        purok: _otherPartyPurok,
+                                        phoneNumber: _otherPartyPhone,
+                                        isSeller: false,
+                                      ),
                                 );
                               },
                               child: Container(
@@ -286,20 +298,23 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
                                   ),
                                 ),
                                 child: ClipOval(
-                                  child: _otherPartyAvatarUrl != null &&
-                                          _otherPartyAvatarUrl!.isNotEmpty
-                                      ? OptimizedNetworkImage(
-                                          imageUrl: _otherPartyAvatarUrl!,
-                                          width: 32,
-                                          height: 32,
-                                          fit: BoxFit.cover,
-                                          cacheWidth: 64,
-                                          cacheHeight: 64,
-                                          errorWidget: _buildAvatarFallback(
-                                            msg.senderName,
+                                  child:
+                                      _otherPartyAvatarUrl != null &&
+                                              _otherPartyAvatarUrl!.isNotEmpty
+                                          ? OptimizedNetworkImage(
+                                            imageUrl: _otherPartyAvatarUrl!,
+                                            width: 32,
+                                            height: 32,
+                                            fit: BoxFit.cover,
+                                            cacheWidth: 64,
+                                            cacheHeight: 64,
+                                            errorWidget: _buildAvatarFallback(
+                                              senderDisplayName,
+                                            ),
+                                          )
+                                          : _buildAvatarFallback(
+                                            senderDisplayName,
                                           ),
-                                        )
-                                      : _buildAvatarFallback(msg.senderName),
                                 ),
                               ),
                             ),
@@ -307,7 +322,8 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
                           // Chat bubble
                           Container(
                             constraints: BoxConstraints(
-                              maxWidth: MediaQuery.of(context).size.width * 0.70,
+                              maxWidth:
+                                  MediaQuery.of(context).size.width * 0.70,
                             ),
                             padding: const EdgeInsets.symmetric(
                               horizontal: 14,
@@ -336,7 +352,7 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  msg.senderName,
+                                  senderDisplayName,
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,

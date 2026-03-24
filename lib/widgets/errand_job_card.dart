@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'optimized_image.dart';
+import '../services/name_formatter.dart';
 
 enum ErrandJobStatus { open, ongoing, completed }
 
@@ -39,6 +40,10 @@ class ErrandJobCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final postedByDisplayName = NameFormatter.fromAnyDisplay(
+      fullName: postedBy,
+      fallback: 'User',
+    );
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
@@ -149,7 +154,7 @@ class ErrandJobCard extends StatelessWidget {
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
-                            'Posted by: $postedBy',
+                            'Posted by: $postedByDisplayName',
                             style: TextStyle(
                               fontSize: 12.5,
                               color:
@@ -192,7 +197,7 @@ class ErrandJobCard extends StatelessWidget {
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
-                      'Posted by: $postedBy',
+                      'Posted by: $postedByDisplayName',
                       style: TextStyle(
                         fontSize: 12.5,
                         color:

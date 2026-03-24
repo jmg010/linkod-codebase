@@ -5,6 +5,7 @@ import '../widgets/product_card.dart';
 import '../models/product_model.dart';
 import '../services/products_service.dart';
 import '../services/firestore_service.dart';
+import '../services/name_formatter.dart';
 import 'product_detail_screen.dart';
 import 'search_screen.dart';
 
@@ -786,7 +787,7 @@ class _InteractedProductCard extends StatelessWidget {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    'Posted by: ${product.sellerName}',
+                    "Posted by: ${NameFormatter.fromAnyDisplay(fullName: product.sellerName, fallback: 'User')}",
                     style: TextStyle(
                       fontSize: 13,
                       color:

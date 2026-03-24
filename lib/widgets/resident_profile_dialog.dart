@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/optimized_image.dart';
+import '../services/name_formatter.dart';
 
 /// Dialog showing resident profile information when avatar is tapped.
 /// Displays avatar, name, purok, phone number, and seller badge if applicable.
@@ -22,7 +23,12 @@ class ResidentProfileDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final initials = name.isNotEmpty ? name[0].toUpperCase() : '?';
+    final displayName = NameFormatter.fromAnyFull(
+      fullName: name,
+      fallback: 'User',
+    );
+    final initials =
+        displayName.isNotEmpty ? displayName[0].toUpperCase() : '?';
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -80,23 +86,24 @@ class ResidentProfileDialog extends StatelessWidget {
                         ],
                       ),
                       child: ClipOval(
-                        child: avatarUrl != null && avatarUrl!.isNotEmpty
-                            ? OptimizedNetworkImage(
-                                imageUrl: avatarUrl!,
-                                width: 80,
-                                height: 80,
-                                fit: BoxFit.cover,
-                                cacheWidth: 160,
-                                cacheHeight: 160,
-                                errorWidget: _buildFallbackAvatar(initials),
-                              )
-                            : _buildFallbackAvatar(initials),
+                        child:
+                            avatarUrl != null && avatarUrl!.isNotEmpty
+                                ? OptimizedNetworkImage(
+                                  imageUrl: avatarUrl!,
+                                  width: 80,
+                                  height: 80,
+                                  fit: BoxFit.cover,
+                                  cacheWidth: 160,
+                                  cacheHeight: 160,
+                                  errorWidget: _buildFallbackAvatar(initials),
+                                )
+                                : _buildFallbackAvatar(initials),
                       ),
                     ),
                     const SizedBox(height: 12),
                     // Name
                     Text(
-                      name,
+                      displayName,
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
@@ -170,9 +177,10 @@ class ResidentProfileDialog extends StatelessWidget {
                         'No additional information available',
                         style: TextStyle(
                           fontSize: 14,
-                          color: isDark
-                              ? Colors.grey.shade400
-                              : Colors.grey.shade600,
+                          color:
+                              isDark
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade600,
                           fontStyle: FontStyle.italic,
                         ),
                       ),
@@ -187,9 +195,7 @@ class ResidentProfileDialog extends StatelessWidget {
                   'Tap anywhere to close',
                   style: TextStyle(
                     fontSize: 12,
-                    color: isDark
-                        ? Colors.grey.shade500
-                        : Colors.grey.shade400,
+                    color: isDark ? Colors.grey.shade500 : Colors.grey.shade400,
                   ),
                 ),
               ),
@@ -229,11 +235,7 @@ class ResidentProfileDialog extends StatelessWidget {
             color: const Color(0xFF20BF6B).withOpacity(0.1),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(
-            icon,
-            size: 20,
-            color: const Color(0xFF20BF6B),
-          ),
+          child: Icon(icon, size: 20, color: const Color(0xFF20BF6B)),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -244,9 +246,7 @@ class ResidentProfileDialog extends StatelessWidget {
                 label,
                 style: TextStyle(
                   fontSize: 12,
-                  color: isDark
-                      ? Colors.grey.shade400
-                      : Colors.grey.shade600,
+                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
                 ),
               ),
               const SizedBox(height: 2),

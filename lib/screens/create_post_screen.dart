@@ -14,6 +14,7 @@ import '../services/tasks_service.dart';
 import '../services/firestore_service.dart';
 import '../services/admin_settings_service.dart';
 import '../services/storage_service.dart';
+import '../services/name_formatter.dart';
 import '../widgets/xfile_preview_image.dart';
 
 enum CreateType {
@@ -101,7 +102,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     }
 
     final userData = userDoc.data() as Map<String, dynamic>;
-    final userName = userData['fullName'] as String? ?? 'User';
+    final userName = NameFormatter.fromUserDataDisplay(userData);
     final userRole = userData['role'] as String? ?? 'resident';
 
     final List<String> imageUrls = [];

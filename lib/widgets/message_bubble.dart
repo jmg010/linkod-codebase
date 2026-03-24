@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'optimized_image.dart';
 import 'resident_profile_dialog.dart';
+import '../services/name_formatter.dart';
 
 /// Avatar widget that displays a user's profile image with fallback to initials.
 /// Shows a profile dialog when tapped.
@@ -24,19 +25,25 @@ class MessageAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initials = name.isNotEmpty ? name[0].toUpperCase() : '?';
+    final displayName = NameFormatter.fromAnyDisplay(
+      fullName: name,
+      fallback: 'User',
+    );
+    final initials =
+        displayName.isNotEmpty ? displayName[0].toUpperCase() : '?';
 
     return GestureDetector(
       onTap: () {
         showDialog(
           context: context,
-          builder: (_) => ResidentProfileDialog(
-            avatarUrl: avatarUrl,
-            name: name,
-            purok: purok,
-            phoneNumber: phoneNumber,
-            isSeller: isSeller,
-          ),
+          builder:
+              (_) => ResidentProfileDialog(
+                avatarUrl: avatarUrl,
+                name: name,
+                purok: purok,
+                phoneNumber: phoneNumber,
+                isSeller: isSeller,
+              ),
         );
       },
       child: Container(
@@ -50,17 +57,18 @@ class MessageAvatar extends StatelessWidget {
           ),
         ),
         child: ClipOval(
-          child: avatarUrl != null && avatarUrl!.isNotEmpty
-              ? OptimizedNetworkImage(
-                  imageUrl: avatarUrl!,
-                  width: size,
-                  height: size,
-                  fit: BoxFit.cover,
-                  cacheWidth: (size * 2).toInt(),
-                  cacheHeight: (size * 2).toInt(),
-                  errorWidget: _buildFallback(initials),
-                )
-              : _buildFallback(initials),
+          child:
+              avatarUrl != null && avatarUrl!.isNotEmpty
+                  ? OptimizedNetworkImage(
+                    imageUrl: avatarUrl!,
+                    width: size,
+                    height: size,
+                    fit: BoxFit.cover,
+                    cacheWidth: (size * 2).toInt(),
+                    cacheHeight: (size * 2).toInt(),
+                    errorWidget: _buildFallback(initials),
+                  )
+                  : _buildFallback(initials),
         ),
       ),
     );
@@ -106,6 +114,10 @@ class MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final senderDisplayName = NameFormatter.fromAnyDisplay(
+      fullName: sender,
+      fallback: 'User',
+    );
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final avatarSize = isReply ? 28.0 : 32.0;
 
@@ -115,7 +127,7 @@ class MessageBubble extends StatelessWidget {
         // Avatar
         MessageAvatar(
           avatarUrl: avatarUrl,
-          name: sender,
+          name: senderDisplayName,
           size: avatarSize,
           purok: purok,
           phoneNumber: phoneNumber,
@@ -129,15 +141,16 @@ class MessageBubble extends StatelessWidget {
             children: [
               // Sender name
               Text(
-                sender,
+                senderDisplayName,
                 style: TextStyle(
                   fontSize: isReply ? 12 : 13,
                   fontWeight: FontWeight.w600,
-                  color: isSeller
-                      ? const Color(0xFF20BF6B)
-                      : (isDark
-                          ? Colors.grey.shade300
-                          : Colors.grey.shade800),
+                  color:
+                      isSeller
+                          ? const Color(0xFF20BF6B)
+                          : (isDark
+                              ? Colors.grey.shade300
+                              : Colors.grey.shade800),
                 ),
               ),
               const SizedBox(height: 4),
@@ -148,22 +161,21 @@ class MessageBubble extends StatelessWidget {
                   vertical: isReply ? 8 : 10,
                 ),
                 decoration: BoxDecoration(
-                  color: isReply
-                      ? (isDark
-                          ? const Color(0xFF2C2C2C)
-                          : Colors.grey.shade100)
-                      : (isDark
-                          ? const Color(0xFF2A2A2A)
-                          : Colors.grey.shade200),
+                  color:
+                      isReply
+                          ? (isDark
+                              ? const Color(0xFF2C2C2C)
+                              : Colors.grey.shade100)
+                          : (isDark
+                              ? const Color(0xFF2A2A2A)
+                              : Colors.grey.shade200),
                   borderRadius: BorderRadius.circular(isReply ? 12 : 14),
                 ),
                 child: Text(
                   message,
                   style: TextStyle(
                     fontSize: isReply ? 12 : 13,
-                    color: isDark
-                        ? Colors.grey.shade300
-                        : Colors.grey.shade800,
+                    color: isDark ? Colors.grey.shade300 : Colors.grey.shade800,
                     height: 1.3,
                   ),
                 ),

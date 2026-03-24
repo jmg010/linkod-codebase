@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../constants/purok.dart';
 import '../models/user_role.dart';
 import '../services/firestore_service.dart';
+import '../services/name_formatter.dart';
 import '../services/storage_service.dart';
 import '../widgets/optimized_image.dart';
 
@@ -71,7 +72,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 .where((c) => c.isNotEmpty)
                 .toList();
         setState(() {
-          _fullName = data?['fullName'] as String? ?? 'User';
+          _fullName = NameFormatter.fromUserDataFull(data, fallback: 'User');
           _phoneController.text = data?['phoneNumber'] as String? ?? '';
           _selectedPurok = (data?['purok'] as num?)?.toInt() ?? 1;
           _purokController.text = purokDisplayName(_selectedPurok);
@@ -266,8 +267,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
 
     try {
+      final parsedName = NameFormatter.parseFullName(name);
+      final firstName = parsedName?.firstName ?? name;
+      final middleName = parsedName?.middleName ?? '';
+      final lastName = parsedName?.lastName ?? '';
+
       final updates = <String, dynamic>{
         'fullName': name,
+        'firstName': firstName,
+        'middleName': middleName,
+        'lastName': lastName,
+        'hasMiddleName': middleName.isNotEmpty,
+        'displayName': NameFormatter.fromAnyDisplay(
+          fullName: name,
+          firstName: firstName,
+          middleName: middleName,
+          lastName: lastName,
+          hasMiddleName: middleName.isNotEmpty,
+          fallback: 'User',
+        ),
         'phoneNumber': phone,
         'email': '$phone@linkod.com', // Update email when phone number changes
         'purok': purok,

@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/task_model.dart';
 import '../services/tasks_service.dart';
 import '../services/firestore_service.dart';
+import '../services/name_formatter.dart';
 import '../services/task_chat_service.dart';
 import '../widgets/optimized_image.dart';
 import 'task_edit_screen.dart';
@@ -106,7 +107,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               .collection('users')
               .doc(currentUser.uid)
               .get();
-      final userName = userDoc.data()?['fullName'] as String? ?? 'User';
+      final userName = NameFormatter.fromUserDataDisplay(userDoc.data());
 
       await TasksService.volunteerForTask(
         widget.task.id,
@@ -160,13 +161,17 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   void _openChatWithVolunteer(String volunteerId, String volunteerName) {
     final currentUser = FirestoreService.auth.currentUser;
     if (currentUser == null) return;
+    final volunteerDisplayName = NameFormatter.fromAnyDisplay(
+      fullName: volunteerName,
+      fallback: 'Volunteer',
+    );
     Navigator.of(context).push(
       MaterialPageRoute(
         builder:
             (_) => TaskChatScreen(
               taskId: widget.task.id,
               taskTitle: widget.task.title,
-              otherPartyName: volunteerName,
+              otherPartyName: volunteerDisplayName,
               otherPartyId: volunteerId,
               currentUserId: currentUser.uid,
             ),
@@ -182,6 +187,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         isOwner
             ? (widget.task.assignedByName ?? 'Volunteer')
             : widget.task.requesterName;
+    final otherDisplayName = NameFormatter.fromAnyDisplay(
+      fullName: otherName,
+      fallback: 'User',
+    );
     final otherId = isOwner ? widget.task.assignedTo : widget.task.requesterId;
     if (otherId == null || otherId.isEmpty) return;
     Navigator.of(context).push(
@@ -190,7 +199,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             (_) => TaskChatScreen(
               taskId: widget.task.id,
               taskTitle: widget.task.title,
-              otherPartyName: otherName,
+              otherPartyName: otherDisplayName,
               otherPartyId: otherId,
               currentUserId: currentUser.uid,
             ),
@@ -234,6 +243,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   Widget _buildRequestDetailsCard() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final requesterDisplayName = NameFormatter.fromAnyDisplay(
+      fullName: widget.task.requesterName,
+      fallback: 'User',
+    );
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -280,10 +293,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               ),
               const SizedBox(width: 6),
               Text(
-                'Posted by: ${widget.task.requesterName}',
+                'Posted by: $requesterDisplayName',
                 style: TextStyle(
                   fontSize: 14,
-                  color: isDark ? Colors.grey.shade300 : const Color(0xFF4C4C4C),
+                  color:
+                      isDark ? Colors.grey.shade300 : const Color(0xFF4C4C4C),
                 ),
               ),
             ],

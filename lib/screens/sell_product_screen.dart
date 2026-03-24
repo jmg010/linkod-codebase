@@ -10,6 +10,7 @@ import '../models/product_model.dart';
 import '../services/products_service.dart';
 import '../services/firestore_service.dart';
 import '../services/admin_settings_service.dart';
+import '../services/name_formatter.dart';
 import '../services/storage_service.dart';
 import '../widgets/optimized_image.dart';
 
@@ -263,7 +264,7 @@ class _SellProductScreenState extends State<SellProductScreen> {
     }
 
     final userData = userDoc.data() as Map<String, dynamic>;
-    final userName = userData['fullName'] as String? ?? 'User';
+    final userName = NameFormatter.fromUserDataDisplay(userData);
 
     try {
       if (_isEdit) {
@@ -849,10 +850,13 @@ class _SellProductScreenState extends State<SellProductScreen> {
       ),
       child: TextField(
         controller: controller,
-        keyboardType: keyboardType ?? (isMultiline ? TextInputType.multiline : TextInputType.text),
+        keyboardType:
+            keyboardType ??
+            (isMultiline ? TextInputType.multiline : TextInputType.text),
         maxLines: maxLines,
         minLines: minLines ?? (isMultiline ? 2 : 1),
-        textInputAction: isMultiline ? TextInputAction.newline : TextInputAction.next,
+        textInputAction:
+            isMultiline ? TextInputAction.newline : TextInputAction.next,
         style: TextStyle(
           fontSize: 14,
           color: isDark ? Colors.white : Colors.black87,
@@ -877,7 +881,8 @@ class _SellProductScreenState extends State<SellProductScreen> {
 class _XFilePageImage extends StatelessWidget {
   const _XFilePageImage({required this.xFile});
 
-  final XFile xFile;  @override
+  final XFile xFile;
+  @override
   Widget build(BuildContext context) {
     return FutureBuilder<Uint8List>(
       future: xFile.readAsBytes(),
