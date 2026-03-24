@@ -171,7 +171,7 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              otherPartyDisplayName,
+              widget.taskTitle,
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -179,7 +179,7 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
               ),
             ),
             Text(
-              widget.taskTitle,
+              "Task messages",
               style: TextStyle(
                 fontSize: 12,
                 color: Colors.grey.shade600,
@@ -291,56 +291,7 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           // Profile picture for other party (left side)
-                          if (!isMe) ...[
-                            GestureDetector(
-                              onTap: () {
-                                showDialog(
-                                  context: context,
-                                  builder:
-                                      (_) => ResidentProfileDialog(
-                                        avatarUrl: _otherPartyAvatarUrl,
-                                        name: msg.senderName,
-                                        purok: _otherPartyPurok,
-                                        phoneNumber: _otherPartyPhone,
-                                        demographicCategory:
-                                            _otherPartyDemographicCategory,
-                                        isSeller: false,
-                                      ),
-                                );
-                              },
-                              child: Container(
-                                width: 32,
-                                height: 32,
-                                margin: const EdgeInsets.only(right: 8),
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.grey.shade300,
-                                    width: 1,
-                                  ),
-                                ),
-                                child: ClipOval(
-                                  child:
-                                      _otherPartyAvatarUrl != null &&
-                                              _otherPartyAvatarUrl!.isNotEmpty
-                                          ? OptimizedNetworkImage(
-                                            imageUrl: _otherPartyAvatarUrl!,
-                                            width: 32,
-                                            height: 32,
-                                            fit: BoxFit.cover,
-                                            cacheWidth: 64,
-                                            cacheHeight: 64,
-                                            errorWidget: _buildAvatarFallback(
-                                              senderDisplayName,
-                                            ),
-                                          )
-                                          : _buildAvatarFallback(
-                                            senderDisplayName,
-                                          ),
-                                ),
-                              ),
-                            ),
-                          ],
+
                           // Chat bubble
                           Container(
                             constraints: BoxConstraints(
