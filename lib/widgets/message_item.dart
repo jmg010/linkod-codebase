@@ -9,6 +9,7 @@ import 'reply_item.dart';
 class MessageItem extends StatelessWidget {
   final MessageModel message;
   final String? profileName;
+  final String? demographicCategory;
   final List<MessageModel> replies;
   final bool isExpanded;
   final VoidCallback onReply;
@@ -27,6 +28,7 @@ class MessageItem extends StatelessWidget {
     super.key,
     required this.message,
     this.profileName,
+    this.demographicCategory,
     this.replies = const [],
     this.isExpanded = false,
     required this.onReply,
@@ -55,6 +57,7 @@ class MessageItem extends StatelessWidget {
         MessageBubble(
           sender: message.senderName,
           profileName: profileName,
+          demographicCategory: demographicCategory,
           message: message.message,
           isSeller: message.isSeller,
           isReply: false,

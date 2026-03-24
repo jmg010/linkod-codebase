@@ -8,6 +8,7 @@ import 'message_bubble.dart';
 class ReplyItem extends StatelessWidget {
   final MessageModel reply;
   final String? profileName;
+  final String? demographicCategory;
   final VoidCallback? onDelete;
   final VoidCallback? onReply;
   final bool canDelete;
@@ -19,6 +20,7 @@ class ReplyItem extends StatelessWidget {
     super.key,
     required this.reply,
     this.profileName,
+    this.demographicCategory,
     this.onDelete,
     this.onReply,
     this.canDelete = false,
@@ -55,6 +57,7 @@ class ReplyItem extends StatelessWidget {
                   MessageBubble(
                     sender: reply.senderName,
                     profileName: profileName,
+                    demographicCategory: demographicCategory,
                     message: reply.message,
                     isSeller: reply.isSeller,
                     isReply: true,
@@ -198,6 +201,7 @@ class ReplyThread extends StatelessWidget {
             return ReplyItem(
               reply: reply,
               profileName: userData?['fullName'],
+              demographicCategory: userData?['demographicCategory'],
               onDelete:
                   onDeleteReply != null ? () => onDeleteReply!(reply.id) : null,
               onReply:

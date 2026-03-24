@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -236,49 +235,41 @@ class _MenuScreenState extends State<MenuScreen> {
                           color: isDark ? Colors.white : Colors.black87,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      // Purok and Demographic Categories
-                      if (!_isLoadingUser &&
-                          (_purok != null || _demographicCategories.isNotEmpty))
-                        Text(
-                          _buildPurokAndCategories(),
-                          style: TextStyle(
-                            fontSize: 13,
-                            color:
-                                isDark
-                                    ? Colors.grey.shade400
-                                    : Colors.grey.shade600,
+                      if (!_isLoadingUser) ...[
+                        const SizedBox(height: 16),
+                        _buildProfileInfoTile(
+                          label: 'Purok',
+                          value:
+                              _purok != null
+                                  ? purokDisplayName(_purok!)
+                                  : 'Not set',
+                          isDark: isDark,
+                        ),
+                        const SizedBox(height: 10),
+                        _buildProfileInfoTile(
+                          label: 'Demographic Category',
+                          value:
+                              _demographicCategories.isNotEmpty
+                                  ? _demographicCategories.join(', ')
+                                  : 'Not set',
+                          isDark: isDark,
+                        ),
+                        if (_location != null && _location!.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          _buildProfileInfoTile(
+                            label: 'Location',
+                            value: _location!,
+                            isDark: isDark,
                           ),
+                        ],
+                        const SizedBox(height: 10),
+                        _buildProfileInfoTile(
+                          label: 'Phone Number',
+                          value:
+                              _phoneNumber ?? _getPhoneNumber(widget.userRole),
+                          isDark: isDark,
                         ),
-                      // Location
-                      if (!_isLoadingUser &&
-                          _location != null &&
-                          _location!.isNotEmpty)
-                        Text(
-                          _location!,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color:
-                                isDark
-                                    ? Colors.grey.shade400
-                                    : Colors.grey.shade600,
-                          ),
-                        ),
-                      const SizedBox(height: 8),
-                      // Phone Number (from Firestore or fallback to role-based)
-                      Text(
-                        _isLoadingUser
-                            ? ''
-                            : (_phoneNumber ??
-                                _getPhoneNumber(widget.userRole)),
-                        style: TextStyle(
-                          fontSize: 14,
-                          color:
-                              isDark
-                                  ? Colors.grey.shade400
-                                  : Colors.grey.shade600,
-                        ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
@@ -908,44 +899,38 @@ class _MenuScreenState extends State<MenuScreen> {
     );
   }
 
-  Widget _buildInfoItem(
-    IconData icon,
-    String title,
-    String subtitle,
-    Color primaryColor,
-    Color textColor,
-    bool isDark,
-  ) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: primaryColor.withOpacity(0.1),
-            shape: BoxShape.circle,
+  Widget _buildProfileInfoTile({
+    required String label,
+    required String value,
+    required bool isDark,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
+              letterSpacing: 0.2,
+            ),
           ),
-          child: Icon(icon, color: primaryColor, size: 16),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  color: isDark ? Colors.white : Colors.black,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(subtitle, style: TextStyle(color: textColor, fontSize: 12)),
-            ],
+          const SizedBox(height: 3),
+          Text(
+            value,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -969,23 +954,6 @@ class _MenuScreenState extends State<MenuScreen> {
       case UserRole.resident:
         return '09703985626';
     }
-  }
-
-  String _buildPurokAndCategories() {
-    final parts = <String>[];
-
-    // Add purok if available
-    if (_purok != null) {
-      parts.add(purokDisplayName(_purok!));
-    }
-
-    // Add demographic categories if available
-    if (_demographicCategories.isNotEmpty) {
-      parts.add(_demographicCategories.join(', '));
-    }
-
-    // Join with bullet separator
-    return parts.join(' • ');
   }
 }
 
@@ -1088,4 +1056,57 @@ class _DarkModeMenuItem extends StatelessWidget {
       ),
     );
   }
+}
+
+Widget _buildInfoItem(
+  IconData icon,
+  String label,
+  String value,
+  Color primaryColor,
+  Color textColor,
+  bool isDark,
+) {
+  return Container(
+    padding: const EdgeInsets.all(12),
+    margin: const EdgeInsets.symmetric(horizontal: 4),
+    decoration: BoxDecoration(
+      color:
+          isDark
+              ? Colors.white.withOpacity(0.03)
+              : Colors.black.withOpacity(0.02),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(
+        color:
+            isDark
+                ? Colors.white.withOpacity(0.08)
+                : Colors.black.withOpacity(0.08),
+      ),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Icon(icon, color: primaryColor, size: 20),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: textColor.withOpacity(0.65),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: textColor,
+          ),
+        ),
+      ],
+    ),
+  );
 }

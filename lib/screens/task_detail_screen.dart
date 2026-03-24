@@ -224,6 +224,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           'avatarUrl': data?['profileImageUrl'] as String?,
           'purok': data?['purok'] != null ? 'Purok ${data?['purok']}' : null,
           'phoneNumber': data?['phoneNumber'] as String?,
+          'demographicCategory': _formatDemographicCategories(
+            data?['categories'],
+          ),
           'fullName': NameFormatter.fromUserDataFull(
             data,
             fallback: widget.task.requesterName,
@@ -240,6 +243,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       'avatarUrl': null,
       'purok': null,
       'phoneNumber': null,
+      'demographicCategory': null,
       'fullName': widget.task.requesterName,
     };
     _userDataCache[uid] = fallback;
@@ -266,8 +270,25 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             name: name,
             purok: userData['purok'],
             phoneNumber: userData['phoneNumber'],
+            demographicCategory: userData['demographicCategory'],
           ),
     );
+  }
+
+  String? _formatDemographicCategories(dynamic categories) {
+    if (categories is List) {
+      final values =
+          categories
+              .map((e) => e?.toString().trim() ?? '')
+              .where((e) => e.isNotEmpty)
+              .toList();
+      return values.isEmpty ? null : values.join(', ');
+    }
+    if (categories is String) {
+      final value = categories.trim();
+      return value.isEmpty ? null : value;
+    }
+    return null;
   }
 
   Widget _buildPosterAvatar({

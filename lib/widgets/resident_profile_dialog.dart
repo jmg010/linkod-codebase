@@ -9,6 +9,7 @@ class ResidentProfileDialog extends StatelessWidget {
   final String name;
   final String? purok;
   final String? phoneNumber;
+  final String? demographicCategory;
   final bool isSeller;
 
   const ResidentProfileDialog({
@@ -17,6 +18,7 @@ class ResidentProfileDialog extends StatelessWidget {
     required this.name,
     this.purok,
     this.phoneNumber,
+    this.demographicCategory,
     this.isSeller = false,
   });
 
@@ -27,6 +29,8 @@ class ResidentProfileDialog extends StatelessWidget {
       fullName: name,
       fallback: 'User',
     );
+    final purokValue =
+        (purok?.trim().isNotEmpty ?? false) ? purok!.trim() : 'Not set';
     final initials =
         displayName.isNotEmpty ? displayName[0].toUpperCase() : '?';
 
@@ -154,27 +158,37 @@ class ResidentProfileDialog extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (purok != null && purok!.isNotEmpty) ...[
+                    _buildInfoRow(
+                      icon: Icons.location_on_outlined,
+                      label: 'Purok',
+                      value: purokValue,
+                      isDark: isDark,
+                    ),
+                    const SizedBox(height: 12),
+                    if (phoneNumber != null && phoneNumber!.isNotEmpty) ...[
                       _buildInfoRow(
-                        icon: Icons.location_on_outlined,
-                        label: 'Purok',
-                        value: purok!,
+                        icon: Icons.phone_outlined,
+                        label: 'Phone Number',
+                        value: phoneNumber!,
                         isDark: isDark,
                       ),
                       const SizedBox(height: 12),
                     ],
-                    if (phoneNumber != null && phoneNumber!.isNotEmpty) ...[
+                    if (demographicCategory != null &&
+                        demographicCategory!.isNotEmpty) ...[
                       _buildInfoRow(
-                        icon: Icons.phone_outlined,
-                        label: 'Phone',
-                        value: phoneNumber!,
+                        icon: Icons.groups_outlined,
+                        label: 'Demographic Category',
+                        value: demographicCategory!,
                         isDark: isDark,
                       ),
                     ],
-                    if ((purok == null || purok!.isEmpty) &&
-                        (phoneNumber == null || phoneNumber!.isEmpty)) ...[
+                    if ((phoneNumber == null || phoneNumber!.isEmpty) &&
+                        (demographicCategory == null ||
+                            demographicCategory!.isEmpty)) ...[
+                      const SizedBox(height: 8),
                       Text(
-                        'No additional information available',
+                        'Other information not available',
                         style: TextStyle(
                           fontSize: 14,
                           color:

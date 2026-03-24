@@ -1053,6 +1053,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
         final avatarUrl = userData?['avatarUrl'];
         final purok = userData?['purok'];
         final phoneNumber = userData?['phoneNumber'];
+        final demographicCategory = userData?['demographicCategory'];
 
         void showProfileDialog() {
           final profileName =
@@ -1070,6 +1071,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                   name: profileName,
                   purok: purok,
                   phoneNumber: phoneNumber,
+                  demographicCategory: demographicCategory,
                   isSeller: false,
                 ),
           );
@@ -1259,6 +1261,9 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
           'avatarUrl': data?['profileImageUrl'] as String?,
           'purok': data?['purok'] != null ? 'Purok ${data?['purok']}' : null,
           'phoneNumber': data?['phoneNumber'] as String?,
+          'demographicCategory': _formatDemographicCategories(
+            data?['categories'],
+          ),
           'fullName': NameFormatter.fromUserDataFull(data, fallback: 'Unknown'),
         };
         _volunteerDataCache[volunteerId] = userData;
@@ -1272,9 +1277,26 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
       'avatarUrl': null,
       'purok': null,
       'phoneNumber': null,
+      'demographicCategory': null,
       'fullName': 'Unknown',
     };
     _volunteerDataCache[volunteerId] = emptyData;
     return emptyData;
+  }
+
+  String? _formatDemographicCategories(dynamic categories) {
+    if (categories is List) {
+      final values =
+          categories
+              .map((e) => e?.toString().trim() ?? '')
+              .where((e) => e.isNotEmpty)
+              .toList();
+      return values.isEmpty ? null : values.join(', ');
+    }
+    if (categories is String) {
+      final value = categories.trim();
+      return value.isEmpty ? null : value;
+    }
+    return null;
   }
 }

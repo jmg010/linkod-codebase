@@ -118,6 +118,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           'avatarUrl': data?['profileImageUrl'] as String?,
           'purok': data?['purok'] != null ? 'Purok ${data?['purok']}' : null,
           'phoneNumber': data?['phoneNumber'] as String?,
+          'demographicCategory': _formatDemographicCategories(
+            data?['categories'],
+          ),
           'fullName': NameFormatter.fromUserDataFull(data, fallback: 'Unknown'),
           'location': data?['location'] as String?,
         };
@@ -132,6 +135,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       'avatarUrl': null,
       'purok': null,
       'phoneNumber': null,
+      'demographicCategory': null,
       'fullName': 'Unknown',
       'location': null,
     };
@@ -177,9 +181,26 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             name: displayName,
             purok: userData['purok'],
             phoneNumber: userData['phoneNumber'],
+            demographicCategory: userData['demographicCategory'],
             isSeller: true,
           ),
     );
+  }
+
+  String? _formatDemographicCategories(dynamic categories) {
+    if (categories is List) {
+      final values =
+          categories
+              .map((e) => e?.toString().trim() ?? '')
+              .where((e) => e.isNotEmpty)
+              .toList();
+      return values.isEmpty ? null : values.join(', ');
+    }
+    if (categories is String) {
+      final value = categories.trim();
+      return value.isEmpty ? null : value;
+    }
+    return null;
   }
 
   Widget _buildPosterAvatar({
@@ -885,6 +906,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                               message: msg,
                                               profileName:
                                                   senderUserData?['fullName'],
+                                              demographicCategory:
+                                                  senderUserData?['demographicCategory'],
                                               replies: replies,
                                               isExpanded: isExpanded,
                                               onReply: () {

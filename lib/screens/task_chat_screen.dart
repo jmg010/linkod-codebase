@@ -36,6 +36,7 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
   String? _otherPartyAvatarUrl;
   String? _otherPartyPurok;
   String? _otherPartyPhone;
+  String? _otherPartyDemographicCategory;
   bool _hasLoadedOtherPartyData = false;
 
   static String _formatDateHeader(DateTime date) {
@@ -81,6 +82,9 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
           _otherPartyPurok =
               data?['purok'] != null ? 'Purok ${data?['purok']}' : null;
           _otherPartyPhone = data?['phoneNumber'] as String?;
+          _otherPartyDemographicCategory = _formatDemographicCategories(
+            data?['categories'],
+          );
           _hasLoadedOtherPartyData = true;
         });
       }
@@ -94,6 +98,22 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  String? _formatDemographicCategories(dynamic categories) {
+    if (categories is List) {
+      final values =
+          categories
+              .map((e) => e?.toString().trim() ?? '')
+              .where((e) => e.isNotEmpty)
+              .toList();
+      return values.isEmpty ? null : values.join(', ');
+    }
+    if (categories is String) {
+      final value = categories.trim();
+      return value.isEmpty ? null : value;
+    }
+    return null;
   }
 
   Future<void> _sendMessage() async {
@@ -282,6 +302,8 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
                                         name: msg.senderName,
                                         purok: _otherPartyPurok,
                                         phoneNumber: _otherPartyPhone,
+                                        demographicCategory:
+                                            _otherPartyDemographicCategory,
                                         isSeller: false,
                                       ),
                                 );

@@ -9,6 +9,7 @@ class MessageAvatar extends StatelessWidget {
   final String? avatarUrl;
   final String name;
   final String? profileName;
+  final String? demographicCategory;
   final double size;
   final String? purok;
   final String? phoneNumber;
@@ -19,6 +20,7 @@ class MessageAvatar extends StatelessWidget {
     this.avatarUrl,
     required this.name,
     this.profileName,
+    this.demographicCategory,
     this.size = 32,
     this.purok,
     this.phoneNumber,
@@ -44,6 +46,7 @@ class MessageAvatar extends StatelessWidget {
                 name: profileName ?? name,
                 purok: purok,
                 phoneNumber: phoneNumber,
+                demographicCategory: demographicCategory,
                 isSeller: isSeller,
               ),
         );
@@ -97,6 +100,7 @@ class MessageAvatar extends StatelessWidget {
 class MessageBubble extends StatelessWidget {
   final String sender;
   final String? profileName;
+  final String? demographicCategory;
   final String message;
   final bool isSeller;
   final bool isReply;
@@ -108,6 +112,7 @@ class MessageBubble extends StatelessWidget {
     super.key,
     required this.sender,
     this.profileName,
+    this.demographicCategory,
     required this.message,
     required this.isSeller,
     this.isReply = false,
@@ -133,6 +138,7 @@ class MessageBubble extends StatelessWidget {
           avatarUrl: avatarUrl,
           name: senderDisplayName,
           profileName: profileName,
+          demographicCategory: demographicCategory,
           size: avatarSize,
           purok: purok,
           phoneNumber: phoneNumber,
