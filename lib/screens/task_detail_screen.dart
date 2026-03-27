@@ -808,6 +808,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   Widget _buildVolunteersCard() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final currentUserId = FirestoreService.auth.currentUser?.uid;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -841,26 +842,99 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 ),
               ),
               if (_isOwner)
-                IconButton(
-                  onPressed:
-                      () => setState(
-                        () =>
-                            _isEditingConfirmedVolunteer =
-                                !_isEditingConfirmedVolunteer,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (currentUserId != null &&
+                        widget.task.assignedTo != null &&
+                        widget.task.assignedTo!.isNotEmpty)
+                      StreamBuilder<int>(
+                        stream: TaskChatService.getUnreadCountStream(
+                          widget.task.id,
+                          currentUserId,
+                        ),
+                        builder: (context, unreadSnap) {
+                          final unreadCount = unreadSnap.data ?? 0;
+                          return Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: _openTaskChat,
+                                icon: Icon(
+                                  Icons.message_outlined,
+                                  size: 18,
+                                  color:
+                                      isDark
+                                          ? Colors.white
+                                          : const Color(0xFF4C4C4C),
+                                ),
+                                label: Text(
+                                  'Massage',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color:
+                                        isDark
+                                            ? Colors.white
+                                            : const Color(0xFF4C4C4C),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: const Size(0, 36),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 8,
+                                  ),
+                                  visualDensity: VisualDensity.compact,
+                                  side: BorderSide(
+                                    color:
+                                        isDark
+                                            ? Colors.grey.shade700
+                                            : Colors.grey.shade300,
+                                    width: 1,
+                                  ),
+                                ),
+                              ),
+                              if (unreadCount > 0)
+                                Positioned(
+                                  right: -2,
+                                  top: -2,
+                                  child: Container(
+                                    width: 10,
+                                    height: 10,
+                                    decoration: const BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          );
+                        },
                       ),
-                  icon: Icon(
-                    _isEditingConfirmedVolunteer
-                        ? Icons.close
-                        : Icons.edit_outlined,
-                    color: isDark ? Colors.white : const Color(0xFF4C4C4C),
-                    size: 20,
-                  ),
-                  tooltip: _isEditingConfirmedVolunteer ? 'Done' : 'Edit',
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(
-                    minWidth: 40,
-                    minHeight: 40,
-                  ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      onPressed:
+                          () => setState(
+                            () =>
+                                _isEditingConfirmedVolunteer =
+                                    !_isEditingConfirmedVolunteer,
+                          ),
+                      icon: Icon(
+                        _isEditingConfirmedVolunteer
+                            ? Icons.close
+                            : Icons.edit_outlined,
+                        color: isDark ? Colors.white : const Color(0xFF4C4C4C),
+                        size: 20,
+                      ),
+                      tooltip: _isEditingConfirmedVolunteer ? 'Done' : 'Edit',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 40,
+                        minHeight: 40,
+                      ),
+                    ),
+                  ],
                 ),
             ],
           ),
@@ -1018,55 +1092,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               tooltip: 'Remove volunteer',
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-            ),
-          if (_isOwner &&
-              !_isEditingConfirmedVolunteer &&
-              status == 'accepted' &&
-              volunteerId != null &&
-              volunteerId.isNotEmpty)
-            StreamBuilder<int>(
-              stream: TaskChatService.getUnreadCountStream(
-                widget.task.id,
-                FirestoreService.auth.currentUser?.uid ?? '',
-              ),
-              builder: (context, unreadSnap) {
-                final unreadCount = unreadSnap.data ?? 0;
-                return Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    IconButton(
-                      onPressed:
-                          () => _openChatWithVolunteer(
-                            volunteerId,
-                            volunteerName,
-                          ),
-                      icon: const Icon(
-                        Icons.message_outlined,
-                        size: 20,
-                        color: Color(0xFF4C4C4C),
-                      ),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                        minWidth: 40,
-                        minHeight: 40,
-                      ),
-                    ),
-                    if (unreadCount > 0)
-                      Positioned(
-                        right: 2,
-                        top: 2,
-                        child: Container(
-                          width: 10,
-                          height: 10,
-                          decoration: const BoxDecoration(
-                            color: Colors.red,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ),
-                  ],
-                );
-              },
             ),
         ],
       ),

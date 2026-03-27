@@ -291,115 +291,57 @@ class ProductsService {
   }
 
   /// Total unread product message count for a seller (across all their products).
-  /// Reactive: updates when messages or read state change on any of the seller's products.
+  /// Reactive: updates from unread notification docs for the seller.
   static Stream<int> getTotalUnreadProductMessagesForSellerStream(
     String sellerId,
   ) {
-    final controller = StreamController<int>.broadcast();
-    final Map<String, int> unreadByProduct = {};
-    final Map<String, StreamSubscription<int>> productSubs = {};
-    List<ProductModel> _currentProducts = [];
-
-    void emitSum() {
-      if (!controller.isClosed) {
-        final sum = _currentProducts.fold<int>(
-          0,
-          (s, p) => s + (unreadByProduct[p.id] ?? 0),
-        );
-        controller.add(sum);
-      }
-    }
-
-    void setProducts(List<ProductModel> products) {
-      final newIds = products.map((p) => p.id).toSet();
-      for (final id in productSubs.keys.toList()) {
-        if (!newIds.contains(id)) {
-          productSubs[id]?.cancel();
-          productSubs.remove(id);
-          unreadByProduct.remove(id);
-        }
-      }
-      _currentProducts = products;
-      for (final p in products) {
-        if (productSubs.containsKey(p.id)) continue;
-        final sub = getUnreadProductMessagesCountStream(p.id, sellerId).listen((
-          count,
-        ) {
-          unreadByProduct[p.id] = count;
-          emitSum();
+    return FirestoreService.instance
+        .collection('notifications')
+        .where('userId', isEqualTo: sellerId)
+        .where('isRead', isEqualTo: false)
+        .snapshots()
+        .map((snapshot) {
+          var total = 0;
+          for (final doc in snapshot.docs) {
+            final data = doc.data() as Map<String, dynamic>;
+            final productId = data['productId'] as String?;
+            if (productId != null && productId.isNotEmpty) {
+              total++;
+            }
+          }
+          return total;
         });
-        productSubs[p.id] = sub;
-      }
-      emitSum();
-    }
-
-    final sub = getSellerProductsStream(sellerId).listen((products) {
-      setProducts(products);
-    });
-
-    controller.onListen = () {
-      if (!controller.isClosed) emitSum();
-    };
-    // Do not cancel source when last listener cancels so badge stays correct when returning to screen.
-    controller.onCancel = () {};
-
-    return controller.stream;
   }
 
   /// Stream of seller's products with unread message count per product (for My Products red dots).
-  /// Reactive: updates when messages or read state change on any product.
+  /// Reactive: updates from unread notification docs grouped by product.
   static Stream<List<MapEntry<ProductModel, int>>>
   getSellerProductsWithUnreadStream(String sellerId) {
-    final controller =
-        StreamController<List<MapEntry<ProductModel, int>>>.broadcast();
-    final Map<String, int> unreadByProduct = {};
-    final Map<String, StreamSubscription<int>> productSubs = {};
-    List<ProductModel> _currentProducts = [];
+    return getSellerProductsStream(sellerId).asyncExpand((products) {
+      if (products.isEmpty) {
+        return Stream.value(<MapEntry<ProductModel, int>>[]);
+      }
 
-    void emitList() {
-      if (!controller.isClosed) {
-        final list =
-            _currentProducts
+      return FirestoreService.instance
+          .collection('notifications')
+          .where('userId', isEqualTo: sellerId)
+          .where('isRead', isEqualTo: false)
+          .snapshots()
+          .map((snapshot) {
+            final unreadByProduct = <String, int>{};
+            for (final doc in snapshot.docs) {
+              final data = doc.data() as Map<String, dynamic>;
+              final productId = data['productId'] as String?;
+              if (productId == null || productId.isEmpty) continue;
+              unreadByProduct[productId] =
+                  (unreadByProduct[productId] ?? 0) + 1;
+            }
+
+            return products
                 .map((p) => MapEntry(p, unreadByProduct[p.id] ?? 0))
                 .toList();
-        controller.add(list);
-      }
-    }
-
-    void setProducts(List<ProductModel> products) {
-      final newIds = products.map((p) => p.id).toSet();
-      for (final id in productSubs.keys.toList()) {
-        if (!newIds.contains(id)) {
-          productSubs[id]?.cancel();
-          productSubs.remove(id);
-          unreadByProduct.remove(id);
-        }
-      }
-      _currentProducts = products;
-      for (final p in products) {
-        if (productSubs.containsKey(p.id)) continue;
-        unreadByProduct[p.id] = 0;
-        final sub = getUnreadProductMessagesCountStream(p.id, sellerId).listen((
-          count,
-        ) {
-          unreadByProduct[p.id] = count;
-          emitList();
-        });
-        productSubs[p.id] = sub;
-      }
-      emitList();
-    }
-
-    final sub = getSellerProductsStream(sellerId).listen((products) {
-      setProducts(products);
+          });
     });
-
-    controller.onListen = () {
-      if (!controller.isClosed) emitList();
-    };
-    controller.onCancel = () {};
-
-    return controller.stream;
   }
 
   // ==================== INTERACTED PRODUCTS (Activity Log) ====================

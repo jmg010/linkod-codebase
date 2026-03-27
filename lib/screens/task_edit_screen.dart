@@ -306,7 +306,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
 
   void _showVolunteersDropdown(
     BuildContext context, {
-    required int totalCount,
+    required int pendingCount,
     required int unreadCount,
   }) {
     unawaited(
@@ -346,7 +346,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                       Padding(
                         padding: const EdgeInsets.all(16),
                         child: Text(
-                          'Volunteers ($totalCount total, $unreadCount new)',
+                          'Volunteer Requests ($pendingCount pending, $unreadCount new)',
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
@@ -520,96 +520,115 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                     stream: TasksService.getTaskStream(widget.task.id),
                     builder: (context, taskSnap) {
                       final task = taskSnap.data;
-                      final totalCount =
-                          task?.volunteersCount ?? widget.task.volunteersCount;
                       final unreadCount =
                           task?.unreadVolunteersCount ??
                           widget.task.unreadVolunteersCount;
-                      return Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Material(
-                            color:
-                                isDark ? const Color(0xFF2C2C2C) : Colors.white,
-                            borderRadius: BorderRadius.circular(14),
-                            child: InkWell(
-                              onTap:
-                                  () => _showVolunteersDropdown(
-                                    context,
-                                    totalCount: totalCount,
-                                    unreadCount: unreadCount,
-                                  ),
-                              borderRadius: BorderRadius.circular(14),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 10,
-                                ),
-                                decoration: BoxDecoration(
+                      return StreamBuilder<List<Map<String, dynamic>>>(
+                        stream: TasksService.getVolunteersStream(
+                          widget.task.id,
+                        ),
+                        builder: (context, volunteersSnap) {
+                          final volunteers = volunteersSnap.data ?? [];
+                          final pendingCount =
+                              volunteers
+                                  .where(
+                                    (v) =>
+                                        (v['status'] as String? ?? 'pending') !=
+                                        'accepted',
+                                  )
+                                  .length;
+
+                          return Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Material(
+                                color:
+                                    isDark
+                                        ? const Color(0xFF2C2C2C)
+                                        : Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                child: InkWell(
+                                  onTap:
+                                      () => _showVolunteersDropdown(
+                                        context,
+                                        pendingCount: pendingCount,
+                                        unreadCount: unreadCount,
+                                      ),
                                   borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(
-                                    color:
-                                        isDark
-                                            ? Colors.grey.shade700
-                                            : Colors.grey.shade300,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      'Volunteers ($totalCount)',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 10,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
                                         color:
                                             isDark
-                                                ? Colors.white
-                                                : const Color(0xFF4C4C4C),
+                                                ? Colors.grey.shade700
+                                                : Colors.grey.shade300,
                                       ),
                                     ),
-                                    const SizedBox(width: 6),
-                                    Icon(
-                                      Icons.keyboard_arrow_down,
-                                      size: 20,
-                                      color:
-                                          isDark
-                                              ? Colors.grey.shade400
-                                              : Colors.grey.shade600,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          'Volunteer Requests ($pendingCount)',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                            color:
+                                                isDark
+                                                    ? Colors.white
+                                                    : const Color(0xFF4C4C4C),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Icon(
+                                          Icons.keyboard_arrow_down,
+                                          size: 20,
+                                          color:
+                                              isDark
+                                                  ? Colors.grey.shade400
+                                                  : Colors.grey.shade600,
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          if (unreadCount > 0)
-                            Positioned(
-                              right: -6,
-                              top: -8,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                constraints: const BoxConstraints(minWidth: 18),
-                                decoration: BoxDecoration(
-                                  color: Colors.red,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text(
-                                  unreadCount > 99
-                                      ? '99+'
-                                      : unreadCount.toString(),
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
                               ),
-                            ),
-                        ],
+                              if (unreadCount > 0)
+                                Positioned(
+                                  right: -6,
+                                  top: -8,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 18,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      unreadCount > 99
+                                          ? '99+'
+                                          : unreadCount.toString(),
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          );
+                        },
                       );
                     },
                   ),
@@ -650,7 +669,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                                 color: Color(0xFF20BF6B),
                               ),
                               title: Text(
-                                'Edit posting',
+                                'Edit post',
                                 style: TextStyle(
                                   color: isDark ? Colors.white : Colors.black87,
                                 ),
@@ -668,7 +687,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                                 color: Colors.red.shade700,
                               ),
                               title: Text(
-                                'Delete posting',
+                                'Delete post',
                                 style: TextStyle(color: Colors.red.shade700),
                               ),
                               contentPadding: EdgeInsets.zero,
@@ -791,6 +810,8 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
               ),
             ],
           ),
+          const SizedBox(height: 12),
+          _buildOwnerMessageButton(isDark),
         ],
       ),
     );
@@ -858,6 +879,92 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
         ),
         isExpanded: true,
       ),
+    );
+  }
+
+  Widget _buildOwnerMessageButton(bool isDark) {
+    final ownerId = FirestoreService.auth.currentUser?.uid ?? '';
+
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: TasksService.getVolunteersStream(widget.task.id),
+      builder: (context, snapshot) {
+        final volunteers = snapshot.data ?? [];
+        final confirmed =
+            volunteers
+                .where((v) => (v['status'] as String?) == 'accepted')
+                .toList();
+        if (confirmed.isEmpty) return const SizedBox.shrink();
+
+        final firstVolunteer = confirmed.first;
+        final firstVolunteerId = firstVolunteer['volunteerId'] as String? ?? '';
+        final firstVolunteerName =
+            firstVolunteer['volunteerName'] as String? ?? 'Volunteer';
+        if (firstVolunteerId.isEmpty) return const SizedBox.shrink();
+
+        return StreamBuilder<int>(
+          stream: TaskChatService.getUnreadCountStream(widget.task.id, ownerId),
+          builder: (context, unreadSnap) {
+            final unreadCount = unreadSnap.data ?? 0;
+            return SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed:
+                    () => _openChatWithVolunteer(
+                      firstVolunteerId,
+                      firstVolunteerName,
+                    ),
+                icon: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Icon(
+                      Icons.message_outlined,
+                      size: 20,
+                      color: isDark ? Colors.white : const Color(0xFF4C4C4C),
+                    ),
+                    if (unreadCount > 0)
+                      Positioned(
+                        right: -6,
+                        top: -6,
+                        child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                label: Text(
+                  'Message',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: isDark ? Colors.white : const Color(0xFF4C4C4C),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  minimumSize: const Size(0, 48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  side: BorderSide(
+                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                    width: 1,
+                  ),
+                  backgroundColor:
+                      isDark ? const Color(0xFF2C2C2C) : Colors.white,
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -1080,7 +1187,6 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
     if (volunteerId == null || volunteerId.isEmpty) {
       return const SizedBox.shrink();
     }
-    final ownerId = FirestoreService.auth.currentUser?.uid ?? '';
 
     return FutureBuilder<Map<String, String?>>(
       future: _fetchVolunteerData(volunteerId),
@@ -1176,73 +1282,23 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                   ),
                 ),
               ),
-              StreamBuilder<int>(
-                stream: TaskChatService.getUnreadCountStream(
-                  widget.task.id,
-                  ownerId,
-                ),
-                builder: (context, unreadSnap) {
-                  final unreadCount = unreadSnap.data ?? 0;
-                  if (_isRemovingVolunteerMode) {
-                    return IconButton(
-                      onPressed:
-                          volunteerDocId.isEmpty
-                              ? null
-                              : () => _confirmRemoveVolunteer(
-                                volunteerDocId,
-                                volunteerName,
-                              ),
-                      icon: Icon(
-                        Icons.close,
-                        size: 22,
-                        color: Colors.red.shade700,
-                      ),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                        minWidth: 44,
-                        minHeight: 44,
-                      ),
-                      tooltip: 'Remove volunteer',
-                    );
-                  }
-                  return Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      IconButton(
-                        onPressed:
-                            () => _openChatWithVolunteer(
-                              volunteerId,
-                              volunteerName,
-                            ),
-                        icon: Icon(
-                          Icons.message_outlined,
-                          size: 22,
-                          color:
-                              isDark ? Colors.white : const Color(0xFF4C4C4C),
-                        ),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(
-                          minWidth: 44,
-                          minHeight: 44,
-                        ),
-                      ),
-                      if (unreadCount > 0)
-                        Positioned(
-                          right: 4,
-                          top: 4,
-                          child: Container(
-                            width: 10,
-                            height: 10,
-                            decoration: const BoxDecoration(
-                              color: Colors.red,
-                              shape: BoxShape.circle,
-                            ),
+              if (_isRemovingVolunteerMode)
+                IconButton(
+                  onPressed:
+                      volunteerDocId.isEmpty
+                          ? null
+                          : () => _confirmRemoveVolunteer(
+                            volunteerDocId,
+                            volunteerName,
                           ),
-                        ),
-                    ],
-                  );
-                },
-              ),
+                  icon: Icon(Icons.close, size: 22, color: Colors.red.shade700),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 44,
+                    minHeight: 44,
+                  ),
+                  tooltip: 'Remove volunteer',
+                ),
             ],
           ),
         );

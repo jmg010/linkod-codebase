@@ -49,18 +49,23 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
   /// Proof of residence: picked file is uploaded to Firebase Storage on submit; URL stored in awaitingApproval.
   XFile? _proofFile;
 
-  // Demographic categories (Tattoo removed per request)
+  // Demographic categories
   final List<String> categories = [
+    "General Residents",
     "Senior",
+    "Pregnant/Lactating Mother",
     "Student",
     "PWD",
     "Youth",
     "Farmer",
     "Fisherman",
-    "Tricycle Driver",
+    "Public Utility Drivers",
     "Small Business Owner",
     "4Ps",
+    "Tanod",
     "Barangay Official",
+    "Barangay Health Worker(BHW)",
+    "Indigenous People(IP)",
     "Parent",
   ];
 

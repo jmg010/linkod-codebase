@@ -36,9 +36,22 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
   bool _obscure = true;
   XFile? _proofFile;
   final List<String> _categories = [
-    'Senior', 'Student', 'PWD', 'Youth', 'Farmer',
-    'Fisherman', 'Tricycle Driver', 'Small Business Owner',
-    '4Ps', 'Barangay Official', 'Parent',
+    'General Residents',
+    'Senior',
+    'Pregnant/Lactating Mother',
+    'Student',
+    'PWD',
+    'Youth',
+    'Farmer',
+    'Fisherman',
+    'Public Utility Drivers',
+    'Small Business Owner',
+    '4Ps',
+    'Tanod',
+    'Barangay Official',
+    'Barangay Health Worker(BHW)',
+    'Indigenous People(IP)',
+    'Parent',
   ];
   final Set<String> _selectedCategories = {};
 
@@ -51,14 +64,20 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
   }
 
   Future<void> _loadCurrentUser() async {
-    final doc = await FirebaseFirestore.instance.collection('users').doc(widget.uid).get();
+    final doc =
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(widget.uid)
+            .get();
     if (doc.exists && mounted) {
       final d = doc.data();
       _nameController.text = (d?['fullName'] as String?) ?? '';
       _phoneController.text = (d?['phoneNumber'] as String?) ?? '';
       final cat = (d?['category'] as String?) ?? '';
       if (cat.isNotEmpty) {
-        _selectedCategories.addAll(cat.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty));
+        _selectedCategories.addAll(
+          cat.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty),
+        );
       }
     }
   }
@@ -79,7 +98,8 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
     if (digits.length == 11 && digits.startsWith('0')) return digits;
     if (digits.length == 10 && !digits.startsWith('0')) return '0$digits';
     if (digits.length == 10 && digits.startsWith('0')) return digits;
-    if (digits.length == 12 && digits.startsWith('63')) return '0${digits.substring(2)}';
+    if (digits.length == 12 && digits.startsWith('63'))
+      return '0${digits.substring(2)}';
     return digits;
   }
 
@@ -87,10 +107,11 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
   /// This prevents duplicates when users resubmit after being declined.
   Future<void> _cleanupOldAwaitingApproval() async {
     try {
-      final query = await FirebaseFirestore.instance
-          .collection('awaitingApproval')
-          .where('uid', isEqualTo: widget.uid)
-          .get();
+      final query =
+          await FirebaseFirestore.instance
+              .collection('awaitingApproval')
+              .where('uid', isEqualTo: widget.uid)
+              .get();
       for (final doc in query.docs) {
         if (doc.id != widget.uid) {
           await doc.reference.delete();
@@ -122,7 +143,9 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
         });
         return;
       }
-      final docRef = FirebaseFirestore.instance.collection('users').doc(widget.uid);
+      final docRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.uid);
       final doc = await docRef.get();
       if (!doc.exists) {
         setState(() => _errorMessage = 'Account not found.');
@@ -147,20 +170,24 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
           .collection('awaitingApproval')
           .doc(widget.uid)
           .set({
-        'uid': widget.uid,
-        'fullName': doc.data()?['fullName'] ?? '',
-        'phoneNumber': doc.data()?['phoneNumber'] ?? '',
-        'source': 'users',
-        'status': 'pending',
-        'reapplicationCount': currentCount + 1,
-        'category': category,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+            'uid': widget.uid,
+            'fullName': doc.data()?['fullName'] ?? '',
+            'phoneNumber': doc.data()?['phoneNumber'] ?? '',
+            'source': 'users',
+            'status': 'pending',
+            'reapplicationCount': currentCount + 1,
+            'category': category,
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Re-application submitted. You will be notified when reviewed.')),
+        const SnackBar(
+          content: Text(
+            'Re-application submitted. You will be notified when reviewed.',
+          ),
+        ),
       );
       await FirebaseAuth.instance.signOut();
       if (!mounted) return;
@@ -169,10 +196,11 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
         (route) => false,
       );
     } catch (e) {
-      if (mounted) setState(() {
-        _errorMessage = 'Failed to submit: $e';
-        _isLoading = false;
-      });
+      if (mounted)
+        setState(() {
+          _errorMessage = 'Failed to submit: $e';
+          _isLoading = false;
+        });
     }
   }
 
@@ -186,8 +214,13 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
       return;
     }
     final digits = _digitsOnly(phoneRaw);
-    if (digits.length < _kPhilippineMobileMinDigits || digits.length > _kPhilippineMobileMaxDigits) {
-      setState(() => _errorMessage = 'Enter a valid Philippine mobile number (10–11 digits).');
+    if (digits.length < _kPhilippineMobileMinDigits ||
+        digits.length > _kPhilippineMobileMaxDigits) {
+      setState(
+        () =>
+            _errorMessage =
+                'Enter a valid Philippine mobile number (10–11 digits).',
+      );
       return;
     }
     if (password.length < 6) {
@@ -206,7 +239,9 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
     try {
       final phone = _normalizePhilippinePhone(phoneRaw);
       final categoryString = _selectedCategories.join(', ');
-      final docRef = FirebaseFirestore.instance.collection('users').doc(widget.uid);
+      final docRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.uid);
       final doc = await docRef.get();
       if (!doc.exists) {
         setState(() => _errorMessage = 'Account not found.');
@@ -232,21 +267,25 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
           .collection('awaitingApproval')
           .doc(widget.uid)
           .set({
-        'uid': widget.uid,
-        'fullName': name,
-        'phoneNumber': phone,
-        'source': 'users',
-        'status': 'pending',
-        'reapplicationCount': currentCount + 1,
-        'category': categoryString,
-        'categories': _selectedCategories.toList(),
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+            'uid': widget.uid,
+            'fullName': name,
+            'phoneNumber': phone,
+            'source': 'users',
+            'status': 'pending',
+            'reapplicationCount': currentCount + 1,
+            'category': categoryString,
+            'categories': _selectedCategories.toList(),
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Re-application submitted. You will be notified when reviewed.')),
+        const SnackBar(
+          content: Text(
+            'Re-application submitted. You will be notified when reviewed.',
+          ),
+        ),
       );
       await FirebaseAuth.instance.signOut();
       if (!mounted) return;
@@ -255,10 +294,11 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
         (route) => false,
       );
     } catch (e) {
-      if (mounted) setState(() {
-        _errorMessage = 'Failed to submit: $e';
-        _isLoading = false;
-      });
+      if (mounted)
+        setState(() {
+          _errorMessage = 'Failed to submit: $e';
+          _isLoading = false;
+        });
     }
   }
 
@@ -294,7 +334,10 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
                   ),
                 ),
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 32,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -313,18 +356,37 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
                       if (isProofOnly) ...[
                         const Text(
                           'Resubmit a valid proof of residence (e.g. ID or utility bill).',
-                          style: TextStyle(fontSize: 14, color: Colors.black87, height: 1.4),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.black87,
+                            height: 1.4,
+                          ),
                         ),
                         const SizedBox(height: 18),
-                        const Text('Proof of residence *', style: TextStyle(fontWeight: FontWeight.w600)),
+                        const Text(
+                          'Proof of residence *',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
                         const SizedBox(height: 6),
                         const SizedBox(height: 18),
                         OutlinedButton.icon(
-                          icon: Icon(_proofFile != null ? Icons.check_circle : Icons.add_photo_alternate_outlined, size: 20),
-                          label: Text(_proofFile != null ? 'Photo selected' : 'Add proof of residence'),
+                          icon: Icon(
+                            _proofFile != null
+                                ? Icons.check_circle
+                                : Icons.add_photo_alternate_outlined,
+                            size: 20,
+                          ),
+                          label: Text(
+                            _proofFile != null
+                                ? 'Photo selected'
+                                : 'Add proof of residence',
+                          ),
                           onPressed: () async {
                             final picker = ImagePicker();
-                            final xFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+                            final xFile = await picker.pickImage(
+                              source: ImageSource.gallery,
+                              imageQuality: 80,
+                            );
                             if (xFile != null && mounted) {
                               setState(() => _proofFile = xFile);
                             }
@@ -340,7 +402,9 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
                             decoration: BoxDecoration(
                               color: Colors.grey.shade100,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0xFF00A651).withOpacity(0.3)),
+                              border: Border.all(
+                                color: const Color(0xFF00A651).withOpacity(0.3),
+                              ),
                             ),
                             padding: const EdgeInsets.all(12),
                             child: XFilePreviewImage(
@@ -352,14 +416,23 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
                           ),
                         ],
                       ] else ...[
-                        const Text('Update your information and submit for review.', style: TextStyle(fontSize: 14, color: Colors.black87, height: 1.4)),
+                        const Text(
+                          'Update your information and submit for review.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.black87,
+                            height: 1.4,
+                          ),
+                        ),
                         const SizedBox(height: 18),
                         const Text('Full Name *'),
                         const SizedBox(height: 6),
                         TextField(
                           controller: _nameController,
                           decoration: InputDecoration(
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 18),
@@ -372,7 +445,9 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
                           decoration: InputDecoration(
                             hintText: '09XX XXX XXXX (11 digits)',
                             counterText: '',
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 18),
@@ -384,36 +459,54 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
                           decoration: InputDecoration(
                             hintText: 'At least 6 characters',
                             suffixIcon: IconButton(
-                              icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility),
-                              onPressed: () => setState(() => _obscure = !_obscure),
+                              icon: Icon(
+                                _obscure
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                              ),
+                              onPressed:
+                                  () => setState(() => _obscure = !_obscure),
                             ),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 18),
-                        const Text('Select your demographic categories:', style: TextStyle(fontWeight: FontWeight.w600)),
+                        const Text(
+                          'Select your demographic categories:',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
                         const SizedBox(height: 10),
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
-                          children: _categories.map((cat) {
-                            final isSelected = _selectedCategories.contains(cat);
-                            return ChoiceChip(
-                              label: Text(cat),
-                              selected: isSelected,
-                              selectedColor: const Color(0xFF00A651),
-                              labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black),
-                              onSelected: (value) {
-                                setState(() {
-                                  if (value == true) {
-                                    _selectedCategories.add(cat);
-                                  } else {
-                                    _selectedCategories.remove(cat);
-                                  }
-                                });
-                              },
-                            );
-                          }).toList(),
+                          children:
+                              _categories.map((cat) {
+                                final isSelected = _selectedCategories.contains(
+                                  cat,
+                                );
+                                return ChoiceChip(
+                                  label: Text(cat),
+                                  selected: isSelected,
+                                  selectedColor: const Color(0xFF00A651),
+                                  labelStyle: TextStyle(
+                                    color:
+                                        isSelected
+                                            ? Colors.white
+                                            : Colors.black,
+                                  ),
+                                  onSelected: (value) {
+                                    setState(() {
+                                      if (value == true) {
+                                        _selectedCategories.add(cat);
+                                      } else {
+                                        _selectedCategories.remove(cat);
+                                      }
+                                    });
+                                  },
+                                );
+                              }).toList(),
                         ),
                       ],
                       const SizedBox(height: 24),
@@ -424,7 +517,10 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
                             color: Colors.red.shade50,
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+                          child: Text(
+                            _errorMessage!,
+                            style: const TextStyle(color: Colors.red),
+                          ),
                         ),
                         const SizedBox(height: 16),
                       ],
@@ -433,25 +529,37 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
                           width: buttonWidth,
                           height: 50,
                           child: ElevatedButton(
-                            onPressed: _isLoading
-                                ? null
-                                : () => isProofOnly ? _submitProofOnly() : _submitFull(),
+                            onPressed:
+                                _isLoading
+                                    ? null
+                                    : () =>
+                                        isProofOnly
+                                            ? _submitProofOnly()
+                                            : _submitFull(),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF00A651),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(30),
                               ),
                             ),
-                            child: _isLoading
-                                ? const SizedBox(
-                                    height: 24,
-                                    width: 24,
-                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                  )
-                                : const Text(
-                                    'Submit re-application',
-                                    style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.w600),
-                                  ),
+                            child:
+                                _isLoading
+                                    ? const SizedBox(
+                                      height: 24,
+                                      width: 24,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                    : const Text(
+                                      'Submit re-application',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                           ),
                         ),
                       ),
