@@ -252,6 +252,88 @@ class _SearchScreenState extends State<SearchScreen> {
     }
   }
 
+  /// Helper method to check if search query matches a category
+  bool _isCategorySearch(String queryLower, String category) {
+    // Direct category name match
+    if (queryLower.contains(category.toLowerCase())) return true;
+
+    // Category-specific keyword matching
+    switch (category) {
+      case 'Clothing & Accessories':
+        return queryLower.contains('clothing') ||
+            queryLower.contains('clothes') ||
+            queryLower.contains('dress') ||
+            queryLower.contains('shirt') ||
+            queryLower.contains('pants') ||
+            queryLower.contains('accessories') ||
+            queryLower.contains('fashion') ||
+            queryLower.contains('wear');
+
+      case 'Food and Beverage':
+        return queryLower.contains('food') ||
+            queryLower.contains('foods') ||
+            queryLower.contains('eat') ||
+            queryLower.contains('drink') ||
+            queryLower.contains('beverage') ||
+            queryLower.contains('snack') ||
+            queryLower.contains('meal') ||
+            queryLower.contains('cooking') ||
+            queryLower.contains('edible');
+
+      case 'Household & Living':
+        return queryLower.contains('household') ||
+            queryLower.contains('home') ||
+            queryLower.contains('house') ||
+            queryLower.contains('furniture') ||
+            queryLower.contains('kitchen') ||
+            queryLower.contains('living') ||
+            queryLower.contains('decor') ||
+            queryLower.contains('appliances') ||
+            queryLower.contains('gadget') ||
+            queryLower.contains('gadgets') ||
+            queryLower.contains('electronics') ||
+            queryLower.contains('device') ||
+            queryLower.contains('devices') ||
+            queryLower.contains('tech') ||
+            queryLower.contains('technology') ||
+            queryLower.contains('phone') ||
+            queryLower.contains('computer') ||
+            queryLower.contains('laptop') ||
+            queryLower.contains('tablet') ||
+            queryLower.contains('camera') ||
+            queryLower.contains('speaker') ||
+            queryLower.contains('headphone') ||
+            queryLower.contains('charger') ||
+            queryLower.contains('cable');
+
+      case 'Health & Wellness':
+        return queryLower.contains('health') ||
+            queryLower.contains('medicine') ||
+            queryLower.contains('wellness') ||
+            queryLower.contains('medical') ||
+            queryLower.contains('fitness') ||
+            queryLower.contains('vitamin') ||
+            queryLower.contains('supplement') ||
+            queryLower.contains('hospital');
+
+      case 'Vehicles & Transport':
+        return queryLower.contains('vehicle') ||
+            queryLower.contains('car') ||
+            queryLower.contains('motorcycle') ||
+            queryLower.contains('bike') ||
+            queryLower.contains('transport') ||
+            queryLower.contains('automobile') ||
+            queryLower.contains('ride') ||
+            queryLower.contains('drive');
+
+      case 'Others':
+        return false; // No specific keywords for "Others"
+
+      default:
+        return false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -599,6 +681,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
         return CustomScrollView(
           controller: _homeScrollController,
+          physics: const BouncingScrollPhysics(),
           slivers: [
             // Announcements Section
             if (announcements.isNotEmpty)
@@ -700,14 +783,18 @@ class _SearchScreenState extends State<SearchScreen> {
                 ? products.where((p) => p.sellerId != currentUserId).toList()
                 : products;
         final filteredProducts =
-            feedProducts
-                .where(
-                  (p) =>
-                      p.title.toLowerCase().contains(queryLower) ||
-                      p.description.toLowerCase().contains(queryLower) ||
-                      p.sellerName.toLowerCase().contains(queryLower),
-                )
-                .toList();
+            feedProducts.where((p) {
+              // Check if search query matches this product's category
+              final isCategoryMatch = _isCategorySearch(queryLower, p.category);
+
+              // Match by title, description, seller name, or category
+              final textMatch =
+                  p.title.toLowerCase().contains(queryLower) ||
+                  p.description.toLowerCase().contains(queryLower) ||
+                  p.sellerName.toLowerCase().contains(queryLower);
+
+              return textMatch || isCategoryMatch;
+            }).toList();
 
         return {
           'announcements': filteredAnnouncements,
@@ -1047,14 +1134,18 @@ class _SearchScreenState extends State<SearchScreen> {
               ? products.where((p) => p.sellerId != currentUserId).toList()
               : products;
       final productsCount =
-          feedProducts
-              .where(
-                (p) =>
-                    p.title.toLowerCase().contains(queryLower) ||
-                    p.description.toLowerCase().contains(queryLower) ||
-                    p.sellerName.toLowerCase().contains(queryLower),
-              )
-              .length;
+          feedProducts.where((p) {
+            // Check if search query matches this product's category
+            final isCategoryMatch = _isCategorySearch(queryLower, p.category);
+
+            // Match by title, description, seller name, or category
+            final textMatch =
+                p.title.toLowerCase().contains(queryLower) ||
+                p.description.toLowerCase().contains(queryLower) ||
+                p.sellerName.toLowerCase().contains(queryLower);
+
+            return textMatch || isCategoryMatch;
+          }).length;
 
       return {
         'announcements': annCount,
@@ -1280,14 +1371,18 @@ class _SearchScreenState extends State<SearchScreen> {
                 ? products.where((p) => p.sellerId != currentUserId).toList()
                 : products;
         final filtered =
-            feedProducts
-                .where(
-                  (p) =>
-                      p.title.toLowerCase().contains(queryLower) ||
-                      p.description.toLowerCase().contains(queryLower) ||
-                      p.sellerName.toLowerCase().contains(queryLower),
-                )
-                .toList();
+            feedProducts.where((p) {
+              // Check if search query matches this product's category
+              final isCategoryMatch = _isCategorySearch(queryLower, p.category);
+
+              // Match by title, description, seller name, or category
+              final textMatch =
+                  p.title.toLowerCase().contains(queryLower) ||
+                  p.description.toLowerCase().contains(queryLower) ||
+                  p.sellerName.toLowerCase().contains(queryLower);
+
+              return textMatch || isCategoryMatch;
+            }).toList();
 
         final visibleCount = _homeProductsDisplayCount.clamp(
           0,
@@ -1479,7 +1574,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
         return ListView.builder(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          physics: const ClampingScrollPhysics(),
+          physics: const BouncingScrollPhysics(),
           itemCount: filtered.length,
           itemBuilder: (context, index) {
             final post = filtered[index];
@@ -1531,9 +1626,19 @@ class _SearchScreenState extends State<SearchScreen> {
             queryLower.isEmpty
                 ? feedProducts
                 : feedProducts.where((p) {
-                  return p.title.toLowerCase().contains(queryLower) ||
+                  // Check if search query matches this product's category
+                  final isCategoryMatch = _isCategorySearch(
+                    queryLower,
+                    p.category,
+                  );
+
+                  // Match by title, description, seller name, or category
+                  final textMatch =
+                      p.title.toLowerCase().contains(queryLower) ||
                       p.description.toLowerCase().contains(queryLower) ||
                       p.sellerName.toLowerCase().contains(queryLower);
+
+                  return textMatch || isCategoryMatch;
                 }).toList();
 
         if (filtered.isEmpty) {
@@ -1561,7 +1666,7 @@ class _SearchScreenState extends State<SearchScreen> {
         return ListView.builder(
           controller: _productsScrollController,
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          physics: const ClampingScrollPhysics(),
+          physics: const BouncingScrollPhysics(),
           itemCount: visibleCount + (showLoadMore ? 1 : 0),
           itemBuilder: (context, index) {
             if (index < visibleCount) {
@@ -1665,7 +1770,7 @@ class _SearchScreenState extends State<SearchScreen> {
         return ListView.builder(
           controller: _tasksScrollController,
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          physics: const ClampingScrollPhysics(),
+          physics: const BouncingScrollPhysics(),
           itemCount: visibleCount + (showLoadMore ? 1 : 0),
           itemBuilder: (context, index) {
             if (index < visibleCount) {
@@ -1787,7 +1892,7 @@ class _SearchScreenState extends State<SearchScreen> {
         return ListView.builder(
           controller: _announcementsScrollController,
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          physics: const ClampingScrollPhysics(),
+          physics: const BouncingScrollPhysics(),
           itemCount: visibleCount + (showLoadMore ? 1 : 0),
           itemBuilder: (context, index) {
             if (index < visibleCount) {
@@ -1877,13 +1982,20 @@ class _SearchScreenState extends State<SearchScreen> {
         final filtered =
             queryLower.isEmpty
                 ? all
-                : all
-                    .where(
-                      (p) =>
-                          p.title.toLowerCase().contains(queryLower) ||
-                          p.description.toLowerCase().contains(queryLower),
-                    )
-                    .toList();
+                : all.where((p) {
+                  // Check if search query matches this product's category
+                  final isCategoryMatch = _isCategorySearch(
+                    queryLower,
+                    p.category,
+                  );
+
+                  // Match by title, description, or category
+                  final textMatch =
+                      p.title.toLowerCase().contains(queryLower) ||
+                      p.description.toLowerCase().contains(queryLower);
+
+                  return textMatch || isCategoryMatch;
+                }).toList();
 
         if (filtered.isEmpty) {
           return Center(
@@ -1906,7 +2018,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
         return ListView.builder(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          physics: const ClampingScrollPhysics(),
+          physics: const BouncingScrollPhysics(),
           itemCount: filtered.length,
           itemBuilder: (context, index) {
             final product = filtered[index];
@@ -2000,7 +2112,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
         return ListView.builder(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          physics: const ClampingScrollPhysics(),
+          physics: const BouncingScrollPhysics(),
           itemCount: filtered.length,
           itemBuilder: (context, index) {
             final task = filtered[index];
