@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/task_model.dart';
 import 'firestore_service.dart';
+import 'notifications_service.dart';
 import 'task_chat_service.dart';
 
 class TasksService {
@@ -251,6 +252,13 @@ class TasksService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
     });
+
+    // Keep notification-based counters in sync for task owner badges.
+    try {
+      await NotificationsService.markTaskVolunteerAsReadByTask(ownerId, taskId);
+    } catch (_) {
+      // Do not block user flow if notification cleanup fails.
+    }
   }
 
   static Future<void> _decrementUnreadVolunteersIfAny(

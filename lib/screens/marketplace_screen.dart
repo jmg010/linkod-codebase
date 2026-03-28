@@ -3,7 +3,6 @@ import '../constants/marketplace_categories.dart';
 import '../models/product_model.dart';
 import '../widgets/product_card.dart';
 import '../services/products_service.dart';
-import '../services/notifications_service.dart';
 import '../services/firestore_service.dart';
 import 'product_detail_screen.dart';
 import 'sell_product_screen.dart';
@@ -244,9 +243,8 @@ class MarketplaceScreenState extends State<MarketplaceScreen> {
                     final uid = FirestoreService.currentUserId;
                     if (uid != null && _cachedMarketplaceBadgeUid != uid) {
                       _cachedMarketplaceBadgeUid = uid;
-                      // Use unread marketplace notifications stream for reliable badge counts.
                       _cachedMarketplaceBadgeStream =
-                          NotificationsService.getUnreadMarketplaceActivityCountStream(
+                          ProductsService.getTotalProductActivityUnreadStream(
                             uid,
                           );
                     }

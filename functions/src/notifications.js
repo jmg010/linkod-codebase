@@ -153,10 +153,19 @@ exports.sendPushForNotification = functions.firestore
       return;
     }
 
+    // Defensive dedupe in case legacy docs contain repeated tokens.
+    const dedupedByToken = new Map();
+    for (const entry of tokenEntries) {
+      if (!dedupedByToken.has(entry.token)) {
+        dedupedByToken.set(entry.token, entry);
+      }
+    }
+    const dedupedEntries = Array.from(dedupedByToken.values());
+
     const type = toStr(data.type) || 'notification';
     const title = titleForType(type);
     const body = toStr(data.message) || defaultBodyForType(type);
-    const tokens = tokenEntries.map((entry) => entry.token);
+    const tokens = dedupedEntries.map((entry) => entry.token);
 
     const response = await messaging.sendEachForMulticast({
       tokens,
@@ -167,8 +176,12 @@ exports.sendPushForNotification = functions.firestore
       data: buildDataPayload(notificationId, data),
       android: {
         priority: 'high',
+        collapseKey: notificationId,
       },
       apns: {
+        headers: {
+          'apns-collapse-id': notificationId,
+        },
         payload: {
           aps: {
             sound: 'default',
@@ -185,7 +198,7 @@ exports.sendPushForNotification = functions.firestore
         code === 'messaging/invalid-registration-token' ||
         code === 'messaging/registration-token-not-registered'
       ) {
-        staleRefs.push(tokenEntries[index].ref);
+        staleRefs.push(dedupedEntries[index].ref);
       }
     });
 

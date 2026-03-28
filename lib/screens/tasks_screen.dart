@@ -196,11 +196,26 @@ class TasksScreenState extends State<TasksScreen> {
 
   static Stream<int> _ownerPendingVolunteersCountStream(String? uid) {
     if (uid == null) return Stream<int>.value(0);
-    // Combine task activity stream with volunteer_accepted notifications
-    return Rx.combineLatest2<int, int, int>(
+    return Rx.combineLatest4<int, int, int, int, int>(
       TasksService.getTotalPostActivityUnreadStream(uid),
       NotificationsService.getVolunteerAcceptedUnreadCountStream(uid),
-      (taskActivityCount, volunteerAcceptedCount) => taskActivityCount + volunteerAcceptedCount,
+      TasksService.getRequesterTasksStream(uid).map(
+        (tasks) =>
+            tasks.fold<int>(0, (sum, t) => sum + t.unreadVolunteersCount),
+      ),
+      NotificationsService.getTaskVolunteerUnreadCountStream(uid),
+      (
+        taskActivityCount,
+        volunteerAcceptedCount,
+        requesterVolunteerCount,
+        taskVolunteerNotifCount,
+      ) {
+        final volunteerFallback =
+            taskVolunteerNotifCount > requesterVolunteerCount
+                ? (taskVolunteerNotifCount - requesterVolunteerCount)
+                : 0;
+        return taskActivityCount + volunteerAcceptedCount + volunteerFallback;
+      },
     );
   }
 

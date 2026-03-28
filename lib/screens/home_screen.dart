@@ -306,12 +306,26 @@ class _HomeScreenState extends State<HomeScreen> {
   Stream<int> _getErrandNotificationCountStream() {
     final uid = FirestoreService.currentUserId;
     if (uid == null) return Stream<int>.value(0);
-    // Combine task activity with volunteer_accepted notifications for total errand badge
-    return Rx.combineLatest2<int, int, int>(
+    return Rx.combineLatest4<int, int, int, int, int>(
       TasksService.getTotalPostActivityUnreadStream(uid),
       NotificationsService.getVolunteerAcceptedUnreadCountStream(uid),
-      (taskActivityCount, volunteerAcceptedCount) =>
-          taskActivityCount + volunteerAcceptedCount,
+      TasksService.getRequesterTasksStream(uid).map(
+        (tasks) =>
+            tasks.fold<int>(0, (sum, t) => sum + t.unreadVolunteersCount),
+      ),
+      NotificationsService.getTaskVolunteerUnreadCountStream(uid),
+      (
+        taskActivityCount,
+        volunteerAcceptedCount,
+        requesterVolunteerCount,
+        taskVolunteerNotifCount,
+      ) {
+        final volunteerFallback =
+            taskVolunteerNotifCount > requesterVolunteerCount
+                ? (taskVolunteerNotifCount - requesterVolunteerCount)
+                : 0;
+        return taskActivityCount + volunteerAcceptedCount + volunteerFallback;
+      },
     );
   }
 
@@ -324,7 +338,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Stream<int> _getMarketplaceNotificationCountStream() {
     final uid = FirestoreService.currentUserId;
     if (uid == null) return Stream<int>.value(0);
-    return NotificationsService.getUnreadMarketplaceActivityCountStream(uid);
+    // Keep marketplace nav badge in sync with Product Activity unread logic.
+    return ProductsService.getTotalProductActivityUnreadStream(uid);
   }
 
   Stream<int> _getTaskChatUnreadCountStream() {

@@ -162,73 +162,93 @@ class _TabBarWithBadge extends StatelessWidget {
         return StreamBuilder<List<TaskModel>>(
           stream: TasksService.getRequesterTasksStream(userId),
           builder: (context, requesterTasksSnapshot) {
-            final requesterChatUnread = requesterChatSnapshot.data ?? 0;
-            final requesterTasks = requesterTasksSnapshot.data ?? [];
-            final unreadVolunteersCount = requesterTasks.fold<int>(
-              0,
-              (sum, task) => sum + task.unreadVolunteersCount,
-            );
-            final myPostsUnread = requesterChatUnread + unreadVolunteersCount;
-
             return StreamBuilder<int>(
-              stream: TaskChatService.getTotalUnreadForAssignedStream(userId),
+              stream: NotificationsService.getTaskVolunteerUnreadCountStream(
+                userId,
+              ),
               initialData: 0,
-              builder: (context, assignedSnapshot) {
-                return StreamBuilder<int>(
-                  stream:
-                      NotificationsService.getVolunteerAcceptedUnreadCountStream(
-                        userId,
-                      ),
-                  initialData: 0,
-                  builder: (context, volunteerAcceptedSnapshot) {
-                    final assignedUnread = assignedSnapshot.data ?? 0;
-                    final volunteerAcceptedUnread =
-                        volunteerAcceptedSnapshot.data ?? 0;
-                    // Interacted posts = assigned tasks chat + volunteer_accepted notifications
-                    final interactedUnread =
-                        assignedUnread + volunteerAcceptedUnread;
-                    final isDark =
-                        Theme.of(context).brightness == Brightness.dark;
+              builder: (context, taskVolunteerSnapshot) {
+                final requesterChatUnread = requesterChatSnapshot.data ?? 0;
+                final requesterTasks = requesterTasksSnapshot.data ?? [];
+                final unreadVolunteersCount = requesterTasks.fold<int>(
+                  0,
+                  (sum, task) => sum + task.unreadVolunteersCount,
+                );
+                final taskVolunteerUnread = taskVolunteerSnapshot.data ?? 0;
+                final volunteerFallback =
+                    taskVolunteerUnread > unreadVolunteersCount
+                        ? (taskVolunteerUnread - unreadVolunteersCount)
+                        : 0;
+                final myPostsUnread =
+                    requesterChatUnread +
+                    unreadVolunteersCount +
+                    volunteerFallback;
 
-                    return Container(
-                      decoration: BoxDecoration(
-                        color:
-                            isDark
-                                ? const Color(0xFF1E1E1E)
-                                : Colors.grey.shade200,
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: AnimatedBuilder(
-                        animation: tabController,
-                        builder: (context, child) {
-                          return Row(
-                            children: [
-                              // MY POSTS Tab with badge
-                              Expanded(
-                                child: _TabButton(
-                                  label: 'MY POSTS',
-                                  isSelected: tabController.index == 0,
-                                  badgeCount:
-                                      myPostsUnread > 0 ? myPostsUnread : null,
-                                  onTap: () => tabController.animateTo(0),
-                                ),
-                              ),
-                              // INTERACTED POSTS Tab with badge
-                              Expanded(
-                                child: _TabButton(
-                                  label: 'INTERACTED POSTS',
-                                  isSelected: tabController.index == 1,
-                                  badgeCount:
-                                      interactedUnread > 0
-                                          ? interactedUnread
-                                          : null,
-                                  onTap: () => tabController.animateTo(1),
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
+                return StreamBuilder<int>(
+                  stream: TaskChatService.getTotalUnreadForAssignedStream(
+                    userId,
+                  ),
+                  initialData: 0,
+                  builder: (context, assignedSnapshot) {
+                    return StreamBuilder<int>(
+                      stream:
+                          NotificationsService.getVolunteerAcceptedUnreadCountStream(
+                            userId,
+                          ),
+                      initialData: 0,
+                      builder: (context, volunteerAcceptedSnapshot) {
+                        final assignedUnread = assignedSnapshot.data ?? 0;
+                        final volunteerAcceptedUnread =
+                            volunteerAcceptedSnapshot.data ?? 0;
+                        // Interacted posts = assigned tasks chat + volunteer_accepted notifications
+                        final interactedUnread =
+                            assignedUnread + volunteerAcceptedUnread;
+                        final isDark =
+                            Theme.of(context).brightness == Brightness.dark;
+
+                        return Container(
+                          decoration: BoxDecoration(
+                            color:
+                                isDark
+                                    ? const Color(0xFF1E1E1E)
+                                    : Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          child: AnimatedBuilder(
+                            animation: tabController,
+                            builder: (context, child) {
+                              return Row(
+                                children: [
+                                  // MY POSTS Tab with badge
+                                  Expanded(
+                                    child: _TabButton(
+                                      label: 'MY POSTS',
+                                      isSelected: tabController.index == 0,
+                                      badgeCount:
+                                          myPostsUnread > 0
+                                              ? myPostsUnread
+                                              : null,
+                                      onTap: () => tabController.animateTo(0),
+                                    ),
+                                  ),
+                                  // INTERACTED POSTS Tab with badge
+                                  Expanded(
+                                    child: _TabButton(
+                                      label: 'INTERACTED POSTS',
+                                      isSelected: tabController.index == 1,
+                                      badgeCount:
+                                          interactedUnread > 0
+                                              ? interactedUnread
+                                              : null,
+                                      onTap: () => tabController.animateTo(1),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                        );
+                      },
                     );
                   },
                 );

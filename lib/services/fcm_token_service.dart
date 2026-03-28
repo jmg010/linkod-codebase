@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -47,7 +48,8 @@ class FcmTokenService {
 
   /// Stable document ID for a token (same token → same id). Used in users/{uid}/devices/{tokenId}.
   static String tokenIdFromToken(String token) {
-    return token.hashCode.abs().toRadixString(16);
+    // Do not use String.hashCode: it may vary across runs and create duplicate docs.
+    return base64Url.encode(utf8.encode(token)).replaceAll('=', '');
   }
 
   static String get _platform {
@@ -263,16 +265,32 @@ class FcmTokenService {
   }) async {
     try {
       final tid = tokenIdFromToken(token);
-      await FirebaseFirestore.instance
+      final devicesRef = FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
-          .collection('devices')
-          .doc(tid)
-          .set({
-            'fcmToken': token,
-            'platform': _platform,
-            'lastActive': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
+          .collection('devices');
+
+      await devicesRef.doc(tid).set({
+        'fcmToken': token,
+        'platform': _platform,
+        'lastActive': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      // Cleanup legacy duplicate docs that contain the same token.
+      final sameTokenDocs =
+          await devicesRef.where('fcmToken', isEqualTo: token).get();
+      final stale =
+          sameTokenDocs.docs
+              .where((doc) => doc.id != tid)
+              .map((d) => d.reference)
+              .toList();
+      if (stale.isNotEmpty) {
+        final batch = FirebaseFirestore.instance.batch();
+        for (final ref in stale) {
+          batch.delete(ref);
+        }
+        await batch.commit();
+      }
     } catch (e) {
       if (kDebugMode) {
         // ignore: avoid_print

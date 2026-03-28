@@ -10,6 +10,7 @@ import '../screens/announcement_detail_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/post_detail_screen.dart';
 import '../screens/product_detail_screen.dart';
+import '../screens/task_chat_screen.dart';
 import '../screens/task_detail_screen.dart';
 import '../screens/task_edit_screen.dart';
 import 'firestore_service.dart';
@@ -153,6 +154,13 @@ class PushNotificationHandler {
 
   void _showForegroundNotification(RemoteMessage message) {
     final type = message.data['type'] as String?;
+    final rawNotificationId = message.data['notificationId']?.toString();
+    final localNotificationId =
+        (rawNotificationId != null &&
+                rawNotificationId.isNotEmpty &&
+                rawNotificationId != 'null')
+            ? rawNotificationId.hashCode & 0x7FFFFFFF
+            : message.hashCode % 0x7FFFFFFF;
 
     // Handle OTP messages (data-only); show the code and disable autofill
     if (type == 'otp') {
@@ -167,7 +175,7 @@ class PushNotificationHandler {
 
         // Show a notification with the actual 6‑digit code
         _localNotifications.show(
-          'otp'.hashCode % 0x7FFFFFFF,
+          localNotificationId,
           'Your LINKod verification code',
           otp,
           NotificationDetails(
@@ -195,7 +203,7 @@ class PushNotificationHandler {
           message.notification?.body ??
           'Your account has been approved. You can now sign in.';
       _localNotifications.show(
-        message.hashCode % 0x7FFFFFFF,
+        localNotificationId,
         title,
         body,
         NotificationDetails(
@@ -217,7 +225,7 @@ class PushNotificationHandler {
         productId != null &&
         productId.isNotEmpty) {
       _localNotifications.show(
-        message.hashCode % 0x7FFFFFFF,
+        localNotificationId,
         message.notification?.title ?? 'Listing approved',
         message.notification?.body ?? 'Your marketplace listing was approved.',
         NotificationDetails(
@@ -234,7 +242,7 @@ class PushNotificationHandler {
     }
     if (type == 'task_approved' && taskId != null && taskId.isNotEmpty) {
       _localNotifications.show(
-        message.hashCode % 0x7FFFFFFF,
+        localNotificationId,
         message.notification?.title ?? 'Errand approved',
         message.notification?.body ?? 'Your errand was approved.',
         NotificationDetails(
@@ -316,7 +324,7 @@ class PushNotificationHandler {
                 : 'You have a new notification.'));
 
     _localNotifications.show(
-      message.hashCode % 0x7FFFFFFF,
+      localNotificationId,
       title,
       body,
       NotificationDetails(
@@ -414,6 +422,7 @@ class PushNotificationHandler {
     final String? taskId = _str(data['taskId']);
     final String? type = _str(data['type']);
     final String? notificationId = _str(data['notificationId']);
+    final String? senderId = _str(data['senderId']);
 
     if (notificationId != null && notificationId.isNotEmpty) {
       try {
@@ -453,6 +462,48 @@ class PushNotificationHandler {
           final task = TaskModel.fromFirestore(snap);
           final currentUid = FirestoreService.auth.currentUser?.uid;
           final isOwner = currentUid != null && currentUid == task.requesterId;
+
+          if (type == 'task_chat_message' && currentUid != null) {
+            String? otherPartyId;
+            String otherPartyName = 'Resident';
+
+            if (senderId != null &&
+                senderId.isNotEmpty &&
+                senderId != currentUid) {
+              otherPartyId = senderId;
+            } else if (currentUid == task.requesterId) {
+              otherPartyId = task.assignedTo;
+            } else {
+              otherPartyId = task.requesterId;
+            }
+
+            if (otherPartyId == task.requesterId) {
+              otherPartyName = task.requesterName;
+            } else if (task.assignedTo != null &&
+                otherPartyId == task.assignedTo) {
+              final assignedName = task.assignedByName;
+              if (assignedName != null && assignedName.isNotEmpty) {
+                otherPartyName = assignedName;
+              }
+            }
+
+            if (otherPartyId != null && otherPartyId.isNotEmpty) {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder:
+                      (_) => TaskChatScreen(
+                        taskId: task.id,
+                        taskTitle: task.title,
+                        otherPartyName: otherPartyName,
+                        otherPartyId: otherPartyId,
+                        currentUserId: currentUid,
+                      ),
+                ),
+              );
+              return;
+            }
+          }
+
           Navigator.of(context).push(
             MaterialPageRoute<void>(
               builder: (_) {

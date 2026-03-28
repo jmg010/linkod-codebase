@@ -8,6 +8,7 @@ import '../services/tasks_service.dart';
 import '../services/products_service.dart';
 import '../services/posts_service.dart';
 import '../services/firestore_service.dart';
+import 'task_chat_screen.dart';
 import 'task_detail_screen.dart';
 import 'task_edit_screen.dart';
 import 'product_detail_screen.dart';
@@ -62,6 +63,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   ) async {
     final type = notification['type'] as String?;
     final taskId = notification['taskId'] as String?;
+    final senderId = notification['senderId'] as String?;
     final productId = notification['productId'] as String?;
     final postId = notification['postId'] as String?;
     final announcementId = notification['announcementId'] as String?;
@@ -98,10 +100,51 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         if (taskDoc.exists) {
           final task = TaskModel.fromFirestore(taskDoc);
           if (mounted) {
+            final currentUid = FirestoreService.auth.currentUser?.uid;
+            if (type == 'task_chat_message' && currentUid != null) {
+              String? otherPartyId;
+              String otherPartyName = 'Resident';
+
+              if (senderId != null &&
+                  senderId.isNotEmpty &&
+                  senderId != currentUid) {
+                otherPartyId = senderId;
+              } else if (currentUid == task.requesterId) {
+                otherPartyId = task.assignedTo;
+              } else {
+                otherPartyId = task.requesterId;
+              }
+
+              if (otherPartyId == task.requesterId) {
+                otherPartyName = task.requesterName;
+              } else if (task.assignedTo != null &&
+                  otherPartyId == task.assignedTo) {
+                final assignedName = task.assignedByName;
+                if (assignedName != null && assignedName.isNotEmpty) {
+                  otherPartyName = assignedName;
+                }
+              }
+
+              if (otherPartyId != null && otherPartyId.isNotEmpty) {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder:
+                        (_) => TaskChatScreen(
+                          taskId: task.id,
+                          taskTitle: task.title,
+                          otherPartyName: otherPartyName,
+                          otherPartyId: otherPartyId,
+                          currentUserId: currentUid,
+                        ),
+                  ),
+                );
+                return;
+              }
+            }
+
             Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) {
-                  final currentUid = FirestoreService.auth.currentUser?.uid;
                   final isOwner =
                       currentUid != null && currentUid == task.requesterId;
                   if (isOwner && type == 'task_volunteer') {

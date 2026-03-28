@@ -87,6 +87,17 @@ class NotificationsService {
         .map((snapshot) => snapshot.docs.length);
   }
 
+  /// Stream of unread task_volunteer notifications count.
+  /// Used as a safety fallback for owner errand badges.
+  static Stream<int> getTaskVolunteerUnreadCountStream(String userId) {
+    return _notificationsCollection
+        .where('userId', isEqualTo: userId)
+        .where('type', isEqualTo: 'task_volunteer')
+        .where('isRead', isEqualTo: false)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.length);
+  }
+
   /// Stream of unread marketplace interaction notifications.
   /// Includes comments/messages/replies related to products.
   static Stream<int> getUnreadMarketplaceActivityCountStream(String userId) {
@@ -169,6 +180,40 @@ class NotificationsService {
     await batch.commit();
 
     // Decrement unreadNotificationCount on user document
+    if (unreadCount > 0) {
+      final userRef = FirestoreService.instance.collection('users').doc(userId);
+      await userRef.set({
+        'unreadNotificationCount': FieldValue.increment(-unreadCount),
+      }, SetOptions(merge: true));
+    }
+  }
+
+  /// Mark task_volunteer notifications as read for a specific task.
+  /// Called when task owner views volunteer requests.
+  static Future<void> markTaskVolunteerAsReadByTask(
+    String userId,
+    String taskId,
+  ) async {
+    final notifications =
+        await _notificationsCollection
+            .where('userId', isEqualTo: userId)
+            .where('type', isEqualTo: 'task_volunteer')
+            .where('taskId', isEqualTo: taskId)
+            .where('isRead', isEqualTo: false)
+            .get();
+
+    if (notifications.docs.isEmpty) return;
+
+    final batch = FirestoreService.instance.batch();
+    int unreadCount = 0;
+
+    for (final doc in notifications.docs) {
+      batch.update(doc.reference, {'isRead': true});
+      unreadCount++;
+    }
+
+    await batch.commit();
+
     if (unreadCount > 0) {
       final userRef = FirestoreService.instance.collection('users').doc(userId);
       await userRef.set({
