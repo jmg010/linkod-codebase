@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../widgets/announcement_card.dart';
 import '../widgets/errand_job_card.dart';
 import '../widgets/product_card.dart';

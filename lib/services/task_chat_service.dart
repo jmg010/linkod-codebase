@@ -25,7 +25,7 @@ class TaskChatService {
       taskId,
     ).orderBy('createdAt', descending: false).snapshots().map((snapshot) {
       return snapshot.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
+        final data = doc.data();
         return TaskChatMessageModel.fromMap({
           ...data,
           'createdAt': FirestoreService.parseTimestamp(data['createdAt']),
@@ -103,7 +103,7 @@ class TaskChatService {
   static Stream<int> getUnreadCountStream(String taskId, String currentUserId) {
     return getMessagesStream(taskId).asyncExpand((messages) {
       return _readDoc(taskId, currentUserId).snapshots().map((readSnap) {
-        final data = readSnap.data() as Map<String, dynamic>?;
+        final data = readSnap.data();
         final lastReadAt =
             data?['lastReadAt'] != null
                 ? (data!['lastReadAt'] as Timestamp).toDate()
@@ -125,11 +125,11 @@ class TaskChatService {
     final controller = StreamController<int>.broadcast();
     final Map<String, int> unreadByTask = {};
     final Map<String, StreamSubscription<int>> taskSubs = {};
-    List<String> _currentTaskIds = [];
+    List<String> currentTaskIds = [];
 
     void emitSum() {
       if (!controller.isClosed) {
-        final sum = _currentTaskIds.fold<int>(
+        final sum = currentTaskIds.fold<int>(
           0,
           (s, id) => s + (unreadByTask[id] ?? 0),
         );
@@ -146,7 +146,7 @@ class TaskChatService {
           unreadByTask.remove(id);
         }
       }
-      _currentTaskIds = newSet.toList();
+      currentTaskIds = newSet.toList();
       for (final id in newSet) {
         if (taskSubs.containsKey(id)) continue;
         final sub = getUnreadCountStream(id, uid).listen((count) {
@@ -188,11 +188,11 @@ class TaskChatService {
     final controller = StreamController<int>.broadcast();
     final Map<String, int> unreadByTask = {};
     final Map<String, StreamSubscription<int>> taskSubs = {};
-    List<String> _currentTaskIds = [];
+    List<String> currentTaskIds = [];
 
     void emitSum() {
       if (!controller.isClosed) {
-        final sum = _currentTaskIds.fold<int>(
+        final sum = currentTaskIds.fold<int>(
           0,
           (s, id) => s + (unreadByTask[id] ?? 0),
         );
@@ -209,7 +209,7 @@ class TaskChatService {
           unreadByTask.remove(id);
         }
       }
-      _currentTaskIds = newSet.toList();
+      currentTaskIds = newSet.toList();
       for (final id in newSet) {
         if (taskSubs.containsKey(id)) continue;
         final sub = getUnreadCountStream(id, uid).listen((count) {
@@ -243,11 +243,11 @@ class TaskChatService {
     final controller = StreamController<int>.broadcast();
     final Map<String, int> unreadByTask = {};
     final Map<String, StreamSubscription<int>> taskSubs = {};
-    List<String> _currentTaskIds = [];
+    List<String> currentTaskIds = [];
 
     void emitSum() {
       if (!controller.isClosed) {
-        final sum = _currentTaskIds.fold<int>(
+        final sum = currentTaskIds.fold<int>(
           0,
           (s, id) => s + (unreadByTask[id] ?? 0),
         );
@@ -264,7 +264,7 @@ class TaskChatService {
           unreadByTask.remove(id);
         }
       }
-      _currentTaskIds = newSet.toList();
+      currentTaskIds = newSet.toList();
       for (final id in newSet) {
         if (taskSubs.containsKey(id)) continue;
         final sub = getUnreadCountStream(id, uid).listen((count) {

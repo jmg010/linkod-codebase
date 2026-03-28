@@ -214,7 +214,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                       const Text("Purok"),
                       const SizedBox(height: 6),
                       DropdownButtonFormField<String>(
-                        value: _selectedPurok,
+                        initialValue: _selectedPurok,
                         decoration: InputDecoration(
                           hintText: 'Select your Purok',
                           border: OutlineInputBorder(
@@ -402,28 +402,32 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
-                          children: categories.map((cat) {
-                            final bool isSelected = _selectedSubDemographies
-                                .contains(cat);
-                            return FilterChip(
-                              label: Text(cat),
-                              selected: isSelected,
-                              selectedColor: const Color(0xFF00A651),
-                              labelStyle: TextStyle(
-                                color: isSelected ? Colors.white : Colors.black,
-                              ),
-                              backgroundColor: Colors.grey[200],
-                              onSelected: (value) {
-                                setState(() {
-                                  if (value) {
-                                    _selectedSubDemographies.add(cat);
-                                  } else {
-                                    _selectedSubDemographies.remove(cat);
-                                  }
-                                });
-                              },
-                            );
-                          }).toList(),
+                          children:
+                              categories.map((cat) {
+                                final bool isSelected = _selectedSubDemographies
+                                    .contains(cat);
+                                return FilterChip(
+                                  label: Text(cat),
+                                  selected: isSelected,
+                                  selectedColor: const Color(0xFF00A651),
+                                  labelStyle: TextStyle(
+                                    color:
+                                        isSelected
+                                            ? Colors.white
+                                            : Colors.black,
+                                  ),
+                                  backgroundColor: Colors.grey[200],
+                                  onSelected: (value) {
+                                    setState(() {
+                                      if (value) {
+                                        _selectedSubDemographies.add(cat);
+                                      } else {
+                                        _selectedSubDemographies.remove(cat);
+                                      }
+                                    });
+                                  },
+                                );
+                              }).toList(),
                         ),
                       ],
 
@@ -552,19 +556,21 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
           .createUserWithEmailAndPassword(email: email, password: password);
       final uid = authCred.user?.uid;
       if (uid == null) {
-        if (mounted)
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Could not create account. Please try again.'),
             ),
           );
+        }
         return;
       }
 
-      final mergedCategories = <String>{
-        ...selectedCategories,
-        if (_enableSubDemography) ..._selectedSubDemographies,
-      }.toList();
+      final mergedCategories =
+          <String>{
+            ...selectedCategories,
+            if (_enableSubDemography) ..._selectedSubDemographies,
+          }.toList();
 
       // Keep legacy category string for compatibility while also writing categories array.
       final categoryString = mergedCategories.join(', ');
@@ -577,9 +583,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
       }
 
       final fcmTokens =
-          (widget.fcmToken != null && widget.fcmToken.isNotEmpty)
-              ? [widget.fcmToken]
-              : <String>[];
+          (widget.fcmToken.isNotEmpty) ? [widget.fcmToken] : <String>[];
 
       // Store approval request in awaitingApproval
       await firestore.collection('awaitingApproval').add({
@@ -598,9 +602,10 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
         'category': categoryString,
         'categories': mergedCategories,
         'subDemographyEnabled': _enableSubDemography,
-        'subDemographies': _enableSubDemography
-          ? List<String>.from(_selectedSubDemographies)
-          : <String>[],
+        'subDemographies':
+            _enableSubDemography
+                ? List<String>.from(_selectedSubDemographies)
+                : <String>[],
         'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
         'proofOfResidenceUrl': proofOfResidenceUrl,

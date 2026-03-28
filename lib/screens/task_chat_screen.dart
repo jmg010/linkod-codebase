@@ -60,7 +60,7 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
     final m = date.minute;
     final hour = h == 0 ? 12 : (h > 12 ? h - 12 : h);
     final ampm = h >= 12 ? 'PM' : 'AM';
-    return '${hour}:${m.toString().padLeft(2, '0')} $ampm';
+    return '$hour:${m.toString().padLeft(2, '0')} $ampm';
   }
 
   @override

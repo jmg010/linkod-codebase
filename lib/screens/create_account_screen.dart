@@ -211,7 +211,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                       const Text("Purok "),
                       const SizedBox(height: 6),
                       DropdownButtonFormField<String>(
-                        value: _selectedPurok,
+                        initialValue: _selectedPurok,
                         decoration: InputDecoration(
                           hintText: 'Select your Purok',
                           border: OutlineInputBorder(
@@ -399,28 +399,32 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
-                          children: categories.map((cat) {
-                            final bool isSelected = _selectedSubDemographies
-                                .contains(cat);
-                            return FilterChip(
-                              label: Text(cat),
-                              selected: isSelected,
-                              selectedColor: const Color(0xFF00A651),
-                              labelStyle: TextStyle(
-                                color: isSelected ? Colors.white : Colors.black,
-                              ),
-                              backgroundColor: Colors.grey[200],
-                              onSelected: (value) {
-                                setState(() {
-                                  if (value) {
-                                    _selectedSubDemographies.add(cat);
-                                  } else {
-                                    _selectedSubDemographies.remove(cat);
-                                  }
-                                });
-                              },
-                            );
-                          }).toList(),
+                          children:
+                              categories.map((cat) {
+                                final bool isSelected = _selectedSubDemographies
+                                    .contains(cat);
+                                return FilterChip(
+                                  label: Text(cat),
+                                  selected: isSelected,
+                                  selectedColor: const Color(0xFF00A651),
+                                  labelStyle: TextStyle(
+                                    color:
+                                        isSelected
+                                            ? Colors.white
+                                            : Colors.black,
+                                  ),
+                                  backgroundColor: Colors.grey[200],
+                                  onSelected: (value) {
+                                    setState(() {
+                                      if (value) {
+                                        _selectedSubDemographies.add(cat);
+                                      } else {
+                                        _selectedSubDemographies.remove(cat);
+                                      }
+                                    });
+                                  },
+                                );
+                              }).toList(),
                         ),
                       ],
 
@@ -481,12 +485,15 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   static String _normalizePhilippinePhone(String input) {
     final digits = _digitsOnly(input);
     if (digits.length == 11 && digits.startsWith('0')) return digits;
-    if (digits.length == 10 && !digits.startsWith('0'))
+    if (digits.length == 10 && !digits.startsWith('0')) {
       return '0$digits'; // 9XXXXXXXXX -> 09XXXXXXXXX
-    if (digits.length == 10 && digits.startsWith('0'))
+    }
+    if (digits.length == 10 && digits.startsWith('0')) {
       return digits; // 0XXXXXXXXX: don't add 0 (would be 009...)
-    if (digits.length == 12 && digits.startsWith('63'))
+    }
+    if (digits.length == 12 && digits.startsWith('63')) {
       return '0${digits.substring(2)}';
+    }
     return digits; // fallback: return as-is
   }
 
@@ -633,19 +640,21 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
             .createUserWithEmailAndPassword(email: email, password: password);
         final uid = authCred.user?.uid;
         if (uid == null) {
-          if (mounted)
+          if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Could not create account. Please try again.'),
               ),
             );
+          }
           return;
         }
 
-        final mergedCategories = <String>{
-          ...selectedCategories,
-          if (_enableSubDemography) ..._selectedSubDemographies,
-        }.toList();
+        final mergedCategories =
+            <String>{
+              ...selectedCategories,
+              if (_enableSubDemography) ..._selectedSubDemographies,
+            }.toList();
 
         // Keep legacy category string for compatibility while also writing categories array.
         final categoryString = mergedCategories.join(', ');
@@ -675,11 +684,12 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           'password': password,
           'role': 'user',
           'category': categoryString,
-            'categories': mergedCategories,
-            'subDemographyEnabled': _enableSubDemography,
-            'subDemographies': _enableSubDemography
-              ? List<String>.from(_selectedSubDemographies)
-              : <String>[],
+          'categories': mergedCategories,
+          'subDemographyEnabled': _enableSubDemography,
+          'subDemographies':
+              _enableSubDemography
+                  ? List<String>.from(_selectedSubDemographies)
+                  : <String>[],
           'status': 'pending',
           'createdAt': FieldValue.serverTimestamp(),
           'proofOfResidenceUrl': proofOfResidenceUrl,

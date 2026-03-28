@@ -98,8 +98,9 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
     if (digits.length == 11 && digits.startsWith('0')) return digits;
     if (digits.length == 10 && !digits.startsWith('0')) return '0$digits';
     if (digits.length == 10 && digits.startsWith('0')) return digits;
-    if (digits.length == 12 && digits.startsWith('63'))
+    if (digits.length == 12 && digits.startsWith('63')) {
       return '0${digits.substring(2)}';
+    }
     return digits;
   }
 
@@ -196,11 +197,12 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
         (route) => false,
       );
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _errorMessage = 'Failed to submit: $e';
           _isLoading = false;
         });
+      }
     }
   }
 
@@ -294,11 +296,12 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
         (route) => false,
       );
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _errorMessage = 'Failed to submit: $e';
           _isLoading = false;
         });
+      }
     }
   }
 

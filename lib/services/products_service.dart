@@ -174,7 +174,7 @@ class ProductsService {
       try {
         final parentMsg = await messagesRef.doc(parentId).get();
         if (parentMsg.exists) {
-          final parentData = parentMsg.data() as Map<String, dynamic>?;
+          final parentData = parentMsg.data();
           final parentSenderId = parentData?['senderId'] as String?;
           if (parentSenderId != null && parentSenderId != senderId) {
             final batch = FirestoreService.instance.batch();
@@ -233,7 +233,7 @@ class ProductsService {
         .snapshots()
         .map((snapshot) {
           return snapshot.docs.map((doc) {
-            final data = doc.data() as Map<String, dynamic>;
+            final data = doc.data();
             return MessageModel.fromMap({
               ...data,
               'createdAt': FirestoreService.parseTimestamp(data['createdAt']),
@@ -270,7 +270,7 @@ class ProductsService {
         readSnap,
       ) {
         try {
-          final data = readSnap.data() as Map<String, dynamic>?;
+          final data = readSnap.data();
           final raw = data?['lastReadAt'];
           final lastReadAt =
               raw is Timestamp
@@ -303,7 +303,7 @@ class ProductsService {
         .map((snapshot) {
           var total = 0;
           for (final doc in snapshot.docs) {
-            final data = doc.data() as Map<String, dynamic>;
+            final data = doc.data();
             final productId = data['productId'] as String?;
             if (productId != null && productId.isNotEmpty) {
               total++;
@@ -330,7 +330,7 @@ class ProductsService {
           .map((snapshot) {
             final unreadByProduct = <String, int>{};
             for (final doc in snapshot.docs) {
-              final data = doc.data() as Map<String, dynamic>;
+              final data = doc.data();
               final productId = data['productId'] as String?;
               if (productId == null || productId.isEmpty) continue;
               unreadByProduct[productId] =
@@ -377,12 +377,12 @@ class ProductsService {
         StreamController<List<MapEntry<ProductModel, int>>>.broadcast();
     final Map<String, int> unreadByProduct = {};
     final Map<String, StreamSubscription<int>> productSubs = {};
-    List<ProductModel> _currentProducts = [];
+    List<ProductModel> currentProducts = [];
 
     void emitList() {
       if (!controller.isClosed) {
         final list =
-            _currentProducts
+            currentProducts
                 .map((p) => MapEntry(p, unreadByProduct[p.id] ?? 0))
                 .toList();
         controller.add(list);
@@ -398,7 +398,7 @@ class ProductsService {
           unreadByProduct.remove(id);
         }
       }
-      _currentProducts = products;
+      currentProducts = products;
       for (final p in products) {
         if (productSubs.containsKey(p.id)) continue;
         unreadByProduct[p.id] = 0;
@@ -476,7 +476,7 @@ class ProductsService {
     return getMessagesStream(productId).asyncExpand((messages) {
       return _messageReadDoc(productId, userId).snapshots().map((readSnap) {
         try {
-          final data = readSnap.data() as Map<String, dynamic>?;
+          final data = readSnap.data();
           final raw = data?['lastReadAt'];
           final lastReadAt =
               raw is Timestamp
@@ -500,11 +500,11 @@ class ProductsService {
     final controller = StreamController<int>.broadcast();
     final Map<String, int> unreadByProduct = {};
     final Map<String, StreamSubscription<int>> productSubs = {};
-    List<String> _currentProductIds = [];
+    List<String> currentProductIds = [];
 
     void emitSum() {
       if (!controller.isClosed) {
-        final sum = _currentProductIds.fold<int>(
+        final sum = currentProductIds.fold<int>(
           0,
           (s, id) => s + (unreadByProduct[id] ?? 0),
         );
@@ -521,7 +521,7 @@ class ProductsService {
           unreadByProduct.remove(id);
         }
       }
-      _currentProductIds = productIds;
+      currentProductIds = productIds;
       for (final id in productIds) {
         if (productSubs.containsKey(id)) continue;
         unreadByProduct[id] = 0;
@@ -572,12 +572,12 @@ class ProductsService {
   /// This is used for the marketplace "My Product" button badge
   static Stream<int> getTotalProductActivityUnreadStream(String userId) {
     final controller = StreamController<int>.broadcast();
-    int _sellerUnread = 0;
-    int _interactedUnread = 0;
+    int sellerUnread = 0;
+    int interactedUnread = 0;
 
     void emitSum() {
       if (!controller.isClosed) {
-        controller.add(_sellerUnread + _interactedUnread);
+        controller.add(sellerUnread + interactedUnread);
       }
     }
 
@@ -585,7 +585,7 @@ class ProductsService {
     final sellerSub = getTotalUnreadProductMessagesForSellerStream(
       userId,
     ).listen((count) {
-      _sellerUnread = count;
+      sellerUnread = count;
       emitSum();
     });
 
@@ -593,7 +593,7 @@ class ProductsService {
     final interactedSub = getTotalUnreadRepliesForUserStream(userId).listen((
       count,
     ) {
-      _interactedUnread = count;
+      interactedUnread = count;
       emitSum();
     });
 

@@ -157,7 +157,7 @@ class _SellProductScreenState extends State<SellProductScreen> {
       setState(() => _pickedImages.add(xFile));
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('${_totalImageCount} image(s)')));
+      ).showSnackBar(SnackBar(content: Text('$_totalImageCount image(s)')));
     }
   }
 
@@ -402,7 +402,7 @@ class _SellProductScreenState extends State<SellProductScreen> {
                   if (xFile != null && mounted) {
                     setState(() => _pickedImages.add(xFile));
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('${_totalImageCount} image(s)')),
+                      SnackBar(content: Text('$_totalImageCount image(s)')),
                     );
                   }
                 },

@@ -1,12 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../models/task_model.dart';
 import '../models/product_model.dart';
-import '../models/post_model.dart';
 import '../services/notifications_service.dart';
-import '../services/tasks_service.dart';
-import '../services/products_service.dart';
-import '../services/posts_service.dart';
 import '../services/firestore_service.dart';
 import 'task_chat_screen.dart';
 import 'task_detail_screen.dart';
@@ -126,6 +121,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               }
 
               if (otherPartyId != null && otherPartyId.isNotEmpty) {
+                final chatOtherPartyId = otherPartyId;
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder:
@@ -133,7 +129,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           taskId: task.id,
                           taskTitle: task.title,
                           otherPartyName: otherPartyName,
-                          otherPartyId: otherPartyId,
+                          otherPartyId: chatOtherPartyId,
                           currentUserId: currentUid,
                         ),
                   ),

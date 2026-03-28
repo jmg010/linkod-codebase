@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../constants/purok.dart';
-import '../models/user_role.dart';
 import '../services/firestore_service.dart';
 import '../services/name_formatter.dart';
 import '../services/storage_service.dart';
@@ -402,9 +401,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             ? FileImage(_selectedImage!)
                             : (_profileImageUrl != null &&
                                         _profileImageUrl!.isNotEmpty
-                            ? CachedNetworkImageProvider(
-                              _profileImageUrl!,
-                            )
+                                    ? CachedNetworkImageProvider(
+                                      _profileImageUrl!,
+                                    )
                                     : null)
                                 as ImageProvider?,
                     child:

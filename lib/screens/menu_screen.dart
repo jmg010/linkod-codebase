@@ -1124,7 +1124,7 @@ class _DarkModeMenuItem extends StatelessWidget {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: const Color(0xFF20BF6B),
+            activeThumbColor: const Color(0xFF20BF6B),
           ),
         ],
       ),

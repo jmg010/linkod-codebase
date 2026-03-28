@@ -76,7 +76,7 @@ class _PhoneRegistrationScreenState extends State<PhoneRegistrationScreen> {
     showModalBottomSheet(
       context: context,
       builder:
-          (context) => Container(
+          (context) => SizedBox(
             height: 400,
             child: Column(
               children: [

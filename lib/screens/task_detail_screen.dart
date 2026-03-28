@@ -584,8 +584,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         final status = myStatus?['status'] as String?;
         // Default: Volunteer button (only when task open and not volunteered/rejected)
         if (status == null || status == 'rejected') {
-          if (widget.task.status != TaskStatus.open)
+          if (widget.task.status != TaskStatus.open) {
             return const SizedBox.shrink();
+          }
           return SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
@@ -1053,8 +1054,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     future: _getVolunteerPhone(volunteerId),
                     builder: (context, snap) {
                       final phone = snap.data;
-                      if (phone == null || phone.isEmpty)
+                      if (phone == null || phone.isEmpty) {
                         return const SizedBox.shrink();
+                      }
                       return Padding(
                         padding: const EdgeInsets.only(top: 2),
                         child: Text(

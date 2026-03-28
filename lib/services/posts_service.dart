@@ -5,30 +5,40 @@ import '../models/post_model.dart';
 import 'firestore_service.dart';
 
 class PostsService {
-  static final CollectionReference _postsCollection =
-      FirestoreService.instance.collection('posts');
+  static final CollectionReference _postsCollection = FirestoreService.instance
+      .collection('posts');
 
   /// Get all posts ordered by creation date
   static Stream<List<PostModel>> getPostsStream() {
     return _postsCollection
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => PostModel.fromFirestore(doc))
-            .where((post) => post.isActive) // Filter in code to avoid index requirement
-            .toList());
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map((doc) => PostModel.fromFirestore(doc))
+                  .where(
+                    (post) => post.isActive,
+                  ) // Filter in code to avoid index requirement
+                  .toList(),
+        );
   }
 
   /// Get posts by category
-  static Stream<List<PostModel>> getPostsByCategoryStream(PostCategory category) {
+  static Stream<List<PostModel>> getPostsByCategoryStream(
+    PostCategory category,
+  ) {
     return _postsCollection
         .where('category', isEqualTo: category.name)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => PostModel.fromFirestore(doc))
-            .where((post) => post.isActive) // Filter in code
-            .toList());
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map((doc) => PostModel.fromFirestore(doc))
+                  .where((post) => post.isActive) // Filter in code
+                  .toList(),
+        );
   }
 
   /// Get posts by user
@@ -37,10 +47,13 @@ class PostsService {
         .where('userId', isEqualTo: userId)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => PostModel.fromFirestore(doc))
-            .where((post) => post.isActive) // Filter in code
-            .toList());
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map((doc) => PostModel.fromFirestore(doc))
+                  .where((post) => post.isActive) // Filter in code
+                  .toList(),
+        );
   }
 
   /// Create a new post
@@ -50,7 +63,10 @@ class PostsService {
   }
 
   /// Update a post
-  static Future<void> updatePost(String postId, Map<String, dynamic> updates) async {
+  static Future<void> updatePost(
+    String postId,
+    Map<String, dynamic> updates,
+  ) async {
     await _postsCollection.doc(postId).update(updates);
   }
 
@@ -60,11 +76,16 @@ class PostsService {
   }
 
   /// Like a post
-  static Future<void> likePost(String postId, String userId, String userName) async {
+  static Future<void> likePost(
+    String postId,
+    String userId,
+    String userName,
+  ) async {
     final likesRef = _postsCollection.doc(postId).collection('likes');
-    
+
     // Check if already liked
-    final existingLike = await likesRef.where('userId', isEqualTo: userId).get();
+    final existingLike =
+        await likesRef.where('userId', isEqualTo: userId).get();
     if (existingLike.docs.isNotEmpty) {
       // Unlike: remove the like
       await likesRef.doc(existingLike.docs.first.id).delete();
@@ -104,15 +125,16 @@ class PostsService {
             'message': '$userName liked your post',
             'createdAt': FieldValue.serverTimestamp(),
           });
-          final userRef =
-              FirestoreService.instance.collection('users').doc(ownerUserId);
-          batch.set(
-            userRef,
-            {'unreadNotificationCount': FieldValue.increment(1)},
-            SetOptions(merge: true),
-          );
+          final userRef = FirestoreService.instance
+              .collection('users')
+              .doc(ownerUserId);
+          batch.set(userRef, {
+            'unreadNotificationCount': FieldValue.increment(1),
+          }, SetOptions(merge: true));
           await batch.commit();
-          debugPrint('Like notification created successfully for post: $postId');
+          debugPrint(
+            'Like notification created successfully for post: $postId',
+          );
         }
       } catch (e) {
         // Log but do not block like operation.
@@ -145,7 +167,7 @@ class PostsService {
       'isEdited': false,
       'isDeleted': false,
     });
-    
+
     // Increment commentsCount
     await _postsCollection.doc(postId).update({
       'commentsCount': FieldValue.increment(1),
@@ -171,15 +193,16 @@ class PostsService {
           'message': '$userName commented on your post',
           'createdAt': FieldValue.serverTimestamp(),
         });
-        final userRef =
-            FirestoreService.instance.collection('users').doc(ownerUserId);
-        batch.set(
-          userRef,
-          {'unreadNotificationCount': FieldValue.increment(1)},
-          SetOptions(merge: true),
-        );
+        final userRef = FirestoreService.instance
+            .collection('users')
+            .doc(ownerUserId);
+        batch.set(userRef, {
+          'unreadNotificationCount': FieldValue.increment(1),
+        }, SetOptions(merge: true));
         await batch.commit();
-        debugPrint('Comment notification created successfully for post: $postId');
+        debugPrint(
+          'Comment notification created successfully for post: $postId',
+        );
       }
     } catch (e) {
       // Log but do not block comment operation.
@@ -208,49 +231,63 @@ class PostsService {
         .where('isDeleted', isEqualTo: false)
         .orderBy('createdAt', descending: false)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  return <String, dynamic>{
-                    'commentId': doc.id,
-                    ...data,
-                    'createdAt': FirestoreService.parseTimestamp(data['createdAt']),
-                  };
-                })
-            .toList());
+        .map(
+          (snapshot) =>
+              snapshot.docs.map((doc) {
+                final data = doc.data();
+                return <String, dynamic>{
+                  'commentId': doc.id,
+                  ...data,
+                  'createdAt': FirestoreService.parseTimestamp(
+                    data['createdAt'],
+                  ),
+                };
+              }).toList(),
+        );
   }
 
   /// Mark post comments as read by this user (e.g. when post owner opens the post).
-  static Future<void> markPostCommentsAsRead(String postId, String userId) async {
+  static Future<void> markPostCommentsAsRead(
+    String postId,
+    String userId,
+  ) async {
     await _postsCollection
         .doc(postId)
         .collection('comment_read')
         .doc(userId)
-        .set({'lastReadAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+        .set({
+          'lastReadAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
   }
 
   /// Unread = comments by others (userId != ownerUserId) after lastReadAt.
-  static Stream<int> getUnreadCommentsCountForPostStream(String postId, String ownerUserId) {
+  static Stream<int> getUnreadCommentsCountForPostStream(
+    String postId,
+    String ownerUserId,
+  ) {
     // Important: unread count must update both when new comments arrive AND when the
     // owner marks comments as read (comment_read/{ownerUserId} changes).
-    final readDocStream = _postsCollection
-        .doc(postId)
-        .collection('comment_read')
-        .doc(ownerUserId)
-        .snapshots();
+    final readDocStream =
+        _postsCollection
+            .doc(postId)
+            .collection('comment_read')
+            .doc(ownerUserId)
+            .snapshots();
 
     return getCommentsStream(postId).asyncExpand((comments) {
       return readDocStream.map((readSnap) {
         try {
-          final data = readSnap.data() as Map<String, dynamic>?;
+          final data = readSnap.data();
           final raw = data?['lastReadAt'];
-          final lastReadAt = raw is Timestamp
-              ? raw.toDate()
-              : (raw is DateTime ? raw : DateTime(1970));
+          final lastReadAt =
+              raw is Timestamp
+                  ? raw.toDate()
+                  : (raw is DateTime ? raw : DateTime(1970));
           return comments.where((c) {
             final commentUserId = c['userId'] as String? ?? '';
             final createdAt = c['createdAt'] as DateTime? ?? DateTime(1970);
-            return commentUserId != ownerUserId && createdAt.isAfter(lastReadAt);
+            return commentUserId != ownerUserId &&
+                createdAt.isAfter(lastReadAt);
           }).length;
         } catch (_) {
           return 0;
@@ -265,11 +302,14 @@ class PostsService {
     final controller = StreamController<int>.broadcast();
     final Map<String, int> unreadByPost = {};
     final Map<String, StreamSubscription<int>> postSubs = {};
-    List<PostModel> _currentPosts = [];
+    List<PostModel> currentPosts = [];
 
     void emitSum() {
       if (!controller.isClosed) {
-        final sum = _currentPosts.fold<int>(0, (s, p) => s + (unreadByPost[p.id] ?? 0));
+        final sum = currentPosts.fold<int>(
+          0,
+          (s, p) => s + (unreadByPost[p.id] ?? 0),
+        );
         controller.add(sum);
       }
     }
@@ -283,10 +323,13 @@ class PostsService {
           unreadByPost.remove(id);
         }
       }
-      _currentPosts = posts;
+      currentPosts = posts;
       for (final p in posts) {
         if (postSubs.containsKey(p.id)) continue;
-        final sub = getUnreadCommentsCountForPostStream(p.id, ownerUserId).listen((count) {
+        final sub = getUnreadCommentsCountForPostStream(
+          p.id,
+          ownerUserId,
+        ).listen((count) {
           unreadByPost[p.id] = count;
           emitSum();
         });

@@ -1,11 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 
 /// Simplified tests for reply notifications
-/// 
+///
 /// Run with: flutter test test/reply_notification_test.dart
 void main() {
   group('Reply Notification Logic Tests', () {
-    
     test('Reply notification data structure should be correct', () {
       // Arrange
       const parentSenderId = 'user_a';
@@ -14,7 +13,7 @@ void main() {
       const productId = 'product_123';
       const parentId = 'msg_parent';
       const messageId = 'msg_reply';
-      
+
       // Act - simulate the notification data created in ProductsService.addMessage
       final notificationData = {
         'userId': parentSenderId,
@@ -26,7 +25,7 @@ void main() {
         'isRead': false,
         'message': '$senderName replied to your message',
       };
-      
+
       // Assert
       expect(notificationData['userId'], equals(parentSenderId));
       expect(notificationData['senderId'], equals(replySenderId));
@@ -41,29 +40,29 @@ void main() {
     test('Should create notification when sender != parent sender', () {
       const senderId = 'user_b';
       const parentSenderId = 'user_a';
-      
+
       // Condition check from ProductsService
-      final shouldCreateNotification = parentSenderId != null && parentSenderId != senderId;
-      
+      final shouldCreateNotification = parentSenderId != senderId;
+
       expect(shouldCreateNotification, equals(true));
     });
 
     test('Should NOT create notification when sender == parent sender', () {
       const senderId = 'user_a';
       const parentSenderId = 'user_a';
-      
+
       // Condition check from ProductsService
-      final shouldCreateNotification = parentSenderId != null && parentSenderId != senderId;
-      
+      final shouldCreateNotification = parentSenderId != senderId;
+
       expect(shouldCreateNotification, equals(false));
     });
 
     test('Should NOT create notification when parentId is null', () {
       const String? parentId = null;
-      
+
       // Condition check - only create if parentId exists
       final shouldCheckParent = parentId != null;
-      
+
       expect(shouldCheckParent, equals(false));
     });
 
@@ -85,15 +84,21 @@ void main() {
       };
 
       expect(cloudFunctionPayload['type'], equals(mobileNotification['type']));
-      expect(cloudFunctionPayload['productId'], equals(mobileNotification['productId']));
-      expect(cloudFunctionPayload['parentMessageId'], equals(mobileNotification['parentMessageId']));
+      expect(
+        cloudFunctionPayload['productId'],
+        equals(mobileNotification['productId']),
+      );
+      expect(
+        cloudFunctionPayload['parentMessageId'],
+        equals(mobileNotification['parentMessageId']),
+      );
     });
   });
 
   group('All Notification Types Verification', () {
     final expectedNotificationTypes = [
       'like',
-      'comment', 
+      'comment',
       'reply',
       'product_message',
       'task_volunteer',
@@ -132,18 +137,19 @@ void main() {
     test('reply type should navigate to ProductDetailScreen', () {
       const type = 'reply';
       const hasProductId = true;
-      
+
       // From push_notification_handler.dart logic
       final navigatesToProduct = type == 'reply' && hasProductId;
-      
+
       expect(navigatesToProduct, equals(true));
     });
 
     test('like/comment/reply types should navigate to PostDetailScreen', () {
       final postTypes = ['like', 'comment', 'reply'];
-      
+
       for (final type in postTypes) {
-        final navigatesToPost = type == 'like' || type == 'comment' || type == 'reply';
+        final navigatesToPost =
+            type == 'like' || type == 'comment' || type == 'reply';
         expect(navigatesToPost, equals(true));
       }
     });

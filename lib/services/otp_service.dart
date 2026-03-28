@@ -185,10 +185,10 @@ class OtpService {
     // digits only
     cleaned = cleaned.replaceAll(RegExp(r'[^0-9+]'), '');
     if (cleaned.startsWith('+63')) {
-      return '0' + cleaned.substring(3);
+      return '0${cleaned.substring(3)}';
     }
     if (cleaned.startsWith('63') && cleaned.length == 12) {
-      return '0' + cleaned.substring(2);
+      return '0${cleaned.substring(2)}';
     }
     return cleaned;
   }

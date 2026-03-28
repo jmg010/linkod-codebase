@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../models/post_model.dart';
 import '../ui_constants.dart';
 import '../services/posts_service.dart';

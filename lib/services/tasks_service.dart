@@ -43,12 +43,12 @@ class TasksService {
         StreamController<List<MapEntry<TaskModel, int>>>.broadcast();
     final Map<String, int> unreadByTask = {};
     final Map<String, StreamSubscription<int>> taskSubs = {};
-    List<TaskModel> _currentTasks = [];
+    List<TaskModel> currentTasks = [];
 
     void emitList() {
       if (!controller.isClosed) {
         final list =
-            _currentTasks
+            currentTasks
                 .map((t) => MapEntry(t, unreadByTask[t.id] ?? 0))
                 .toList();
         controller.add(list);
@@ -64,7 +64,7 @@ class TasksService {
           unreadByTask.remove(id);
         }
       }
-      _currentTasks = tasks;
+      currentTasks = tasks;
       for (final t in tasks) {
         if (taskSubs.containsKey(t.id)) continue;
         unreadByTask[t.id] = 0;
@@ -102,12 +102,12 @@ class TasksService {
   /// This is used for the errands "My Post" button badge
   static Stream<int> getTotalPostActivityUnreadStream(String userId) {
     final controller = StreamController<int>.broadcast();
-    int _requesterUnread = 0;
-    int _interactedUnread = 0;
+    int requesterUnread = 0;
+    int interactedUnread = 0;
 
     void emitSum() {
       if (!controller.isClosed) {
-        controller.add(_requesterUnread + _interactedUnread);
+        controller.add(requesterUnread + interactedUnread);
       }
     }
 
@@ -119,7 +119,7 @@ class TasksService {
           return tasks.fold<int>(0, (sum, t) => sum + t.unreadVolunteersCount);
         })
         .listen((count) {
-          _requesterUnread = count;
+          requesterUnread = count;
           emitSum();
         });
 
@@ -127,7 +127,7 @@ class TasksService {
     final interactedSub = TaskChatService.getTotalUnreadForUserStream(
       userId,
     ).listen((count) {
-      _interactedUnread = count;
+      interactedUnread = count;
       emitSum();
     });
 
@@ -413,7 +413,7 @@ class TasksService {
         .map(
           (snapshot) =>
               snapshot.docs.map((doc) {
-                final data = doc.data() as Map<String, dynamic>;
+                final data = doc.data();
                 return <String, dynamic>{
                   'volunteerDocId': doc.id,
                   ...data,
@@ -529,7 +529,7 @@ class TasksService {
     if (!volunteerDoc.exists) {
       throw Exception('Volunteer not found');
     }
-    final data = volunteerDoc.data() as Map<String, dynamic>?;
+    final data = volunteerDoc.data();
     final volunteerId = data?['volunteerId'] as String?;
     final status = data?['status'] as String? ?? 'pending';
     final taskSnap = await taskRef.get();

@@ -9,10 +9,7 @@ import '../widgets/fullscreen_image_viewer.dart';
 class BulletinDetailScreen extends StatelessWidget {
   final BulletinModel bulletin;
 
-  const BulletinDetailScreen({
-    super.key,
-    required this.bulletin,
-  });
+  const BulletinDetailScreen({super.key, required this.bulletin});
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +20,8 @@ class BulletinDetailScreen extends StatelessWidget {
     final hasPdf = bulletin.hasPdf;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF4F4F4),
+      backgroundColor:
+          isDark ? const Color(0xFF121212) : const Color(0xFFF4F4F4),
       body: CustomScrollView(
         slivers: [
           // App bar with back button (overlaid on image if present)
@@ -53,9 +51,7 @@ class BulletinDetailScreen extends StatelessWidget {
             ),
 
           // Bottom padding
-          const SliverToBoxAdapter(
-            child: SizedBox(height: 32),
-          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 32)),
         ],
       ),
     );
@@ -86,7 +82,11 @@ class BulletinDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMediaHeader(BuildContext context, List<String> imageUrls, bool isDark) {
+  Widget _buildMediaHeader(
+    BuildContext context,
+    List<String> imageUrls,
+    bool isDark,
+  ) {
     final isSingleImage = imageUrls.length == 1;
 
     return Container(
@@ -97,7 +97,7 @@ class BulletinDetailScreen extends StatelessWidget {
           if (isSingleImage)
             GestureDetector(
               onTap: () => openFullscreenGallery(context, imageUrls),
-              child: Container(
+              child: SizedBox(
                 width: double.infinity,
                 height: 240,
                 child: OptimizedNetworkImage(
@@ -106,10 +106,12 @@ class BulletinDetailScreen extends StatelessWidget {
                   cacheWidth: 800,
                   cacheHeight: 480,
                   errorWidget: Container(
-                    color: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade200,
+                    color:
+                        isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade200,
                     child: Icon(
                       Icons.image_not_supported_outlined,
-                      color: isDark ? Colors.grey.shade600 : Colors.grey.shade400,
+                      color:
+                          isDark ? Colors.grey.shade600 : Colors.grey.shade400,
                       size: 48,
                     ),
                   ),
@@ -131,11 +133,12 @@ class BulletinDetailScreen extends StatelessWidget {
                       right: index == imageUrls.length - 1 ? 0 : 12,
                     ),
                     child: GestureDetector(
-                      onTap: () => openFullscreenGallery(
-                        context,
-                        imageUrls,
-                        initialIndex: index,
-                      ),
+                      onTap:
+                          () => openFullscreenGallery(
+                            context,
+                            imageUrls,
+                            initialIndex: index,
+                          ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
                         child: SizedBox(
@@ -150,14 +153,16 @@ class BulletinDetailScreen extends StatelessWidget {
                                 cacheHeight: 520,
                                 borderRadius: BorderRadius.circular(12),
                                 errorWidget: Container(
-                                  color: isDark
-                                      ? const Color(0xFF2A2A2A)
-                                      : Colors.grey.shade200,
+                                  color:
+                                      isDark
+                                          ? const Color(0xFF2A2A2A)
+                                          : Colors.grey.shade200,
                                   child: Icon(
                                     Icons.image_not_supported_outlined,
-                                    color: isDark
-                                        ? Colors.grey.shade600
-                                        : Colors.grey.shade400,
+                                    color:
+                                        isDark
+                                            ? Colors.grey.shade600
+                                            : Colors.grey.shade400,
                                     size: 40,
                                   ),
                                 ),
@@ -208,7 +213,9 @@ class BulletinDetailScreen extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  isSingleImage ? 'Tap image to expand' : 'Tap image to view fullscreen',
+                  isSingleImage
+                      ? 'Tap image to expand'
+                      : 'Tap image to view fullscreen',
                   style: TextStyle(
                     fontSize: 12,
                     color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
@@ -254,8 +261,7 @@ class BulletinDetailScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Category badge
-                if (category != null)
-                  _buildCategoryBadge(category, isDark),
+                if (category != null) _buildCategoryBadge(category, isDark),
 
                 if (category != null) const SizedBox(height: 16),
 
@@ -313,11 +319,7 @@ class BulletinDetailScreen extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            category.icon,
-            size: 16,
-            color: iconColor,
-          ),
+          Icon(category.icon, size: 16, color: iconColor),
           const SizedBox(width: 6),
           Text(
             category.title.toUpperCase(),

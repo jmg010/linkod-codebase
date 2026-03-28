@@ -1,5 +1,6 @@
 /// Purok labels for Barangay Cagbaoto: Purok Uno, Dos, Tres, Quatro, Singko.
 /// Used in profile, menu, and when creating posts/products/errands.
+library;
 
 const List<String> purokLabels = [
   'Purok 1',

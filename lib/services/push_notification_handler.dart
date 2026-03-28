@@ -488,6 +488,7 @@ class PushNotificationHandler {
             }
 
             if (otherPartyId != null && otherPartyId.isNotEmpty) {
+              final chatOtherPartyId = otherPartyId;
               Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   builder:
@@ -495,7 +496,7 @@ class PushNotificationHandler {
                         taskId: task.id,
                         taskTitle: task.title,
                         otherPartyName: otherPartyName,
-                        otherPartyId: otherPartyId,
+                        otherPartyId: chatOtherPartyId,
                         currentUserId: currentUid,
                       ),
                 ),

@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'bulletin_category_model.dart';
 
 class BulletinModel {
@@ -39,7 +38,9 @@ class BulletinModel {
   List<String> get allImageUrls {
     final urls = <String>[];
     // Add imageUrl only if it's not empty and not already in imageUrls
-    if (imageUrl != null && imageUrl!.isNotEmpty && !imageUrls.contains(imageUrl)) {
+    if (imageUrl != null &&
+        imageUrl!.isNotEmpty &&
+        !imageUrls.contains(imageUrl)) {
       urls.add(imageUrl!);
     }
     // Add all non-empty URLs from imageUrls list
@@ -51,11 +52,12 @@ class BulletinModel {
   bool get hasPdf => pdfUrl != null && pdfUrl!.isNotEmpty;
 
   factory BulletinModel.fromJson(Map<String, dynamic> json) {
-    final imageUrls = (json['imageUrls'] as List<dynamic>?)
+    final imageUrls =
+        (json['imageUrls'] as List<dynamic>?)
             ?.map((e) => e as String)
             .toList() ??
         [];
-    
+
     return BulletinModel(
       id: json['id'] as String? ?? '',
       title: json['title'] as String? ?? '',
@@ -63,13 +65,17 @@ class BulletinModel {
       imageUrl: json['imageUrl'] as String?,
       imageUrls: imageUrls,
       categoryId: json['categoryId'] as String? ?? '',
-      date: json['date'] is DateTime
-          ? json['date'] as DateTime
-          : DateTime.tryParse(json['date'] as String? ?? '') ?? DateTime.now(),
+      date:
+          json['date'] is DateTime
+              ? json['date'] as DateTime
+              : DateTime.tryParse(json['date'] as String? ?? '') ??
+                  DateTime.now(),
       location: json['location'] as String?,
-      createdAt: json['createdAt'] is DateTime
-          ? json['createdAt'] as DateTime
-          : DateTime.tryParse(json['createdAt'] as String? ?? '') ?? DateTime.now(),
+      createdAt:
+          json['createdAt'] is DateTime
+              ? json['createdAt'] as DateTime
+              : DateTime.tryParse(json['createdAt'] as String? ?? '') ??
+                  DateTime.now(),
       isPinned: json['isPinned'] as bool? ?? false,
       pdfUrl: json['pdfUrl'] as String?,
       pdfName: json['pdfName'] as String?,

@@ -332,7 +332,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               // Type dropdown
               DropdownButtonFormField<CreateType>(
                 key: _typeFieldKey,
-                value: _selectedType,
+                initialValue: _selectedType,
                 decoration: const InputDecoration(
                   labelText: 'Category/Module',
                   prefixIcon: Icon(Icons.category),
@@ -406,7 +406,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               // Category dropdown (announcement or product)
               if (isAnnouncement)
                 DropdownButtonFormField<PostCategory>(
-                  value: _selectedCategory,
+                  initialValue: _selectedCategory,
                   decoration: const InputDecoration(
                     labelText: 'Category',
                     prefixIcon: Icon(Icons.category_outlined),
@@ -429,7 +429,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 )
               else if (isProduct)
                 DropdownButtonFormField<String>(
-                  value: _selectedProductCategory,
+                  initialValue: _selectedProductCategory,
                   decoration: const InputDecoration(
                     labelText: 'Product Category',
                     prefixIcon: Icon(Icons.category_outlined),
@@ -454,7 +454,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 )
               else if (isTask)
                 DropdownButtonFormField<TaskPriority>(
-                  value: _selectedPriority,
+                  initialValue: _selectedPriority,
                   decoration: const InputDecoration(
                     labelText: 'Priority',
                     prefixIcon: Icon(Icons.flag_outlined),

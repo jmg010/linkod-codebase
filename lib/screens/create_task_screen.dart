@@ -458,7 +458,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                               setState(() => _pickedImages.add(xFile));
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text('${_totalImageCount} image(s)'),
+                                  content: Text('$_totalImageCount image(s)'),
                                 ),
                               );
                             }
@@ -718,7 +718,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                                                     ).showSnackBar(
                                                       SnackBar(
                                                         content: Text(
-                                                          '${_totalImageCount} image(s)',
+                                                          '$_totalImageCount image(s)',
                                                         ),
                                                       ),
                                                     );
@@ -894,7 +894,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return DropdownButtonFormField<String>(
-      value: _selectedCategory,
+      initialValue: _selectedCategory,
       dropdownColor: isDark ? const Color(0xFF2C2C2C) : Colors.white,
       decoration: InputDecoration(
         hintText: 'Category',

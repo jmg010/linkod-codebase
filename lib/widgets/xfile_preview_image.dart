@@ -3,8 +3,6 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import 'optimized_image.dart';
-
 /// Shows a preview of a picked image (XFile) in a fixed-size container.
 /// Optional [onTap] to open full-size (bytes loaded in memory).
 class XFilePreviewImage extends StatelessWidget {
@@ -31,8 +29,11 @@ class XFilePreviewImage extends StatelessWidget {
         if (snapshot.hasError || !snapshot.hasData) {
           return _container(
             context,
-            child: Icon(Icons.broken_image_outlined,
-                size: 32, color: Colors.grey.shade600),
+            child: Icon(
+              Icons.broken_image_outlined,
+              size: 32,
+              color: Colors.grey.shade600,
+            ),
           );
         }
         final bytes = snapshot.data!;
@@ -100,38 +101,43 @@ class XFilePreviewImage extends StatelessWidget {
       context: context,
       barrierColor: Colors.black,
       barrierDismissible: true,
-      builder: (context) => GestureDetector(
-        onTap: () => Navigator.of(context).pop(),
-        behavior: HitTestBehavior.opaque,
-        child: Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: EdgeInsets.zero,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              GestureDetector(
-                onTap: () => Navigator.of(context).pop(),
-                child: InteractiveViewer(
-                  minScale: 0.5,
-                  maxScale: 4,
-                  child: Center(
-                    child: Image.memory(bytes, fit: BoxFit.contain),
+      builder:
+          (context) => GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            behavior: HitTestBehavior.opaque,
+            child: Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: EdgeInsets.zero,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: InteractiveViewer(
+                      minScale: 0.5,
+                      maxScale: 4,
+                      child: Center(
+                        child: Image.memory(bytes, fit: BoxFit.contain),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              SafeArea(
-                child: Align(
-                  alignment: Alignment.topLeft,
-                  child: IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white, size: 28),
-                    onPressed: () => Navigator.of(context).pop(),
+                  SafeArea(
+                    child: Align(
+                      alignment: Alignment.topLeft,
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.close,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
     );
   }
 }

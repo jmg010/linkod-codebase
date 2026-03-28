@@ -841,7 +841,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
         ),
       ),
       child: DropdownButtonFormField<TaskStatus>(
-        value: _selectedStatus,
+        initialValue: _selectedStatus,
         decoration: const InputDecoration(
           contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           border: InputBorder.none,
@@ -1132,8 +1132,9 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                     future: _getVolunteerPhone(volunteerId),
                     builder: (context, snap) {
                       final phone = snap.data;
-                      if (phone == null || phone.isEmpty)
+                      if (phone == null || phone.isEmpty) {
                         return const SizedBox.shrink();
+                      }
                       return Padding(
                         padding: const EdgeInsets.only(top: 2),
                         child: Text(

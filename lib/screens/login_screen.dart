@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/user_role.dart';
 import '../services/fcm_token_service.dart';
-import 'create_account_screen.dart';
 import 'phone_only_registration_screen.dart';
 import 'home_screen.dart';
 import 'declined_status_screen.dart';

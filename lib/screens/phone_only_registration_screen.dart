@@ -24,8 +24,8 @@ class _PhoneOnlyRegistrationScreenState
     extends State<PhoneOnlyRegistrationScreen>
     with TickerProviderStateMixin {
   final _phoneController = TextEditingController();
-  String _selectedCountryCode = '+63'; // Default to Philippines
-  String _selectedCountryName = 'Philippines';
+  final String _selectedCountryCode = '+63'; // Default to Philippines
+  final String _selectedCountryName = 'Philippines';
   bool _isValidPhone = false;
   String? _error;
   late AnimationController _slideController;
@@ -49,9 +49,7 @@ class _PhoneOnlyRegistrationScreenState
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 1),
       end: Offset.zero,
-    ).animate(
-      CurvedAnimation(parent: _slideController, curve: Curves.easeOut),
-    );
+    ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOut));
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _slideController.forward();
     });
@@ -139,168 +137,168 @@ class _PhoneOnlyRegistrationScreenState
                     ),
                   ),
                   child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 32,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Center(
-                        child: Text(
-                          "Create an account",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 32,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Center(
+                          child: Text(
+                            "Create an account",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      const Center(
-                        child: Text(
-                          "Enter your phone number to get started",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                        const SizedBox(height: 12),
+                        const Center(
+                          child: Text(
+                            "Enter your phone number to get started",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 16, color: Colors.grey),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 32),
+                        const SizedBox(height: 32),
 
-                      // PHONE NUMBER INPUT
-                      const Text("Phone Number"),
-                      const SizedBox(height: 6),
-                      Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            // Country code selector
-                            InkWell(
-                              onTap: () {
-                                // For now, only Philippines is supported
-                                // Could expand to show country picker later
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 14,
-                                ),
-                                decoration: BoxDecoration(
-                                  border: Border(
-                                    right: BorderSide(
-                                      color: Colors.grey.shade300,
-                                    ),
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Text(
-                                      _philippineCountry['flag']!,
-                                      style: const TextStyle(fontSize: 20),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      _philippineCountry['code']!,
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Icon(
-                                      Icons.keyboard_arrow_down,
-                                      color: Colors.grey.shade600,
-                                      size: 20,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-
-                            // Phone number input
-                            Expanded(
-                              child: TextField(
-                                controller: _phoneController,
-                                keyboardType: TextInputType.phone,
-                                maxLength: 10, // Philippine mobile: 10 digits
-                                decoration: InputDecoration(
-                                  hintText: '9XX XXX XXXX',
-                                  counterText: '',
-                                  border: InputBorder.none,
-                                  contentPadding: const EdgeInsets.symmetric(
+                        // PHONE NUMBER INPUT
+                        const Text("Phone Number"),
+                        const SizedBox(height: 6),
+                        Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              // Country code selector
+                              InkWell(
+                                onTap: () {
+                                  // For now, only Philippines is supported
+                                  // Could expand to show country picker later
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
                                     horizontal: 12,
                                     vertical: 14,
                                   ),
+                                  decoration: BoxDecoration(
+                                    border: Border(
+                                      right: BorderSide(
+                                        color: Colors.grey.shade300,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Text(
+                                        _philippineCountry['flag']!,
+                                        style: const TextStyle(fontSize: 20),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        _philippineCountry['code']!,
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Icon(
+                                        Icons.keyboard_arrow_down,
+                                        color: Colors.grey.shade600,
+                                        size: 20,
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
 
-                      if (_error != null) ...[
-                        const SizedBox(height: 8),
+                              // Phone number input
+                              Expanded(
+                                child: TextField(
+                                  controller: _phoneController,
+                                  keyboardType: TextInputType.phone,
+                                  maxLength: 10, // Philippine mobile: 10 digits
+                                  decoration: InputDecoration(
+                                    hintText: '9XX XXX XXXX',
+                                    counterText: '',
+                                    border: InputBorder.none,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 14,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        if (_error != null) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            _error!,
+                            style: const TextStyle(
+                              color: Colors.red,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+
+                        const SizedBox(height: 12),
                         Text(
-                          _error!,
-                          style: const TextStyle(
-                            color: Colors.red,
+                          "We'll send a verification code to this number",
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
                             fontSize: 14,
                           ),
                         ),
-                      ],
 
-                      const SizedBox(height: 12),
-                      Text(
-                        "We'll send a verification code to this number",
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 14,
-                        ),
-                      ),
+                        const SizedBox(height: 40),
 
-                      const SizedBox(height: 40),
-
-                      // CONTINUE BUTTON
-                      Center(
-                        child: SizedBox(
-                          width: MediaQuery.of(context).size.width * 0.7,
-                          height: 50,
-                          child: ElevatedButton(
-                            onPressed: _isValidPhone ? _continueToOtp : null,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF00A651),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
+                        // CONTINUE BUTTON
+                        Center(
+                          child: SizedBox(
+                            width: MediaQuery.of(context).size.width * 0.7,
+                            height: 50,
+                            child: ElevatedButton(
+                              onPressed: _isValidPhone ? _continueToOtp : null,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF00A651),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                              ),
+                              child: const Text(
+                                'Continue',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.white,
+                                ),
                               ),
                             ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // BACK TO LOGIN
+                        Center(
+                          child: TextButton(
+                            onPressed: () => Navigator.of(context).pop(),
                             child: const Text(
-                              'Continue',
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: Colors.white,
-                              ),
+                              'Already have an account? Sign in',
+                              style: TextStyle(color: Color(0xFF00A651)),
                             ),
                           ),
                         ),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // BACK TO LOGIN
-                      Center(
-                        child: TextButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: const Text(
-                            'Already have an account? Sign in',
-                            style: TextStyle(color: Color(0xFF00A651)),
-                          ),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
                 ),
               ),
             ),

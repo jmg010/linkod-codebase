@@ -47,7 +47,7 @@ class _OtpVerificationProcessingScreenState
     try {
       // Debug logging
       debugPrint('Requesting OTP for phone: ${widget.phoneNumber}');
-      debugPrint('FCM Token: ${widget.fcmToken?.substring(0, 20)}...');
+      debugPrint('FCM Token: ${widget.fcmToken.substring(0, 20)}...');
 
       // Request OTP from backend
       final success = await OtpService.instance.requestOtp(

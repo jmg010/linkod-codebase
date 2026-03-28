@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../models/post_model.dart';
 import '../widgets/announcement_card.dart';
 import '../services/announcements_service.dart';

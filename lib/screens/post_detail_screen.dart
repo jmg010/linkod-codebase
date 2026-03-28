@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../models/post_model.dart';
 import '../services/posts_service.dart';
 import '../services/firestore_service.dart';
 import '../services/current_post_tracker.dart';
 import '../widgets/post_card.dart';
-import '../ui_constants.dart';
 
 /// Shows a single post by ID. Used when user opens the app from a push
 /// notification (data payload postId) or from in-app navigation.

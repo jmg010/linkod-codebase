@@ -15,7 +15,7 @@ import 'suspended_status_screen.dart';
 import '../models/user_role.dart';
 
 class LandingScreen extends StatefulWidget {
-  const LandingScreen({Key? key}) : super(key: key);
+  const LandingScreen({super.key});
 
   @override
   State<LandingScreen> createState() => _LandingScreenState();
