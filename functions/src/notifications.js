@@ -111,6 +111,47 @@ function buildDataPayload(notificationId, data) {
   return payload;
 }
 
+function buildSemanticDedupKey(notificationId, userId, data) {
+  const type = toStr(data.type) || 'notification';
+
+  // Build strong semantic keys for known notification event types so duplicate
+  // docs (from legacy + new pipelines) still emit only one push.
+  const taskId = toStr(data.taskId);
+  const productId = toStr(data.productId);
+  const postId = toStr(data.postId);
+  const commentId = toStr(data.commentId);
+  const messageId = toStr(data.messageId);
+  const parentMessageId = toStr(data.parentMessageId);
+  const announcementId = toStr(data.announcementId);
+  const senderId = toStr(data.senderId);
+
+  const partsByType = {
+    task_chat_message: [userId, taskId, messageId],
+    product_message: [userId, productId, messageId],
+    reply: [userId, productId || postId, parentMessageId, messageId],
+    comment: [userId, postId, commentId || messageId],
+    like: [userId, postId, senderId],
+    task_volunteer: [userId, taskId, senderId],
+    volunteer_accepted: [userId, taskId, senderId],
+    task_approved: [userId, taskId],
+    product_approved: [userId, productId],
+    announcement: [userId, announcementId],
+    account_approved: [userId],
+  };
+
+  const selected = partsByType[type];
+  if (selected) {
+    const clean = selected
+      .map((v) => (v === null || v === undefined ? '' : String(v).trim()))
+      .filter((v) => v.length);
+    if (clean.length === selected.length) {
+      return `${type}:${clean.join(':')}`;
+    }
+  }
+
+  return `notification:${notificationId}`;
+}
+
 exports.sendPushForNotification = functions.firestore
   .document('notifications/{notificationId}')
   .onCreate(async (snap, context) => {
@@ -121,6 +162,56 @@ exports.sendPushForNotification = functions.firestore
     if (!userId) {
       functions.logger.warn('Notification missing userId', { notificationId });
       return;
+    }
+
+    // Strong idempotency guard by notification id.
+    const dispatchLockRef = db
+      .collection('_notification_dispatch_locks')
+      .doc(notificationId);
+    try {
+      await dispatchLockRef.create({
+        notificationId,
+        userId,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      const code = e && e.code;
+      if (code === 6 || code === 'already-exists' || code === 'ALREADY_EXISTS') {
+        functions.logger.info('Duplicate dispatch skipped by lock', {
+          notificationId,
+          userId,
+        });
+        return;
+      }
+      throw e;
+    }
+
+    // Semantic idempotency guard. For task chat messages this deduplicates by
+    // user + task + message so multiple notification docs still produce one push.
+    const semanticKey = buildSemanticDedupKey(notificationId, userId, data);
+    const semanticLockRef = db
+      .collection('_notification_dispatch_semantic_locks')
+      .doc(semanticKey);
+
+    try {
+      await semanticLockRef.create({
+        notificationId,
+        semanticKey,
+        userId,
+        type: toStr(data.type) || 'notification',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      const code = e && e.code;
+      if (code === 6 || code === 'already-exists' || code === 'ALREADY_EXISTS') {
+        functions.logger.info('Duplicate dispatch skipped by semantic lock', {
+          notificationId,
+          semanticKey,
+          userId,
+        });
+        return;
+      }
+      throw e;
     }
 
     const devicesSnap = await db
@@ -139,9 +230,21 @@ exports.sendPushForNotification = functions.firestore
 
     const tokenEntries = [];
     for (const doc of devicesSnap.docs) {
-      const fcmToken = toStr(doc.data().fcmToken);
+      const row = doc.data() || {};
+      const fcmToken = toStr(row.fcmToken);
       if (fcmToken) {
-        tokenEntries.push({ token: fcmToken, ref: doc.ref });
+        const installationId = toStr(row.installationId);
+        const lastActiveRaw = row.lastActive;
+        const lastActiveMs =
+          lastActiveRaw && typeof lastActiveRaw.toMillis === 'function'
+            ? lastActiveRaw.toMillis()
+            : 0;
+        tokenEntries.push({
+          token: fcmToken,
+          ref: doc.ref,
+          installationId,
+          lastActiveMs,
+        });
       }
     }
 
@@ -153,14 +256,18 @@ exports.sendPushForNotification = functions.firestore
       return;
     }
 
-    // Defensive dedupe in case legacy docs contain repeated tokens.
-    const dedupedByToken = new Map();
+    // Prefer one token per installationId when present, otherwise dedupe by token.
+    const dedupedByTarget = new Map();
     for (const entry of tokenEntries) {
-      if (!dedupedByToken.has(entry.token)) {
-        dedupedByToken.set(entry.token, entry);
+      const key = entry.installationId
+        ? `install:${entry.installationId}`
+        : `token:${entry.token}`;
+      const existing = dedupedByTarget.get(key);
+      if (!existing || entry.lastActiveMs > existing.lastActiveMs) {
+        dedupedByTarget.set(key, entry);
       }
     }
-    const dedupedEntries = Array.from(dedupedByToken.values());
+    const dedupedEntries = Array.from(dedupedByTarget.values());
 
     const type = toStr(data.type) || 'notification';
     const title = titleForType(type);
@@ -177,6 +284,9 @@ exports.sendPushForNotification = functions.firestore
       android: {
         priority: 'high',
         collapseKey: notificationId,
+        notification: {
+          tag: notificationId,
+        },
       },
       apns: {
         headers: {
@@ -185,6 +295,7 @@ exports.sendPushForNotification = functions.firestore
         payload: {
           aps: {
             sound: 'default',
+            'thread-id': notificationId,
           },
         },
       },
@@ -216,4 +327,22 @@ exports.sendPushForNotification = functions.firestore
       failureCount: response.failureCount,
       staleTokensRemoved: staleRefs.length,
     });
+
+    await dispatchLockRef.set(
+      {
+        sentAt: admin.firestore.FieldValue.serverTimestamp(),
+        successCount: response.successCount,
+        failureCount: response.failureCount,
+      },
+      { merge: true },
+    );
+
+    await semanticLockRef.set(
+      {
+        sentAt: admin.firestore.FieldValue.serverTimestamp(),
+        successCount: response.successCount,
+        failureCount: response.failureCount,
+      },
+      { merge: true },
+    );
   });

@@ -98,6 +98,55 @@ class NotificationsService {
         .map((snapshot) => snapshot.docs.length);
   }
 
+  /// Stream of unread task chat notifications count.
+  static Stream<int> getTaskChatUnreadCountStream(String userId) {
+    return _notificationsCollection
+        .where('userId', isEqualTo: userId)
+        .where('type', isEqualTo: 'task_chat_message')
+        .where('isRead', isEqualTo: false)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.length);
+  }
+
+  /// Stream of unread task_approved notifications count.
+  static Stream<int> getTaskApprovedUnreadCountStream(String userId) {
+    return _notificationsCollection
+        .where('userId', isEqualTo: userId)
+        .where('type', isEqualTo: 'task_approved')
+        .where('isRead', isEqualTo: false)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.length);
+  }
+
+  /// Stream of unread errand-related notifications.
+  /// Used for Job/Errands nav badge as a safety source so badge stays visible
+  /// whenever unread errand notifications exist.
+  static Stream<int> getUnreadErrandActivityCountStream(String userId) {
+    const errandTypes = <String>{
+      'task_volunteer',
+      'volunteer_accepted',
+      'task_chat_message',
+      'task_approved',
+    };
+
+    return _notificationsCollection
+        .where('userId', isEqualTo: userId)
+        .where('isRead', isEqualTo: false)
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs.where((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            final type = data['type'] as String?;
+            if (type == null) return false;
+            if (errandTypes.contains(type)) return true;
+
+            // Legacy fallback: task-linked notifications should count.
+            final hasTaskId = (data['taskId'] as String?)?.isNotEmpty ?? false;
+            return hasTaskId;
+          }).length;
+        });
+  }
+
   /// Stream of unread marketplace interaction notifications.
   /// Includes comments/messages/replies related to products.
   static Stream<int> getUnreadMarketplaceActivityCountStream(String userId) {
@@ -198,6 +247,39 @@ class NotificationsService {
         await _notificationsCollection
             .where('userId', isEqualTo: userId)
             .where('type', isEqualTo: 'task_volunteer')
+            .where('taskId', isEqualTo: taskId)
+            .where('isRead', isEqualTo: false)
+            .get();
+
+    if (notifications.docs.isEmpty) return;
+
+    final batch = FirestoreService.instance.batch();
+    int unreadCount = 0;
+
+    for (final doc in notifications.docs) {
+      batch.update(doc.reference, {'isRead': true});
+      unreadCount++;
+    }
+
+    await batch.commit();
+
+    if (unreadCount > 0) {
+      final userRef = FirestoreService.instance.collection('users').doc(userId);
+      await userRef.set({
+        'unreadNotificationCount': FieldValue.increment(-unreadCount),
+      }, SetOptions(merge: true));
+    }
+  }
+
+  /// Mark task_chat_message notifications as read for a specific task.
+  static Future<void> markTaskChatAsReadByTask(
+    String userId,
+    String taskId,
+  ) async {
+    final notifications =
+        await _notificationsCollection
+            .where('userId', isEqualTo: userId)
+            .where('type', isEqualTo: 'task_chat_message')
             .where('taskId', isEqualTo: taskId)
             .where('isRead', isEqualTo: false)
             .get();

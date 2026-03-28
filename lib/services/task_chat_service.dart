@@ -63,26 +63,33 @@ class TaskChatService {
       if (receiverId != null &&
           receiverId.isNotEmpty &&
           receiverId != senderId) {
-        final batch = FirestoreService.instance.batch();
-        final notifRef =
-            FirestoreService.instance.collection('notifications').doc();
-        batch.set(notifRef, {
-          'userId': receiverId,
-          'senderId': senderId,
-          'type': 'task_chat_message',
-          'taskId': taskId,
-          'messageId': docRef.id,
-          'isRead': false,
-          'message': '$senderName sent you a message in your errand chat',
-          'createdAt': FieldValue.serverTimestamp(),
-        });
+        // Idempotent notification key: same messageId + receiver should create only once.
+        final notifDocId = 'task_chat_${taskId}_${docRef.id}_${receiverId}';
+        final notifRef = FirestoreService.instance
+            .collection('notifications')
+            .doc(notifDocId);
         final userRef = FirestoreService.instance
             .collection('users')
             .doc(receiverId);
-        batch.set(userRef, {
-          'unreadNotificationCount': FieldValue.increment(1),
-        }, SetOptions(merge: true));
-        await batch.commit();
+
+        await FirestoreService.instance.runTransaction((tx) async {
+          final existing = await tx.get(notifRef);
+          if (existing.exists) return;
+
+          tx.set(notifRef, {
+            'userId': receiverId,
+            'senderId': senderId,
+            'type': 'task_chat_message',
+            'taskId': taskId,
+            'messageId': docRef.id,
+            'isRead': false,
+            'message': '$senderName sent you a message in your errand chat',
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+          tx.set(userRef, {
+            'unreadNotificationCount': FieldValue.increment(1),
+          }, SetOptions(merge: true));
+        });
       }
     } catch (e) {
       print('FAILED to create task chat notification for task $taskId: $e');

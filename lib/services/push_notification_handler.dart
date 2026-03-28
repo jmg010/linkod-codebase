@@ -34,6 +34,8 @@ class PushNotificationHandler {
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
   bool _initialized = false;
+  static final Map<String, DateTime> _recentForegroundNotifKeys =
+      <String, DateTime>{};
 
   /// Call after Firebase is initialized. Sets up foreground display and tap handling.
   /// No-op on web/desktop so the app does not depend on FCM there.
@@ -63,6 +65,15 @@ class PushNotificationHandler {
           ?.createNotificationChannel(_channel);
     }
 
+    // We always render our own local notification for foreground messages.
+    // Disable OS foreground presentation to avoid showing two notifications.
+    await FirebaseMessaging.instance
+        .setForegroundNotificationPresentationOptions(
+          alert: false,
+          badge: false,
+          sound: false,
+        );
+
     // Foreground: show a local notification so user sees it; tap uses payload.
     FirebaseMessaging.onMessage.listen(_showForegroundNotification);
 
@@ -70,6 +81,42 @@ class PushNotificationHandler {
     FirebaseMessaging.onMessageOpenedApp.listen(_navigateFromMessage);
 
     _initialized = true;
+  }
+
+  static String _foregroundDedupKey(RemoteMessage message) {
+    final data = message.data;
+    final notificationId = data['notificationId']?.toString();
+    if (notificationId != null &&
+        notificationId.isNotEmpty &&
+        notificationId != 'null') {
+      return 'nid:$notificationId';
+    }
+
+    final type = data['type']?.toString() ?? 'unknown';
+    final taskId = data['taskId']?.toString() ?? '';
+    final productId = data['productId']?.toString() ?? '';
+    final postId = data['postId']?.toString() ?? '';
+    final messageId = data['messageId']?.toString() ?? '';
+    final senderId = data['senderId']?.toString() ?? '';
+    final body = message.notification?.body ?? '';
+    return 'fallback:$type|$taskId|$productId|$postId|$messageId|$senderId|$body';
+  }
+
+  static bool _shouldSuppressForegroundDuplicate(RemoteMessage message) {
+    final now = DateTime.now();
+    final key = _foregroundDedupKey(message);
+
+    _recentForegroundNotifKeys.removeWhere(
+      (_, ts) => now.difference(ts).inSeconds > 20,
+    );
+
+    final seenAt = _recentForegroundNotifKeys[key];
+    if (seenAt != null && now.difference(seenAt).inSeconds <= 20) {
+      return true;
+    }
+
+    _recentForegroundNotifKeys[key] = now;
+    return false;
   }
 
   void _onNotificationTap(NotificationResponse response) {
@@ -153,6 +200,10 @@ class PushNotificationHandler {
   }
 
   void _showForegroundNotification(RemoteMessage message) {
+    if (_shouldSuppressForegroundDuplicate(message)) {
+      return;
+    }
+
     final type = message.data['type'] as String?;
     final rawNotificationId = message.data['notificationId']?.toString();
     final localNotificationId =

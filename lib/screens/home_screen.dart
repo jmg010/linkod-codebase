@@ -306,7 +306,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Stream<int> _getErrandNotificationCountStream() {
     final uid = FirestoreService.currentUserId;
     if (uid == null) return Stream<int>.value(0);
-    return Rx.combineLatest4<int, int, int, int, int>(
+    return Rx.combineLatest6<int, int, int, int, int, int, int>(
       TasksService.getTotalPostActivityUnreadStream(uid),
       NotificationsService.getVolunteerAcceptedUnreadCountStream(uid),
       TasksService.getRequesterTasksStream(uid).map(
@@ -314,17 +314,33 @@ class _HomeScreenState extends State<HomeScreen> {
             tasks.fold<int>(0, (sum, t) => sum + t.unreadVolunteersCount),
       ),
       NotificationsService.getTaskVolunteerUnreadCountStream(uid),
+      NotificationsService.getTaskChatUnreadCountStream(uid),
+      NotificationsService.getTaskApprovedUnreadCountStream(uid),
       (
         taskActivityCount,
         volunteerAcceptedCount,
         requesterVolunteerCount,
         taskVolunteerNotifCount,
+        taskChatNotifCount,
+        taskApprovedNotifCount,
       ) {
         final volunteerFallback =
             taskVolunteerNotifCount > requesterVolunteerCount
                 ? (taskVolunteerNotifCount - requesterVolunteerCount)
                 : 0;
-        return taskActivityCount + volunteerAcceptedCount + volunteerFallback;
+        final chatDerived =
+            taskActivityCount > requesterVolunteerCount
+                ? (taskActivityCount - requesterVolunteerCount)
+                : 0;
+        final chatFallback =
+            taskChatNotifCount > chatDerived
+                ? (taskChatNotifCount - chatDerived)
+                : 0;
+        return taskActivityCount +
+            volunteerAcceptedCount +
+            volunteerFallback +
+            chatFallback +
+            taskApprovedNotifCount;
       },
     );
   }
@@ -481,7 +497,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<bool?> _showExitConfirmationDialog() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     const primaryGreen = Color(0xFF00A651);
-    
+
     return showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -511,9 +527,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: isDark
-                          ? const Color(0xFF2C2C2C)
-                          : const Color(0xFFF0F9F5),
+                      color:
+                          isDark
+                              ? const Color(0xFF2C2C2C)
+                              : const Color(0xFFF0F9F5),
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(20),
                         topRight: Radius.circular(20),
@@ -556,7 +573,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w500,
-                        color: isDark ? Colors.grey.shade300 : const Color(0xFF4C4C4C),
+                        color:
+                            isDark
+                                ? Colors.grey.shade300
+                                : const Color(0xFF4C4C4C),
                       ),
                     ),
                   ),
@@ -594,7 +614,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           onPressed: () => Navigator.of(context).pop(false),
                           style: OutlinedButton.styleFrom(
                             foregroundColor:
-                                isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                                isDark
+                                    ? Colors.grey.shade300
+                                    : Colors.grey.shade700,
                             side: BorderSide(
                               color:
                                   isDark

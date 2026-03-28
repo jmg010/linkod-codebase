@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -34,6 +35,7 @@ class FcmTokenService {
   StreamSubscription<User?>? _authSub;
   StreamSubscription<String>? _tokenRefreshSub;
   bool _started = false;
+  static const String _installationIdPrefKey = 'linkod_fcm_installation_id';
 
   bool get _isSupportedPlatform {
     if (kIsWeb) return false;
@@ -147,14 +149,28 @@ class FcmTokenService {
     if (!_isSupportedPlatform) return;
     try {
       final token = await FirebaseMessaging.instance.getToken();
-      if (token == null || token.trim().isEmpty) return;
-      final tid = tokenIdFromToken(token);
-      await FirebaseFirestore.instance
+      final installationId = await _getOrCreateInstallationId();
+      final devicesRef = FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
-          .collection('devices')
-          .doc(tid)
-          .delete();
+          .collection('devices');
+
+      if (token != null && token.trim().isNotEmpty) {
+        final tid = tokenIdFromToken(token);
+        await devicesRef.doc(tid).delete();
+      }
+
+      final sameInstallationDocs =
+          await devicesRef
+              .where('installationId', isEqualTo: installationId)
+              .get();
+      if (sameInstallationDocs.docs.isNotEmpty) {
+        final batch = FirebaseFirestore.instance.batch();
+        for (final doc in sameInstallationDocs.docs) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+      }
     } catch (e) {
       if (kDebugMode) {
         // ignore: avoid_print
@@ -219,6 +235,18 @@ class FcmTokenService {
     }
   }
 
+  Future<String> _getOrCreateInstallationId() async {
+    final prefs = await SharedPreferences.getInstance();
+    final existing = prefs.getString(_installationIdPrefKey);
+    if (existing != null && existing.isNotEmpty) return existing;
+
+    final rand = Random.secure();
+    final bytes = List<int>.generate(16, (_) => rand.nextInt(256));
+    final id = base64Url.encode(bytes).replaceAll('=', '');
+    await prefs.setString(_installationIdPrefKey, id);
+    return id;
+  }
+
   /// Determines where to store token for the current session.
   ///
   /// For backward compatibility, a user doc without `isApproved` is treated as
@@ -265,6 +293,7 @@ class FcmTokenService {
   }) async {
     try {
       final tid = tokenIdFromToken(token);
+      final installationId = await _getOrCreateInstallationId();
       final devicesRef = FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
@@ -272,6 +301,7 @@ class FcmTokenService {
 
       await devicesRef.doc(tid).set({
         'fcmToken': token,
+        'installationId': installationId,
         'platform': _platform,
         'lastActive': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
@@ -287,6 +317,24 @@ class FcmTokenService {
       if (stale.isNotEmpty) {
         final batch = FirebaseFirestore.instance.batch();
         for (final ref in stale) {
+          batch.delete(ref);
+        }
+        await batch.commit();
+      }
+
+      // Ensure one active token per app installation for this user.
+      final sameInstallationDocs =
+          await devicesRef
+              .where('installationId', isEqualTo: installationId)
+              .get();
+      final staleInstallationRefs =
+          sameInstallationDocs.docs
+              .where((doc) => doc.id != tid)
+              .map((d) => d.reference)
+              .toList();
+      if (staleInstallationRefs.isNotEmpty) {
+        final batch = FirebaseFirestore.instance.batch();
+        for (final ref in staleInstallationRefs) {
           batch.delete(ref);
         }
         await batch.commit();

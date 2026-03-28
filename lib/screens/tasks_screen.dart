@@ -436,7 +436,9 @@ class TasksScreenState extends State<TasksScreen> {
                         margin: const EdgeInsets.only(bottom: 16),
                         decoration: BoxDecoration(
                           color:
-                              isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                              isDark
+                                  ? const Color.fromARGB(255, 16, 16, 16)
+                                  : const Color.fromARGB(255, 248, 248, 248),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: const Color(0xFF00A651).withOpacity(0.4),

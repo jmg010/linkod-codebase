@@ -108,6 +108,7 @@ class ProductsService {
     };
     if (parentId != null) data['parentId'] = parentId;
     final docRef = await messagesRef.add(data);
+    String? sellerId;
 
     // Increment messagesCount
     await _productsCollection.doc(productId).update({
@@ -119,7 +120,7 @@ class ProductsService {
     try {
       final productSnap = await _productsCollection.doc(productId).get();
       final productData = productSnap.data() as Map<String, dynamic>?;
-      final sellerId = productData?['sellerId'] as String?;
+      sellerId = productData?['sellerId'] as String?;
       final sellerName = productData?['sellerName'] as String? ?? 'Unknown';
       final productTitle =
           productData?['title'] as String? ?? 'Unknown Product';
@@ -177,6 +178,11 @@ class ProductsService {
           final parentData = parentMsg.data();
           final parentSenderId = parentData?['senderId'] as String?;
           if (parentSenderId != null && parentSenderId != senderId) {
+            // Avoid duplicate notifications for the seller on the same reply event.
+            // Seller already receives product_message above for non-seller messages.
+            if (!isSeller && sellerId != null && parentSenderId == sellerId) {
+              return docRef.id;
+            }
             final batch = FirestoreService.instance.batch();
             final notifRef =
                 FirestoreService.instance.collection('notifications').doc();

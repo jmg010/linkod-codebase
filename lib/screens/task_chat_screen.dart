@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/task_chat_message_model.dart';
 import '../services/task_chat_service.dart';
 import '../services/firestore_service.dart';
+import '../services/notifications_service.dart';
 import '../services/name_formatter.dart';
 import '../widgets/resident_profile_dialog.dart';
 import '../widgets/optimized_image.dart';
@@ -68,6 +69,10 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
     super.initState();
     _messagesStream = TaskChatService.getMessagesStream(widget.taskId);
     TaskChatService.markChatRead(widget.taskId, widget.currentUserId);
+    NotificationsService.markTaskChatAsReadByTask(
+      widget.currentUserId,
+      widget.taskId,
+    );
     _loadOtherPartyData();
   }
 
@@ -139,15 +144,20 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
     final text = _controller.text.trim();
     if (text.isEmpty || _isSending) return;
 
-    final userDoc =
-        await FirestoreService.instance
-            .collection('users')
-            .doc(widget.currentUserId)
-            .get();
-    final senderName = NameFormatter.fromUserDataDisplay(userDoc.data());
+    if (mounted) {
+      setState(() => _isSending = true);
+    } else {
+      _isSending = true;
+    }
 
-    setState(() => _isSending = true);
     try {
+      final userDoc =
+          await FirestoreService.instance
+              .collection('users')
+              .doc(widget.currentUserId)
+              .get();
+      final senderName = NameFormatter.fromUserDataDisplay(userDoc.data());
+
       await TaskChatService.sendMessage(
         widget.taskId,
         widget.currentUserId,
