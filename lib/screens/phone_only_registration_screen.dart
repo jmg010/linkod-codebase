@@ -21,12 +21,15 @@ class PhoneOnlyRegistrationScreen extends StatefulWidget {
 }
 
 class _PhoneOnlyRegistrationScreenState
-    extends State<PhoneOnlyRegistrationScreen> {
+    extends State<PhoneOnlyRegistrationScreen>
+    with TickerProviderStateMixin {
   final _phoneController = TextEditingController();
   String _selectedCountryCode = '+63'; // Default to Philippines
   String _selectedCountryName = 'Philippines';
   bool _isValidPhone = false;
   String? _error;
+  late AnimationController _slideController;
+  late Animation<Offset> _slideAnimation;
 
   // Philippine country code
   final Map<String, String> _philippineCountry = {
@@ -39,11 +42,25 @@ class _PhoneOnlyRegistrationScreenState
   void initState() {
     super.initState();
     _phoneController.addListener(_validatePhoneNumber);
+    _slideController = AnimationController(
+      duration: const Duration(milliseconds: 350),
+      vsync: this,
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 1),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(parent: _slideController, curve: Curves.easeOut),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _slideController.forward();
+    });
   }
 
   @override
   void dispose() {
     _phoneController.dispose();
+    _slideController.dispose();
     super.dispose();
   }
 
@@ -110,16 +127,18 @@ class _PhoneOnlyRegistrationScreenState
             ),
             const SizedBox(height: 30),
             Expanded(
-              child: Container(
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(30),
-                    topRight: Radius.circular(30),
+              child: SlideTransition(
+                position: _slideAnimation,
+                child: Container(
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(30),
+                      topRight: Radius.circular(30),
+                    ),
                   ),
-                ),
-                child: SingleChildScrollView(
+                  child: SingleChildScrollView(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 24,
                     vertical: 32,
@@ -281,6 +300,7 @@ class _PhoneOnlyRegistrationScreenState
                       ),
                     ],
                   ),
+                ),
                 ),
               ),
             ),

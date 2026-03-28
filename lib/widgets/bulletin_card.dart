@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/bulletin_model.dart';
 import 'bulletin_metadata_row.dart';
+import 'optimized_image.dart';
 import '../screens/bulletin_detail_screen.dart';
 
 /// Card widget for displaying bulletin items.
@@ -141,14 +142,20 @@ class BulletinCard extends StatelessWidget {
                   ),
                   child: AspectRatio(
                     aspectRatio: 16 / 9,
-                    child: Image.network(
-                      allImageUrls.first,
+                    child: OptimizedNetworkImage(
+                      imageUrl: allImageUrls.first,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        color: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade300,
+                      errorWidget: Container(
+                        color:
+                            isDark
+                                ? const Color(0xFF2A2A2A)
+                                : Colors.grey.shade300,
                         child: Icon(
                           Icons.image_not_supported_outlined,
-                          color: isDark ? Colors.grey.shade600 : Colors.grey.shade500,
+                          color:
+                              isDark
+                                  ? Colors.grey.shade600
+                                  : Colors.grey.shade500,
                           size: 32,
                         ),
                       ),

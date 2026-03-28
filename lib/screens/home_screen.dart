@@ -361,79 +361,258 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     final marketplaceStream = _cachedMarketplaceStream ?? Stream<int>.value(0);
 
-    return Scaffold(
-      body: Column(
-        children: [
-          StreamBuilder<int>(
-            stream: errandStream,
-            initialData: 0,
-            builder: (context, errandSnap) {
-              final errandCount = errandSnap.data ?? 0;
-              return StreamBuilder<int>(
-                stream: postCommentsStream,
-                initialData: 0,
-                builder: (context, postSnap) {
-                  final postCommentsCount = postSnap.data ?? 0;
-                  return StreamBuilder<int>(
-                    stream: marketplaceStream,
-                    initialData: 0,
-                    builder: (context, marketplaceSnap) {
-                      final marketplaceCount = marketplaceSnap.data ?? 0;
-                      return LinkodNavbar(
-                        currentDestination: _currentNavDestination,
-                        onDestinationChanged: _handleNavDestinationChange,
-                        hasUnreadAnnouncements: _hasUnreadAnnouncements,
-                        errandNotificationCount: errandCount,
-                        postCommentsNotificationCount: postCommentsCount,
-                        marketplaceNotificationCount: marketplaceCount,
-                        barangayLogoUrl: _barangayLogoUrl,
-                      );
-                    },
-                  );
-                },
-              );
-            },
-          ),
-          // Content area with swipe support
-          Expanded(
-            child: PageView(
-              controller: _pageController,
-              onPageChanged: (index) {
-                // If the user tapped a destination far away (e.g. Menu -> Home),
-                // PageView animates across intermediate pages and fires onPageChanged
-                // for those pages. Ignore those intermediate indices so the navbar
-                // doesn't appear to "force" Announcements as a stopover.
-                final ignoreUntil = _ignoreOnPageChangedUntilIndex;
-                if (ignoreUntil != null && index != ignoreUntil) {
-                  return;
-                }
-                setState(() {
-                  _currentIndex = index;
-                  if (ignoreUntil != null && index == ignoreUntil) {
-                    _ignoreOnPageChangedUntilIndex = null;
-                  }
-                  // Update nav destination based on index
-                  _currentNavDestination = _destinationForIndex(index);
-                });
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Scaffold(
+        body: Column(
+          children: [
+            StreamBuilder<int>(
+              stream: errandStream,
+              initialData: 0,
+              builder: (context, errandSnap) {
+                final errandCount = errandSnap.data ?? 0;
+                return StreamBuilder<int>(
+                  stream: postCommentsStream,
+                  initialData: 0,
+                  builder: (context, postSnap) {
+                    final postCommentsCount = postSnap.data ?? 0;
+                    return StreamBuilder<int>(
+                      stream: marketplaceStream,
+                      initialData: 0,
+                      builder: (context, marketplaceSnap) {
+                        final marketplaceCount = marketplaceSnap.data ?? 0;
+                        return LinkodNavbar(
+                          currentDestination: _currentNavDestination,
+                          onDestinationChanged: _handleNavDestinationChange,
+                          hasUnreadAnnouncements: _hasUnreadAnnouncements,
+                          errandNotificationCount: errandCount,
+                          postCommentsNotificationCount: postCommentsCount,
+                          marketplaceNotificationCount: marketplaceCount,
+                          barangayLogoUrl: _barangayLogoUrl,
+                        );
+                      },
+                    );
+                  },
+                );
               },
-              children: _screens,
+            ),
+            // Content area with swipe support
+            Expanded(
+              child: PageView(
+                controller: _pageController,
+                onPageChanged: (index) {
+                  // If the user tapped a destination far away (e.g. Menu -> Home),
+                  // PageView animates across intermediate pages and fires onPageChanged
+                  // for those pages. Ignore those intermediate indices so the navbar
+                  // doesn't appear to "force" Announcements as a stopover.
+                  final ignoreUntil = _ignoreOnPageChangedUntilIndex;
+                  if (ignoreUntil != null && index != ignoreUntil) {
+                    return;
+                  }
+                  setState(() {
+                    _currentIndex = index;
+                    if (ignoreUntil != null && index == ignoreUntil) {
+                      _ignoreOnPageChangedUntilIndex = null;
+                    }
+                    // Update nav destination based on index
+                    _currentNavDestination = _destinationForIndex(index);
+                  });
+                },
+                children: _screens,
+              ),
+            ),
+          ],
+        ),
+        floatingActionButton:
+            widget.userRole == UserRole.official
+                ? FloatingActionButton(
+                  heroTag: 'create_fab',
+                  onPressed: _openCreatePost,
+                  backgroundColor: kFacebookBlue,
+                  foregroundColor: Colors.white,
+                  elevation: 4,
+                  tooltip: 'Create Announcement',
+                  child: const Icon(Icons.add),
+                )
+                : null,
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      ),
+    );
+  }
+
+  /// Handle back button press. Show confirmation dialog if trying to exit.
+  Future<bool> _onWillPop() async {
+    // Check if we're already at the home tab (root of the app)
+    if (_currentIndex == _feedIndex) {
+      // Show exit confirmation dialog
+      final shouldExit = await _showExitConfirmationDialog();
+      return shouldExit ?? false;
+    } else {
+      // If not at home, just go back to home
+      setState(() {
+        _currentIndex = _feedIndex;
+        _currentNavDestination = NavDestination.home;
+      });
+      await _pageController.animateToPage(
+        _feedIndex,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+      return false;
+    }
+  }
+
+  /// Show custom exit confirmation dialog matching app design.
+  Future<bool?> _showExitConfirmationDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    const primaryGreen = Color(0xFF00A651);
+    
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Center(
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 360),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.15),
+                    blurRadius: 16,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Header with icon
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? const Color(0xFF2C2C2C)
+                          : const Color(0xFFF0F9F5),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20),
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: primaryGreen.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Icon(
+                            Icons.exit_to_app_rounded,
+                            color: primaryGreen,
+                            size: 28,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Exit LINKod?',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Content
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      'Are you sure you want to exit the app?',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: isDark ? Colors.grey.shade300 : const Color(0xFF4C4C4C),
+                      ),
+                    ),
+                  ),
+                  // Buttons - stacked vertically for better mobile UX
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Exit button (primary - full width)
+                        ElevatedButton(
+                          onPressed: () => Navigator.of(context).pop(true),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryGreen,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: const Text(
+                            'Exit',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        // Cancel button (secondary - full width)
+                        OutlinedButton(
+                          onPressed: () => Navigator.of(context).pop(false),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor:
+                                isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                            side: BorderSide(
+                              color:
+                                  isDark
+                                      ? Colors.grey.shade700
+                                      : Colors.grey.shade300,
+                              width: 1,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: Text(
+                            'Cancel',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color:
+                                  isDark
+                                      ? Colors.grey.shade300
+                                      : Colors.grey.shade700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ],
-      ),
-      floatingActionButton:
-          widget.userRole == UserRole.official
-              ? FloatingActionButton(
-                heroTag: 'create_fab',
-                onPressed: _openCreatePost,
-                backgroundColor: kFacebookBlue,
-                foregroundColor: Colors.white,
-                elevation: 4,
-                tooltip: 'Create Announcement',
-                child: const Icon(Icons.add),
-              )
-              : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+        );
+      },
     );
   }
 }

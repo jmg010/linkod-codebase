@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../constants/purok.dart';
@@ -249,7 +250,9 @@ class _MenuScreenState extends State<MenuScreen> {
                               backgroundImage:
                                   _profileImageUrl != null &&
                                           _profileImageUrl!.isNotEmpty
-                                      ? NetworkImage(_profileImageUrl!)
+                                      ? CachedNetworkImageProvider(
+                                        _profileImageUrl!,
+                                      )
                                       : null,
                               child:
                                   _profileImageUrl == null ||

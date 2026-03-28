@@ -179,25 +179,23 @@ class _FullScreenImageScreenState extends State<FullScreenImageScreen> {
                   minScale: 0.5,
                   maxScale: 4,
                   child: Center(
-                    child: Image.network(
-                      imageUrls[index],
+                    child: CachedNetworkImage(
+                      imageUrl: imageUrls[index],
                       fit: BoxFit.contain,
-                      cacheWidth: cacheW,
-                      cacheHeight: cacheH,
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return const Center(
-                          child: SizedBox(
-                            width: 32,
-                            height: 32,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white54,
+                      memCacheWidth: cacheW,
+                      memCacheHeight: cacheH,
+                      placeholder:
+                          (_, __) => const Center(
+                            child: SizedBox(
+                              width: 32,
+                              height: 32,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white54,
+                              ),
                             ),
                           ),
-                        );
-                      },
-                      errorBuilder:
+                      errorWidget:
                           (_, __, ___) => const Center(
                             child: Icon(
                               Icons.image_not_supported,

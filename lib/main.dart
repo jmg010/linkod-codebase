@@ -32,6 +32,9 @@ Future<void> main() async {
   // Request notification permission on first app run
   await FcmTokenService.instance.requestPermissionOnFirstRun();
 
+  // Load user's theme preference from SharedPreferences
+  await ThemeNotifier.instance.loadThemePreference();
+
   // Run auto-approval sweeper once per session so that marketplace
   // products and errands are auto-approved based on the
   // adminSettings/approvals flags even if the admin Approvals screen
@@ -66,6 +69,12 @@ class LinkodApp extends StatelessWidget {
               seedColor: kFacebookBlue,
               brightness: Brightness.light,
             ),
+            pageTransitionsTheme: const PageTransitionsTheme(
+              builders: {
+                TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+                TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+              },
+            ),
             scaffoldBackgroundColor: Colors.white,
             appBarTheme: const AppBarTheme(
               backgroundColor: Colors.white,
@@ -93,6 +102,12 @@ class LinkodApp extends StatelessWidget {
             colorScheme: ColorScheme.fromSeed(
               seedColor: kFacebookBlue,
               brightness: Brightness.dark,
+            ),
+            pageTransitionsTheme: const PageTransitionsTheme(
+              builders: {
+                TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+                TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+              },
             ),
             scaffoldBackgroundColor: const Color(0xFF121212),
             appBarTheme: const AppBarTheme(
