@@ -32,8 +32,10 @@ class TaskChatScreen extends StatefulWidget {
 class _TaskChatScreenState extends State<TaskChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  late final Stream<List<TaskChatMessageModel>> _messagesStream;
   bool _isSending = false;
   int _previousMessageCount = 0;
+  bool _didInitialAutoScroll = false;
   String? _otherPartyAvatarUrl;
   String? _otherPartyPurok;
   String? _otherPartyPhone;
@@ -64,8 +66,23 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
   @override
   void initState() {
     super.initState();
+    _messagesStream = TaskChatService.getMessagesStream(widget.taskId);
     TaskChatService.markChatRead(widget.taskId, widget.currentUserId);
     _loadOtherPartyData();
+  }
+
+  void _scrollToLatest({bool animated = true}) {
+    if (!_scrollController.hasClients) return;
+    final target = _scrollController.position.maxScrollExtent;
+    if (animated) {
+      _scrollController.animateTo(
+        target,
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOut,
+      );
+    } else {
+      _scrollController.jumpTo(target);
+    }
   }
 
   Future<void> _loadOtherPartyData() async {
@@ -236,7 +253,7 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
         children: [
           Expanded(
             child: StreamBuilder<List<TaskChatMessageModel>>(
-              stream: TaskChatService.getMessagesStream(widget.taskId),
+              stream: _messagesStream,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -291,23 +308,23 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
                   items.add(msg);
                 }
                 final itemCount = items.length;
-                // Auto-scroll to bottom when new message arrives (new messages are at the end)
-                if (messages.length > _previousMessageCount) {
+                final hasNewMessage = messages.length > _previousMessageCount;
+                if (!_didInitialAutoScroll) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (!_scrollController.hasClients) return;
-                      final position = _scrollController.position;
-                      _scrollController.animateTo(
-                        position.maxScrollExtent,
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeOut,
-                      );
-                    });
+                    if (!mounted) return;
+                    _scrollToLatest(animated: false);
+                  });
+                  _didInitialAutoScroll = true;
+                } else if (hasNewMessage) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (!mounted) return;
+                    _scrollToLatest(animated: true);
                   });
                 }
                 _previousMessageCount = messages.length;
 
                 return ListView.builder(
+                  key: const PageStorageKey('task_chat_messages_list'),
                   controller: _scrollController,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,

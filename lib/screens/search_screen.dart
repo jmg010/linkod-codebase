@@ -65,12 +65,30 @@ class _SearchScreenState extends State<SearchScreen> {
   final ScrollController _announcementsScrollController = ScrollController();
   final ScrollController _homeScrollController = ScrollController();
 
+  late final Stream<List<PostModel>> _postsStream;
+  late final Stream<List<ProductModel>> _productsStream;
+  late final Stream<List<TaskModel>> _tasksStream;
+  late final Stream<List<Map<String, dynamic>>> _announcementsStream;
+
+  Stream<Map<String, dynamic>>? _homeCombinedStream;
+  String? _homeCombinedQuery;
+  String? _homeCombinedUserId;
+
+  Stream<List<ProductModel>>? _myProductsStream;
+  String? _myProductsStreamUid;
+  Stream<List<TaskModel>>? _myTasksStream;
+  String? _myTasksStreamUid;
+
   String get _recentStorageKey => 'recent_searches_${widget.mode.name}';
 
   @override
   void initState() {
     super.initState();
     _focusNode.requestFocus();
+    _postsStream = PostsService.getPostsStream();
+    _productsStream = ProductsService.getProductsStream();
+    _tasksStream = TasksService.getTasksStream();
+    _announcementsStream = AnnouncementsService.getAnnouncementsStream();
     _loadRecentSearches();
     _productsScrollController.addListener(_onProductsScroll);
     _tasksScrollController.addListener(_onTasksScroll);
@@ -118,6 +136,14 @@ class _SearchScreenState extends State<SearchScreen> {
     final query = _queryController.text.trim();
     setState(() {
       _searchQuery = query;
+      _productsDisplayCount = _initialPageSize;
+      _tasksDisplayCount = _initialPageSize;
+      _postsDisplayCount = _initialPageSize;
+      _announcementsDisplayCount = _initialPageSize;
+      _homeAnnouncementsDisplayCount = _initialPageSize;
+      _homePostsDisplayCount = _initialPageSize;
+      _homeTasksDisplayCount = _initialPageSize;
+      _homeProductsDisplayCount = _initialPageSize;
     });
     if (query.isNotEmpty) {
       _recentSearches = [query, ..._recentSearches.where((s) => s != query)];
@@ -132,12 +158,10 @@ class _SearchScreenState extends State<SearchScreen> {
     _queryController.text = term;
     setState(() {
       _searchQuery = term;
-      // Reset pagination when new search is applied
       _productsDisplayCount = _initialPageSize;
       _tasksDisplayCount = _initialPageSize;
       _postsDisplayCount = _initialPageSize;
       _announcementsDisplayCount = _initialPageSize;
-      // Reset home search pagination
       _homeAnnouncementsDisplayCount = _initialPageSize;
       _homePostsDisplayCount = _initialPageSize;
       _homeTasksDisplayCount = _initialPageSize;
@@ -217,20 +241,115 @@ class _SearchScreenState extends State<SearchScreen> {
 
   void _loadMoreHomeResults() {
     if (!mounted) return;
-    // Save current scroll position before setState
-    final currentOffset = _homeScrollController.offset;
     setState(() {
       _homeAnnouncementsDisplayCount += _loadMorePageSize;
       _homePostsDisplayCount += _loadMorePageSize;
       _homeTasksDisplayCount += _loadMorePageSize;
       _homeProductsDisplayCount += _loadMorePageSize;
     });
-    // Restore scroll position after frame builds
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_homeScrollController.hasClients && mounted) {
-        _homeScrollController.jumpTo(currentOffset);
+  }
+
+  String _normalizeSearchText(String input) {
+    return input
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9\s]'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
+  List<String> _queryTokens(String query) {
+    return _normalizeSearchText(query)
+        .split(' ')
+        .where((token) => token.length >= 2)
+        .toList(growable: false);
+  }
+
+  int _levenshteinDistance(String a, String b) {
+    if (a == b) return 0;
+    if (a.isEmpty) return b.length;
+    if (b.isEmpty) return a.length;
+
+    final prev = List<int>.generate(b.length + 1, (i) => i);
+    final curr = List<int>.filled(b.length + 1, 0);
+
+    for (var i = 1; i <= a.length; i++) {
+      curr[0] = i;
+      for (var j = 1; j <= b.length; j++) {
+        final cost = a.codeUnitAt(i - 1) == b.codeUnitAt(j - 1) ? 0 : 1;
+        curr[j] = [
+          curr[j - 1] + 1,
+          prev[j] + 1,
+          prev[j - 1] + cost,
+        ].reduce((x, y) => x < y ? x : y);
       }
-    });
+      for (var j = 0; j <= b.length; j++) {
+        prev[j] = curr[j];
+      }
+    }
+
+    return prev[b.length];
+  }
+
+  bool _isCloseWordMatch(String token, String word) {
+    if (word.contains(token)) return true;
+    if ((token.length - word.length).abs() > 2) return false;
+    final maxDistance = token.length <= 4 ? 1 : 2;
+    return _levenshteinDistance(token, word) <= maxDistance;
+  }
+
+  int _searchScore(String query, List<String> fields) {
+    final normalizedQuery = _normalizeSearchText(query);
+    if (normalizedQuery.isEmpty) return 1;
+
+    final normalizedText = _normalizeSearchText(
+      fields.where((field) => field.isNotEmpty).join(' '),
+    );
+    if (normalizedText.isEmpty) return 0;
+
+    var score = 0;
+    if (normalizedText.contains(normalizedQuery)) {
+      score += 100;
+    }
+
+    final tokens = _queryTokens(normalizedQuery);
+    if (tokens.isEmpty) {
+      return score;
+    }
+
+    final words =
+        normalizedText
+            .split(' ')
+            .where((word) => word.isNotEmpty)
+            .toList(growable: false);
+    var matchedTokens = 0;
+
+    for (final token in tokens) {
+      var matched = false;
+      for (final word in words) {
+        if (word == token) {
+          score += 25;
+          matched = true;
+          break;
+        }
+        if (word.startsWith(token) ||
+            (word.length >= 3 && token.startsWith(word))) {
+          score += 15;
+          matched = true;
+          break;
+        }
+        if (_isCloseWordMatch(token, word)) {
+          score += 8;
+          matched = true;
+          break;
+        }
+      }
+      if (matched) {
+        matchedTokens++;
+      }
+    }
+
+    if (matchedTokens == 0) return 0;
+    return score + (matchedTokens * 10);
   }
 
   String get _hintText {
@@ -680,6 +799,7 @@ class _SearchScreenState extends State<SearchScreen> {
         }
 
         return CustomScrollView(
+          key: const PageStorageKey('search_home_results'),
           controller: _homeScrollController,
           physics: const BouncingScrollPhysics(),
           slivers: [
@@ -723,40 +843,55 @@ class _SearchScreenState extends State<SearchScreen> {
     String queryLower,
     String? currentUserId,
   ) {
-    return Rx.combineLatest4(
-      AnnouncementsService.getAnnouncementsStream(),
-      PostsService.getPostsStream(),
-      TasksService.getTasksStream(),
-      ProductsService.getProductsStream(),
+    if (_homeCombinedStream != null &&
+        _homeCombinedQuery == queryLower &&
+        _homeCombinedUserId == currentUserId) {
+      return _homeCombinedStream!;
+    }
+
+    _homeCombinedQuery = queryLower;
+    _homeCombinedUserId = currentUserId;
+
+    _homeCombinedStream = Rx.combineLatest4(
+      _announcementsStream,
+      _postsStream,
+      _tasksStream,
+      _productsStream,
       (
         List<Map<String, dynamic>> announcements,
         List<PostModel> posts,
         List<TaskModel> tasks,
         List<ProductModel> products,
       ) {
-        // Filter announcements
+        // Filter announcements with tolerant matching and relevance sorting
         final filteredAnnouncements =
-            announcements.where((a) {
-              final title = (a['title'] as String? ?? '').toLowerCase();
-              final content =
-                  (a['content'] as String? ?? a['description'] as String? ?? '')
-                      .toLowerCase();
-              final postedBy = (a['postedBy'] as String? ?? '').toLowerCase();
-              return title.contains(queryLower) ||
-                  content.contains(queryLower) ||
-                  postedBy.contains(queryLower);
-            }).toList();
+            announcements
+                .map((a) {
+                  final score = _searchScore(queryLower, [
+                    a['title'] as String? ?? '',
+                    a['content'] as String? ?? a['description'] as String? ?? '',
+                    a['postedBy'] as String? ?? '',
+                  ]);
+                  return MapEntry(a, score);
+                })
+                .where((entry) => scoreOrAll(queryLower, entry.value))
+                .toList()
+              ..sort((a, b) => b.value.compareTo(a.value));
 
-        // Filter posts
+        // Filter posts with tolerant matching and relevance sorting
         final filteredPosts =
             posts
-                .where(
-                  (p) =>
-                      p.title.toLowerCase().contains(queryLower) ||
-                      p.content.toLowerCase().contains(queryLower) ||
-                      p.userName.toLowerCase().contains(queryLower),
-                )
-                .toList();
+                .map((p) {
+                  final score = _searchScore(queryLower, [
+                    p.title,
+                    p.content,
+                    p.userName,
+                  ]);
+                  return MapEntry(p, score);
+                })
+                .where((entry) => scoreOrAll(queryLower, entry.value))
+                .toList()
+              ..sort((a, b) => b.value.compareTo(a.value));
 
         // Filter tasks
         final nonCompleted =
@@ -769,13 +904,17 @@ class _SearchScreenState extends State<SearchScreen> {
                 : nonCompleted;
         final filteredTasks =
             feedTasks
-                .where(
-                  (t) =>
-                      t.title.toLowerCase().contains(queryLower) ||
-                      t.description.toLowerCase().contains(queryLower) ||
-                      t.requesterName.toLowerCase().contains(queryLower),
-                )
-                .toList();
+                .map((t) {
+                  final score = _searchScore(queryLower, [
+                    t.title,
+                    t.description,
+                    t.requesterName,
+                  ]);
+                  return MapEntry(t, score);
+                })
+                .where((entry) => scoreOrAll(queryLower, entry.value))
+                .toList()
+              ..sort((a, b) => b.value.compareTo(a.value));
 
         // Filter products
         final feedProducts =
@@ -783,27 +922,53 @@ class _SearchScreenState extends State<SearchScreen> {
                 ? products.where((p) => p.sellerId != currentUserId).toList()
                 : products;
         final filteredProducts =
-            feedProducts.where((p) {
-              // Check if search query matches this product's category
-              final isCategoryMatch = _isCategorySearch(queryLower, p.category);
-
-              // Match by title, description, seller name, or category
-              final textMatch =
-                  p.title.toLowerCase().contains(queryLower) ||
-                  p.description.toLowerCase().contains(queryLower) ||
-                  p.sellerName.toLowerCase().contains(queryLower);
-
-              return textMatch || isCategoryMatch;
-            }).toList();
+            feedProducts
+                .map((p) {
+                  var score = _searchScore(queryLower, [
+                    p.title,
+                    p.description,
+                    p.sellerName,
+                    p.category,
+                  ]);
+                  if (_isCategorySearch(queryLower, p.category)) {
+                    score += 20;
+                  }
+                  return MapEntry(p, score);
+                })
+                .where((entry) => scoreOrAll(queryLower, entry.value))
+                .toList()
+              ..sort((a, b) => b.value.compareTo(a.value));
 
         return {
-          'announcements': filteredAnnouncements,
-          'posts': filteredPosts,
-          'tasks': filteredTasks,
-          'products': filteredProducts,
+          'announcements': filteredAnnouncements.map((e) => e.key).toList(),
+          'posts': filteredPosts.map((e) => e.key).toList(),
+          'tasks': filteredTasks.map((e) => e.key).toList(),
+          'products': filteredProducts.map((e) => e.key).toList(),
         };
       },
     );
+
+    return _homeCombinedStream!;
+  }
+
+  Stream<List<ProductModel>> _getMyProductsStream(String currentUserId) {
+    if (_myProductsStream == null || _myProductsStreamUid != currentUserId) {
+      _myProductsStreamUid = currentUserId;
+      _myProductsStream = ProductsService.getSellerProductsStream(currentUserId);
+    }
+    return _myProductsStream!;
+  }
+
+  Stream<List<TaskModel>> _getMyTasksStream(String currentUserId) {
+    if (_myTasksStream == null || _myTasksStreamUid != currentUserId) {
+      _myTasksStreamUid = currentUserId;
+      _myTasksStream = TasksService.getRequesterTasksStream(currentUserId);
+    }
+    return _myTasksStream!;
+  }
+
+  bool scoreOrAll(String queryLower, int score) {
+    return queryLower.isEmpty || score > 0;
   }
 
   Widget _buildHomeAnnouncementsSectionFromData(
@@ -838,14 +1003,8 @@ class _SearchScreenState extends State<SearchScreen> {
               child: GestureDetector(
                 onTap: () {
                   if (!mounted) return;
-                  final currentOffset = _homeScrollController.offset;
                   setState(() {
                     _homeAnnouncementsDisplayCount += _loadMorePageSize;
-                  });
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (_homeScrollController.hasClients && mounted) {
-                      _homeScrollController.jumpTo(currentOffset);
-                    }
                   });
                 },
                 child: Text(
@@ -890,14 +1049,8 @@ class _SearchScreenState extends State<SearchScreen> {
               child: GestureDetector(
                 onTap: () {
                   if (!mounted) return;
-                  final currentOffset = _homeScrollController.offset;
                   setState(() {
                     _homePostsDisplayCount += _loadMorePageSize;
-                  });
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (_homeScrollController.hasClients && mounted) {
-                      _homeScrollController.jumpTo(currentOffset);
-                    }
                   });
                 },
                 child: Text(
@@ -967,14 +1120,8 @@ class _SearchScreenState extends State<SearchScreen> {
               child: GestureDetector(
                 onTap: () {
                   if (!mounted) return;
-                  final currentOffset = _homeScrollController.offset;
                   setState(() {
                     _homeTasksDisplayCount += _loadMorePageSize;
-                  });
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (_homeScrollController.hasClients && mounted) {
-                      _homeScrollController.jumpTo(currentOffset);
-                    }
                   });
                 },
                 child: Text(
@@ -1029,14 +1176,8 @@ class _SearchScreenState extends State<SearchScreen> {
               child: GestureDetector(
                 onTap: () {
                   if (!mounted) return;
-                  final currentOffset = _homeScrollController.offset;
                   setState(() {
                     _homeProductsDisplayCount += _loadMorePageSize;
-                  });
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (_homeScrollController.hasClients && mounted) {
-                      _homeScrollController.jumpTo(currentOffset);
-                    }
                   });
                 },
                 child: Text(
@@ -1222,7 +1363,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _buildHomePostsSection(String queryLower) {
     return StreamBuilder<List<PostModel>>(
-      stream: PostsService.getPostsStream(),
+      stream: _postsStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const SizedBox(
@@ -1547,11 +1688,20 @@ class _SearchScreenState extends State<SearchScreen> {
         final filtered =
             queryLower.isEmpty
                 ? allPosts
-                : allPosts.where((p) {
-                  return p.title.toLowerCase().contains(queryLower) ||
-                      p.content.toLowerCase().contains(queryLower) ||
-                      p.userName.toLowerCase().contains(queryLower);
-                }).toList();
+                : (allPosts
+                      .map((p) {
+                        final score = _searchScore(queryLower, [
+                          p.title,
+                          p.content,
+                          p.userName,
+                        ]);
+                        return MapEntry(p, score);
+                      })
+                      .where((entry) => entry.value > 0)
+                      .toList()
+                    ..sort((a, b) => b.value.compareTo(a.value)))
+                    .map((entry) => entry.key)
+                    .toList();
 
         if (filtered.isEmpty) {
           return Center(
@@ -1573,6 +1723,7 @@ class _SearchScreenState extends State<SearchScreen> {
         }
 
         return ListView.builder(
+          key: const PageStorageKey('search_posts_results'),
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
           physics: const BouncingScrollPhysics(),
           itemCount: filtered.length,
@@ -1596,7 +1747,7 @@ class _SearchScreenState extends State<SearchScreen> {
     final queryLower = query.toLowerCase();
 
     return StreamBuilder<List<ProductModel>>(
-      stream: ProductsService.getProductsStream(),
+      stream: _productsStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -1625,21 +1776,24 @@ class _SearchScreenState extends State<SearchScreen> {
         final filtered =
             queryLower.isEmpty
                 ? feedProducts
-                : feedProducts.where((p) {
-                  // Check if search query matches this product's category
-                  final isCategoryMatch = _isCategorySearch(
-                    queryLower,
-                    p.category,
-                  );
-
-                  // Match by title, description, seller name, or category
-                  final textMatch =
-                      p.title.toLowerCase().contains(queryLower) ||
-                      p.description.toLowerCase().contains(queryLower) ||
-                      p.sellerName.toLowerCase().contains(queryLower);
-
-                  return textMatch || isCategoryMatch;
-                }).toList();
+                : (feedProducts
+                      .map((p) {
+                        var score = _searchScore(queryLower, [
+                          p.title,
+                          p.description,
+                          p.sellerName,
+                          p.category,
+                        ]);
+                        if (_isCategorySearch(queryLower, p.category)) {
+                          score += 20;
+                        }
+                        return MapEntry(p, score);
+                      })
+                      .where((entry) => entry.value > 0)
+                      .toList()
+                    ..sort((a, b) => b.value.compareTo(a.value)))
+                    .map((entry) => entry.key)
+                    .toList();
 
         if (filtered.isEmpty) {
           return Center(
@@ -1664,6 +1818,7 @@ class _SearchScreenState extends State<SearchScreen> {
         final showLoadMore = visibleCount < filtered.length;
 
         return ListView.builder(
+          key: const PageStorageKey('search_products_results'),
           controller: _productsScrollController,
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
           physics: const BouncingScrollPhysics(),
@@ -1706,7 +1861,7 @@ class _SearchScreenState extends State<SearchScreen> {
     final queryLower = query.toLowerCase();
 
     return StreamBuilder<List<TaskModel>>(
-      stream: TasksService.getTasksStream(),
+      stream: _tasksStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -1739,11 +1894,20 @@ class _SearchScreenState extends State<SearchScreen> {
         final filtered =
             queryLower.isEmpty
                 ? feedTasks
-                : feedTasks.where((t) {
-                  return t.title.toLowerCase().contains(queryLower) ||
-                      t.description.toLowerCase().contains(queryLower) ||
-                      t.requesterName.toLowerCase().contains(queryLower);
-                }).toList();
+                : (feedTasks
+                      .map((t) {
+                        final score = _searchScore(queryLower, [
+                          t.title,
+                          t.description,
+                          t.requesterName,
+                        ]);
+                        return MapEntry(t, score);
+                      })
+                      .where((entry) => entry.value > 0)
+                      .toList()
+                    ..sort((a, b) => b.value.compareTo(a.value)))
+                    .map((entry) => entry.key)
+                    .toList();
 
         if (filtered.isEmpty) {
           return Center(
@@ -1768,6 +1932,7 @@ class _SearchScreenState extends State<SearchScreen> {
         final showLoadMore = visibleCount < filtered.length;
 
         return ListView.builder(
+          key: const PageStorageKey('search_tasks_results'),
           controller: _tasksScrollController,
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
           physics: const BouncingScrollPhysics(),
@@ -1825,7 +1990,7 @@ class _SearchScreenState extends State<SearchScreen> {
     final queryLower = query.toLowerCase();
 
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: AnnouncementsService.getAnnouncementsStream(),
+      stream: _announcementsStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -1850,19 +2015,22 @@ class _SearchScreenState extends State<SearchScreen> {
         final filtered =
             queryLower.isEmpty
                 ? all
-                : all.where((a) {
-                  final title = (a['title'] as String? ?? '').toLowerCase();
-                  final content =
-                      (a['content'] as String? ??
-                              a['description'] as String? ??
-                              '')
-                          .toLowerCase();
-                  final postedBy =
-                      (a['postedBy'] as String? ?? '').toLowerCase();
-                  return title.contains(queryLower) ||
-                      content.contains(queryLower) ||
-                      postedBy.contains(queryLower);
-                }).toList();
+                : ((all
+                          .map((a) {
+                            final score = _searchScore(queryLower, [
+                              a['title'] as String? ?? '',
+                              a['content'] as String? ??
+                                  a['description'] as String? ??
+                                  '',
+                              a['postedBy'] as String? ?? '',
+                            ]);
+                            return MapEntry(a, score);
+                          })
+                          .where((entry) => entry.value > 0)
+                          .toList()
+                        ..sort((a, b) => b.value.compareTo(a.value)))
+                    .map((entry) => entry.key)
+                      .toList());
 
         if (filtered.isEmpty) {
           return Center(
@@ -1890,6 +2058,7 @@ class _SearchScreenState extends State<SearchScreen> {
         final showLoadMore = visibleCount < filtered.length;
 
         return ListView.builder(
+          key: const PageStorageKey('search_announcements_results'),
           controller: _announcementsScrollController,
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
           physics: const BouncingScrollPhysics(),
@@ -1957,7 +2126,7 @@ class _SearchScreenState extends State<SearchScreen> {
     }
 
     return StreamBuilder<List<ProductModel>>(
-      stream: ProductsService.getSellerProductsStream(currentUserId),
+      stream: _getMyProductsStream(currentUserId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -1982,20 +2151,23 @@ class _SearchScreenState extends State<SearchScreen> {
         final filtered =
             queryLower.isEmpty
                 ? all
-                : all.where((p) {
-                  // Check if search query matches this product's category
-                  final isCategoryMatch = _isCategorySearch(
-                    queryLower,
-                    p.category,
-                  );
-
-                  // Match by title, description, or category
-                  final textMatch =
-                      p.title.toLowerCase().contains(queryLower) ||
-                      p.description.toLowerCase().contains(queryLower);
-
-                  return textMatch || isCategoryMatch;
-                }).toList();
+                : (all
+                      .map((p) {
+                        var score = _searchScore(queryLower, [
+                          p.title,
+                          p.description,
+                          p.category,
+                        ]);
+                        if (_isCategorySearch(queryLower, p.category)) {
+                          score += 20;
+                        }
+                        return MapEntry(p, score);
+                      })
+                      .where((entry) => entry.value > 0)
+                      .toList()
+                    ..sort((a, b) => b.value.compareTo(a.value)))
+                    .map((entry) => entry.key)
+                    .toList();
 
         if (filtered.isEmpty) {
           return Center(
@@ -2058,7 +2230,7 @@ class _SearchScreenState extends State<SearchScreen> {
     }
 
     return StreamBuilder<List<TaskModel>>(
-      stream: TasksService.getRequesterTasksStream(currentUserId),
+      stream: _getMyTasksStream(currentUserId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -2083,12 +2255,18 @@ class _SearchScreenState extends State<SearchScreen> {
         final filtered =
             queryLower.isEmpty
                 ? all
-                : all
-                    .where(
-                      (t) =>
-                          t.title.toLowerCase().contains(queryLower) ||
-                          t.description.toLowerCase().contains(queryLower),
-                    )
+                : (all
+                      .map((t) {
+                        final score = _searchScore(queryLower, [
+                          t.title,
+                          t.description,
+                        ]);
+                        return MapEntry(t, score);
+                      })
+                      .where((entry) => entry.value > 0)
+                      .toList()
+                    ..sort((a, b) => b.value.compareTo(a.value)))
+                    .map((entry) => entry.key)
                     .toList();
 
         if (filtered.isEmpty) {

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -401,7 +402,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             ? FileImage(_selectedImage!)
                             : (_profileImageUrl != null &&
                                         _profileImageUrl!.isNotEmpty
-                                    ? NetworkImage(_profileImageUrl!)
+                            ? CachedNetworkImageProvider(
+                              _profileImageUrl!,
+                            )
                                     : null)
                                 as ImageProvider?,
                     child:

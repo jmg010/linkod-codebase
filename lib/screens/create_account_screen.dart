@@ -58,6 +58,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   ];
 
   final List<String> selectedCategories = [];
+  bool _enableSubDemography = false;
+  final List<String> _selectedSubDemographies = [];
   final List<String> _purokOptions = const [
     'Purok 1',
     'Purok 2',
@@ -365,6 +367,63 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                             }).toList(),
                       ),
 
+                      const SizedBox(height: 18),
+
+                      const Text(
+                        'Sub-demography (optional)',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        title: const Text(
+                          'I represent household members without phones',
+                        ),
+                        value: _enableSubDemography,
+                        onChanged: (value) {
+                          setState(() {
+                            _enableSubDemography = value ?? false;
+                            if (!_enableSubDemography) {
+                              _selectedSubDemographies.clear();
+                            }
+                          });
+                        },
+                      ),
+                      if (_enableSubDemography) ...[
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Add household sub-demographies:',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: categories.map((cat) {
+                            final bool isSelected = _selectedSubDemographies
+                                .contains(cat);
+                            return FilterChip(
+                              label: Text(cat),
+                              selected: isSelected,
+                              selectedColor: const Color(0xFF00A651),
+                              labelStyle: TextStyle(
+                                color: isSelected ? Colors.white : Colors.black,
+                              ),
+                              backgroundColor: Colors.grey[200],
+                              onSelected: (value) {
+                                setState(() {
+                                  if (value) {
+                                    _selectedSubDemographies.add(cat);
+                                  } else {
+                                    _selectedSubDemographies.remove(cat);
+                                  }
+                                });
+                              },
+                            );
+                          }).toList(),
+                        ),
+                      ],
+
                       const SizedBox(height: 30),
 
                       // SIGN UP BUTTON
@@ -520,6 +579,15 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       return;
     }
 
+    if (_enableSubDemography && _selectedSubDemographies.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select at least one sub-demography.'),
+        ),
+      );
+      return;
+    }
+
     if (_selectedPurok == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select your purok.')),
@@ -574,8 +642,13 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           return;
         }
 
-        // Convert categories array to comma-separated string (per schema)
-        final categoryString = selectedCategories.join(', ');
+        final mergedCategories = <String>{
+          ...selectedCategories,
+          if (_enableSubDemography) ..._selectedSubDemographies,
+        }.toList();
+
+        // Keep legacy category string for compatibility while also writing categories array.
+        final categoryString = mergedCategories.join(', ');
 
         // Upload proof of residence to Firebase Storage if one was selected
         String? proofOfResidenceUrl;
@@ -602,6 +675,11 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           'password': password,
           'role': 'user',
           'category': categoryString,
+            'categories': mergedCategories,
+            'subDemographyEnabled': _enableSubDemography,
+            'subDemographies': _enableSubDemography
+              ? List<String>.from(_selectedSubDemographies)
+              : <String>[],
           'status': 'pending',
           'createdAt': FieldValue.serverTimestamp(),
           'proofOfResidenceUrl': proofOfResidenceUrl,

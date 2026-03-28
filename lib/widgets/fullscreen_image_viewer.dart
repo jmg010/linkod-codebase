@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 
@@ -64,7 +65,9 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
               onPageChanged: _onPageChanged,
               builder: (context, index) {
                 return PhotoViewGalleryPageOptions(
-                  imageProvider: NetworkImage(widget.imageUrls[index]),
+                  imageProvider: CachedNetworkImageProvider(
+                    widget.imageUrls[index],
+                  ),
                   minScale: PhotoViewComputedScale.contained,
                   maxScale: PhotoViewComputedScale.covered * 3,
                   initialScale: PhotoViewComputedScale.contained,
