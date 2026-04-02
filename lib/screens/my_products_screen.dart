@@ -549,7 +549,9 @@ class _MyProductCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  '₱${product.price.toStringAsFixed(0)}/${product.priceUnit ?? _unit(product.category)}',
+                  product.priceUnit != null && product.priceUnit!.isNotEmpty
+                      ? '₱${product.price.toStringAsFixed(0)}/${product.priceUnit}'
+                      : '₱${product.price.toStringAsFixed(0)}',
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
@@ -668,10 +670,6 @@ class _MyProductCard extends StatelessWidget {
     return '$hour:$minute $period';
   }
 
-  String _unit(String category) {
-    if (category.toLowerCase() == 'food') return 'kg';
-    return 'pcs';
-  }
 }
 
 /// Card for INTERACTED POSTS tab - custom card with badge inside button

@@ -404,6 +404,10 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   Widget build(BuildContext context) {
     final double buttonWidth = MediaQuery.of(context).size.width * 0.7;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final formSurfaceColor = isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
+    final formTextColor = isDarkMode ? Colors.white : Colors.black;
+    final fieldFillColor = isDarkMode ? const Color(0xFF2A2A2A) : Colors.white;
     return Scaffold(
       backgroundColor: const Color(0xFF00A651),
       body: SafeArea(
@@ -425,8 +429,8 @@ class _LoginScreenState extends State<LoginScreen>
                 position: _slideAnimation,
                 child: Container(
                   width: double.infinity,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
+                  decoration: BoxDecoration(
+                    color: formSurfaceColor,
                     borderRadius: BorderRadius.only(
                       topLeft: Radius.circular(30),
                       topRight: Radius.circular(30),
@@ -440,13 +444,14 @@ class _LoginScreenState extends State<LoginScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Center(
+                        Center(
                           child: Text(
                             "Sign in your account",
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
+                              color: formTextColor,
                             ),
                           ),
                         ),
@@ -457,6 +462,8 @@ class _LoginScreenState extends State<LoginScreen>
                           controller: phoneController,
                           keyboardType: TextInputType.phone,
                           decoration: InputDecoration(
+                            filled: true,
+                            fillColor: fieldFillColor,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -481,6 +488,14 @@ class _LoginScreenState extends State<LoginScreen>
                           obscureText: obscurePassword,
                           decoration: InputDecoration(
                             hintText: 'At least 6 characters',
+                            hintStyle: TextStyle(
+                              color:
+                                  isDarkMode
+                                      ? Colors.white54
+                                      : Colors.black45,
+                            ),
+                            filled: true,
+                            fillColor: fieldFillColor,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -548,8 +563,9 @@ class _LoginScreenState extends State<LoginScreen>
                                 ),
                               );
                             },
-                            child: const Text(
+                            child: Text(
                               "Don't have an account? Create one",
+                              style: TextStyle(color: Colors.blueAccent),
                             ),
                           ),
                         ),
@@ -575,8 +591,11 @@ class _RequiredLabel extends StatelessWidget {
     return RichText(
       text: TextSpan(
         text: text,
-        style: const TextStyle(
-          color: Colors.black87,
+        style: TextStyle(
+          color:
+              Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white
+                  : Colors.black87,
           fontSize: 14,
           fontWeight: FontWeight.w500,
         ),

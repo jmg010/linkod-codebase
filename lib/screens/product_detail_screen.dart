@@ -275,14 +275,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     return uid != null && _currentProduct.sellerId == uid;
   }
 
-  /// Price string with unit when set (e.g. /kg, /pcs). Legacy: infer /kg for Food category.
+  /// Price string with unit only when explicitly set on the product.
   String _priceDisplay(ProductModel product) {
     final unit = product.priceUnit;
     if (unit != null && unit.isNotEmpty) {
       return '₱${product.price.toStringAsFixed(0)}/$unit';
-    }
-    if (product.category.toLowerCase().contains('food')) {
-      return '₱${product.price.toStringAsFixed(0)}/kg';
     }
     return '₱${product.price.toStringAsFixed(0)}';
   }
@@ -666,7 +663,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                   maxLines: 4,
                                   style: TextStyle(
                                     fontSize: 14,
-                                    color: Colors.grey.shade700,
+                                    color:
+                                        isDark
+                                            ? Colors.white70
+                                            : Colors.grey.shade700,
                                     height: 1.4,
                                   ),
                                   decoration: InputDecoration(
@@ -681,7 +681,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                   product.description,
                                   style: TextStyle(
                                     fontSize: 14,
-                                    color: Colors.grey.shade700,
+                                    color:
+                                        isDark
+                                            ? Colors.white70
+                                            : Colors.grey.shade700,
                                     height: 1.4,
                                   ),
                                   softWrap: true,
@@ -694,7 +697,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                   controller: _editLocationController,
                                   style: TextStyle(
                                     fontSize: 14,
-                                    color: Colors.grey.shade700,
+                                    color:
+                                        isDark
+                                            ? Colors.white70
+                                            : Colors.grey.shade700,
                                   ),
                                   decoration: InputDecoration(
                                     isDense: true,
@@ -711,7 +717,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                   product.location,
                                   style: TextStyle(
                                     fontSize: 14,
-                                    color: Colors.grey.shade700,
+                                    color:
+                                        isDark
+                                            ? Colors.white70
+                                            : Colors.grey.shade700,
                                   ),
                                 ),
                             const SizedBox(height: 16),
@@ -722,7 +731,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                   keyboardType: TextInputType.phone,
                                   style: TextStyle(
                                     fontSize: 14,
-                                    color: Colors.grey.shade700,
+                                    color:
+                                        isDark
+                                            ? Colors.white70
+                                            : Colors.grey.shade700,
                                   ),
                                   decoration: InputDecoration(
                                     isDense: true,
@@ -741,7 +753,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                       : product.contactNumber,
                                   style: TextStyle(
                                     fontSize: 14,
-                                    color: Colors.grey.shade700,
+                                    color:
+                                        isDark
+                                            ? Colors.white70
+                                            : Colors.grey.shade700,
                                   ),
                                 ),
                             const SizedBox(height: 16),

@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/purok.dart';
 import '../models/user_role.dart';
 import '../services/fcm_token_service.dart';
@@ -374,6 +375,21 @@ class _MenuScreenState extends State<MenuScreen> {
                           );
                           _loadUserProfile();
                         },
+                      ),
+                      Divider(
+                        height: 1,
+                        thickness: 1,
+                        color:
+                            isDark
+                                ? Colors.grey.shade800
+                                : Colors.grey.shade200,
+                        indent: 20,
+                        endIndent: 20,
+                      ),
+                      _MenuItem(
+                        icon: Icons.lock_outline,
+                        title: 'Change Password',
+                        onTap: _showChangePasswordDialog,
                       ),
                       Divider(
                         height: 1,
@@ -997,6 +1013,8 @@ class _MenuScreenState extends State<MenuScreen> {
           Text(
             value,
             textAlign: TextAlign.center,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 2,
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
@@ -1028,6 +1046,340 @@ class _MenuScreenState extends State<MenuScreen> {
       case UserRole.resident:
         return '09703985626';
     }
+  }
+
+  void _showChangePasswordDialog() {
+    final currentPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    bool obscureCurrent = true;
+    bool obscureNew = true;
+    bool obscureConfirm = true;
+    String? errorMessage;
+    bool isLoading = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            final backgroundColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+            final textColor = isDark ? Colors.white : Colors.black87;
+
+            Future<void> changePassword() async {
+              final currentPassword = currentPasswordController.text.trim();
+              final newPassword = newPasswordController.text.trim();
+              final confirmPassword = confirmPasswordController.text.trim();
+
+              if (currentPassword.isEmpty || newPassword.isEmpty || confirmPassword.isEmpty) {
+                setDialogState(() => errorMessage = 'Please fill in all fields.');
+                return;
+              }
+
+              if (newPassword.length < 6) {
+                setDialogState(() => errorMessage = 'New password must be at least 6 characters.');
+                return;
+              }
+
+              if (newPassword != confirmPassword) {
+                setDialogState(() => errorMessage = 'New passwords do not match.');
+                return;
+              }
+
+              setDialogState(() {
+                isLoading = true;
+                errorMessage = null;
+              });
+
+              try {
+                final user = FirebaseAuth.instance.currentUser;
+                if (user == null || user.email == null) {
+                  setDialogState(() {
+                    errorMessage = 'User not authenticated.';
+                    isLoading = false;
+                  });
+                  return;
+                }
+
+                // Re-authenticate user before changing password
+                final credential = EmailAuthProvider.credential(
+                  email: user.email!,
+                  password: currentPassword,
+                );
+                await user.reauthenticateWithCredential(credential);
+
+                // Update password
+                await user.updatePassword(newPassword);
+
+                if (!dialogContext.mounted) return;
+                Navigator.of(dialogContext).pop();
+
+                // Update stored password in SharedPreferences
+                final prefs = await SharedPreferences.getInstance();
+                final phone = _phoneNumber;
+                if (phone != null && phone.isNotEmpty) {
+                  await prefs.setString('last_login_password', newPassword);
+                  await prefs.setString('last_registered_password', newPassword);
+                }
+
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Password changed successfully')),
+                );
+              } on FirebaseAuthException catch (e) {
+                setDialogState(() {
+                  isLoading = false;
+                  if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+                    errorMessage = 'Current password is incorrect.';
+                  } else if (e.code == 'weak-password') {
+                    errorMessage = 'New password is too weak.';
+                  } else {
+                    errorMessage = 'Failed to change password: ${e.message}';
+                  }
+                });
+              } catch (e) {
+                setDialogState(() {
+                  isLoading = false;
+                  errorMessage = 'An error occurred. Please try again.';
+                });
+              }
+            }
+
+            return Dialog(
+              backgroundColor: backgroundColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 400),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Header
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFF0F9F5),
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(20),
+                          topRight: Radius.circular(20),
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 56,
+                            height: 56,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF00A651).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: const Icon(
+                              Icons.lock_outline,
+                              color: Color(0xFF00A651),
+                              size: 28,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Change Password',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: textColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Form
+                    Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Current Password
+                          Text(
+                            'Current Password',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: textColor,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: currentPasswordController,
+                            obscureText: obscureCurrent,
+                            enabled: !isLoading,
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade100,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  obscureCurrent ? Icons.visibility_off : Icons.visibility,
+                                  color: Colors.grey,
+                                ),
+                                onPressed: () => setDialogState(() => obscureCurrent = !obscureCurrent),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          // New Password
+                          Text(
+                            'New Password (min 6 characters)',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: textColor,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: newPasswordController,
+                            obscureText: obscureNew,
+                            enabled: !isLoading,
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade100,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  obscureNew ? Icons.visibility_off : Icons.visibility,
+                                  color: Colors.grey,
+                                ),
+                                onPressed: () => setDialogState(() => obscureNew = !obscureNew),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          // Confirm Password
+                          Text(
+                            'Confirm New Password',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: textColor,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: confirmPasswordController,
+                            obscureText: obscureConfirm,
+                            enabled: !isLoading,
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade100,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  obscureConfirm ? Icons.visibility_off : Icons.visibility,
+                                  color: Colors.grey,
+                                ),
+                                onPressed: () => setDialogState(() => obscureConfirm = !obscureConfirm),
+                              ),
+                            ),
+                          ),
+                          // Error Message
+                          if (errorMessage != null) ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                errorMessage!,
+                                style: const TextStyle(
+                                  color: Colors.red,
+                                  fontSize: 13,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 24),
+                          // Buttons
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: isLoading ? null : () => Navigator.of(dialogContext).pop(),
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    side: BorderSide(
+                                      color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Cancel',
+                                    style: TextStyle(
+                                      color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: isLoading ? null : changePassword,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF00A651),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: isLoading
+                                      ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            color: Colors.white,
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Text(
+                                          'Change',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 }
 
@@ -1065,6 +1417,8 @@ class _MenuItem extends StatelessWidget {
             Expanded(
               child: Text(
                 title,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -1114,6 +1468,8 @@ class _DarkModeMenuItem extends StatelessWidget {
           Expanded(
             child: Text(
               title,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -1174,6 +1530,8 @@ Widget _buildInfoItem(
         Text(
           value,
           textAlign: TextAlign.center,
+          overflow: TextOverflow.ellipsis,
+          maxLines: 2,
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w700,

@@ -299,6 +299,8 @@ class _NavIcon extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 label!,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,

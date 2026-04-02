@@ -315,6 +315,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
         widget.task.requesterId,
       ),
     );
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -326,9 +327,9 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
             maxChildSize: 0.85,
             builder:
                 (_, scrollController) => Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.vertical(
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                    borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(20),
                     ),
                   ),
@@ -339,7 +340,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                         width: 40,
                         height: 4,
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade300,
+                          color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
@@ -347,10 +348,10 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                         padding: const EdgeInsets.all(16),
                         child: Text(
                           'Volunteer Requests ($pendingCount pending, $unreadCount new)',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
-                            color: Colors.black87,
+                            color: isDark ? Colors.white : Colors.black87,
                           ),
                         ),
                       ),
@@ -390,7 +391,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                                   'No pending volunteers',
                                   style: TextStyle(
                                     fontSize: 14,
-                                    color: Colors.grey.shade600,
+                                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
                                   ),
                                 ),
                               );

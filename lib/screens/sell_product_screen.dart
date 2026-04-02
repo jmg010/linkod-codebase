@@ -53,7 +53,7 @@ class _SellProductScreenState extends State<SellProductScreen> {
     'pack',
     'box',
   ];
-  String _selectedPriceUnit = 'pcs';
+  String? _selectedPriceUnit;
 
   bool get _isEdit => widget.isEdit && widget.existingProduct != null;
   bool get _hasAnyImages =>
@@ -74,9 +74,10 @@ class _SellProductScreenState extends State<SellProductScreen> {
       _contactController.text = p.contactNumber;
       _selectedCategory = p.category;
       _existingImageUrls = List<String>.from(p.imageUrls);
-      _selectedPriceUnit = p.priceUnit ?? 'pcs';
-      if (!_priceUnitOptions.contains(_selectedPriceUnit)) {
-        _selectedPriceUnit = 'pcs';
+      _selectedPriceUnit = p.priceUnit;
+      if (_selectedPriceUnit != null &&
+          !_priceUnitOptions.contains(_selectedPriceUnit)) {
+        _selectedPriceUnit = null;
       }
     }
     if (!_isEdit) {
@@ -289,7 +290,10 @@ class _SellProductScreenState extends State<SellProductScreen> {
                   ? _contactController.text.trim()
                   : (userData['phoneNumber'] as String? ?? ''),
           'imageUrls': imageUrls,
-          'priceUnit': _selectedPriceUnit,
+            'priceUnit':
+              (_selectedPriceUnit != null && _selectedPriceUnit!.isNotEmpty)
+                ? _selectedPriceUnit
+                : null,
         });
         if (mounted) {
           ScaffoldMessenger.of(
@@ -320,7 +324,10 @@ class _SellProductScreenState extends State<SellProductScreen> {
           title: _titleController.text.trim(),
           description: _descriptionController.text.trim(),
           price: price,
-          priceUnit: _selectedPriceUnit,
+            priceUnit:
+              (_selectedPriceUnit != null && _selectedPriceUnit!.isNotEmpty)
+                ? _selectedPriceUnit
+                : null,
           category: _selectedCategory!,
           createdAt: DateTime.now(),
           isAvailable: true,
@@ -672,7 +679,7 @@ class _SellProductScreenState extends State<SellProductScreen> {
                       ),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: DropdownButton<String?>(
                         value: _selectedPriceUnit,
                         isDense: true,
                         dropdownColor:
@@ -681,13 +688,18 @@ class _SellProductScreenState extends State<SellProductScreen> {
                           color: isDark ? Colors.white : Colors.black87,
                           fontSize: 14,
                         ),
+                        hint: Text(
+                          'No unit',
+                          style: TextStyle(
+                            color:
+                                isDark ? Colors.grey.shade400 : Colors.black54,
+                          ),
+                        ),
                         items:
                             _priceUnitOptions.map((u) {
                               return DropdownMenuItem(value: u, child: Text(u));
                             }).toList(),
-                        onChanged:
-                            (v) =>
-                                setState(() => _selectedPriceUnit = v ?? 'pcs'),
+                        onChanged: (v) => setState(() => _selectedPriceUnit = v),
                       ),
                     ),
                   ),

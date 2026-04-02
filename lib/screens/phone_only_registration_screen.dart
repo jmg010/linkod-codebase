@@ -108,6 +108,12 @@ class _PhoneOnlyRegistrationScreenState
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final formSurfaceColor = isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
+    final formTextColor = isDarkMode ? Colors.white : Colors.black;
+    final secondaryTextColor = isDarkMode ? Colors.white70 : Colors.grey;
+    final inputBorderColor = isDarkMode ? const Color(0xFF3A3A3A) : Colors.grey.shade300;
+    final inputFillColor = isDarkMode ? const Color(0xFF2A2A2A) : Colors.white;
     return Scaffold(
       backgroundColor: const Color(0xFF00A651),
       body: SafeArea(
@@ -129,8 +135,8 @@ class _PhoneOnlyRegistrationScreenState
                 position: _slideAnimation,
                 child: Container(
                   width: double.infinity,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
+                  decoration: BoxDecoration(
+                    color: formSurfaceColor,
                     borderRadius: BorderRadius.only(
                       topLeft: Radius.circular(30),
                       topRight: Radius.circular(30),
@@ -144,32 +150,40 @@ class _PhoneOnlyRegistrationScreenState
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Center(
+                        Center(
                           child: Text(
                             "Create an account",
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
+                              color: formTextColor,
                             ),
                           ),
                         ),
                         const SizedBox(height: 12),
-                        const Center(
+                        Center(
                           child: Text(
                             "Enter your phone number to get started",
                             textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 16, color: Colors.grey),
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: secondaryTextColor,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 32),
 
                         // PHONE NUMBER INPUT
-                        const Text("Phone Number"),
+                        Text(
+                          "Phone Number",
+                          style: TextStyle(color: formTextColor),
+                        ),
                         const SizedBox(height: 6),
                         Container(
                           decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey.shade300),
+                            color: inputFillColor,
+                            border: Border.all(color: inputBorderColor),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
@@ -188,7 +202,7 @@ class _PhoneOnlyRegistrationScreenState
                                   decoration: BoxDecoration(
                                     border: Border(
                                       right: BorderSide(
-                                        color: Colors.grey.shade300,
+                                        color: inputBorderColor,
                                       ),
                                     ),
                                   ),
@@ -201,15 +215,16 @@ class _PhoneOnlyRegistrationScreenState
                                       const SizedBox(width: 8),
                                       Text(
                                         _philippineCountry['code']!,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w500,
+                                          color: formTextColor,
                                         ),
                                       ),
                                       const SizedBox(width: 4),
                                       Icon(
                                         Icons.keyboard_arrow_down,
-                                        color: Colors.grey.shade600,
+                                        color: secondaryTextColor,
                                         size: 20,
                                       ),
                                     ],
@@ -225,6 +240,12 @@ class _PhoneOnlyRegistrationScreenState
                                   maxLength: 10, // Philippine mobile: 10 digits
                                   decoration: InputDecoration(
                                     hintText: '9XX XXX XXXX',
+                                    hintStyle: TextStyle(
+                                      color:
+                                          isDarkMode
+                                              ? Colors.white54
+                                              : Colors.black45,
+                                    ),
                                     counterText: '',
                                     border: InputBorder.none,
                                     contentPadding: const EdgeInsets.symmetric(
@@ -232,6 +253,7 @@ class _PhoneOnlyRegistrationScreenState
                                       vertical: 14,
                                     ),
                                   ),
+                                  style: TextStyle(color: formTextColor),
                                 ),
                               ),
                             ],
@@ -253,7 +275,8 @@ class _PhoneOnlyRegistrationScreenState
                         Text(
                           "We'll send a verification code to this number",
                           style: TextStyle(
-                            color: Colors.grey.shade600,
+                            color:
+                                isDarkMode ? Colors.white70 : Colors.grey.shade600,
                             fontSize: 14,
                           ),
                         ),

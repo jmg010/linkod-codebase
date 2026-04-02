@@ -36,6 +36,8 @@ class ProfileCompletionScreen extends StatefulWidget {
 }
 
 class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
+  static const String _termsVersion = '2026-03-29';
+
   final TextEditingController firstNameController = TextEditingController();
   final TextEditingController middleNameController = TextEditingController();
   final TextEditingController lastNameController = TextEditingController();
@@ -44,6 +46,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
   bool obscure = true;
   bool isLoading = false;
   bool _noMiddleName = false;
+  bool _acceptedTerms = false;
   String? _selectedPurok;
 
   /// Proof of residence: picked file is uploaded to Firebase Storage on submit; URL stored in awaitingApproval.
@@ -51,7 +54,6 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
 
   // Demographic categories
   final List<String> categories = [
-    "General Residents",
     "Senior",
     "Pregnant/Lactating Mother",
     "Student",
@@ -92,6 +94,14 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
   @override
   Widget build(BuildContext context) {
     final double buttonWidth = MediaQuery.of(context).size.width * 0.7;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final formSurfaceColor = isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
+    final formTextColor = isDarkMode ? Colors.white : Colors.black;
+    final secondaryTextColor = isDarkMode ? Colors.white70 : Colors.grey;
+    final inputFillColor = isDarkMode ? const Color(0xFF2A2A2A) : Colors.white;
+    final inputBorderColor = isDarkMode ? const Color(0xFF3A3A3A) : Colors.grey.shade400;
+    final chipBackground = isDarkMode ? const Color(0xFF2A2A2A) : Colors.grey[200];
+
     return Scaffold(
       backgroundColor: const Color(0xFF00A651),
       body: SafeArea(
@@ -111,8 +121,8 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
             Expanded(
               child: Container(
                 width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
+                decoration: BoxDecoration(
+                  color: formSurfaceColor,
                   borderRadius: BorderRadius.only(
                     topLeft: Radius.circular(30),
                     topRight: Radius.circular(30),
@@ -126,13 +136,14 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Center(
+                      Center(
                         child: Text(
                           "Complete your profile",
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
+                            color: formTextColor,
                           ),
                         ),
                       ),
@@ -140,23 +151,31 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                       Center(
                         child: Text(
                           "Phone: ${widget.phoneNumber}",
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 16,
-                            color: Colors.grey,
+                            color: secondaryTextColor,
                           ),
                         ),
                       ),
                       const SizedBox(height: 24),
 
                       // FIRST NAME
-                      const Text("First Name"),
+                      Text("First Name", style: TextStyle(color: formTextColor)),
                       const SizedBox(height: 6),
                       TextField(
                         controller: firstNameController,
+                        style: TextStyle(color: formTextColor),
                         textCapitalization: TextCapitalization.words,
                         decoration: InputDecoration(
+                          filled: true,
+                          fillColor: inputFillColor,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: inputBorderColor),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: inputBorderColor),
                           ),
                         ),
                       ),
@@ -164,17 +183,28 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                       const SizedBox(height: 18),
 
                       // MIDDLE NAME
-                      const Text("Middle Name"),
+                      Text("Middle Name", style: TextStyle(color: formTextColor)),
                       const SizedBox(height: 6),
                       TextField(
                         controller: middleNameController,
                         enabled: !_noMiddleName,
+                        style: TextStyle(color: formTextColor),
                         textCapitalization: TextCapitalization.words,
                         decoration: InputDecoration(
                           hintText:
                               _noMiddleName ? 'No middle name selected' : null,
+                          hintStyle: TextStyle(
+                            color: isDarkMode ? Colors.white54 : Colors.black45,
+                          ),
+                          filled: true,
+                          fillColor: inputFillColor,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: inputBorderColor),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: inputBorderColor),
                           ),
                         ),
                       ),
@@ -196,14 +226,22 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                       const SizedBox(height: 6),
 
                       // LAST NAME
-                      const Text("Last Name"),
+                      Text("Last Name", style: TextStyle(color: formTextColor)),
                       const SizedBox(height: 6),
                       TextField(
                         controller: lastNameController,
+                        style: TextStyle(color: formTextColor),
                         textCapitalization: TextCapitalization.words,
                         decoration: InputDecoration(
+                          filled: true,
+                          fillColor: inputFillColor,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: inputBorderColor),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: inputBorderColor),
                           ),
                         ),
                       ),
@@ -211,14 +249,26 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                       const SizedBox(height: 18),
 
                       // PUROK
-                      const Text("Purok"),
+                      Text("Purok", style: TextStyle(color: formTextColor)),
                       const SizedBox(height: 6),
                       DropdownButtonFormField<String>(
                         initialValue: _selectedPurok,
+                        dropdownColor: isDarkMode ? const Color(0xFF2A2A2A) : Colors.white,
+                        style: TextStyle(color: formTextColor),
                         decoration: InputDecoration(
                           hintText: 'Select your Purok',
+                          hintStyle: TextStyle(
+                            color: isDarkMode ? Colors.white54 : Colors.black45,
+                          ),
+                          filled: true,
+                          fillColor: inputFillColor,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: inputBorderColor),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: inputBorderColor),
                           ),
                         ),
                         items:
@@ -238,30 +288,47 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                       const SizedBox(height: 18),
 
                       // PASSWORD
-                      const Text("Password (min 6 characters)"),
+                      Text(
+                        "Password (min 6 characters)",
+                        style: TextStyle(color: formTextColor),
+                      ),
                       const SizedBox(height: 6),
                       TextField(
                         controller: passwordController,
                         obscureText: obscure,
+                        style: TextStyle(color: formTextColor),
                         decoration: InputDecoration(
                           hintText: 'At least 6 characters',
+                          hintStyle: TextStyle(
+                            color: isDarkMode ? Colors.white54 : Colors.black45,
+                          ),
                           suffixIcon: IconButton(
                             icon: Icon(
                               obscure ? Icons.visibility_off : Icons.visibility,
                             ),
                             onPressed: () => setState(() => obscure = !obscure),
                           ),
+                          filled: true,
+                          fillColor: inputFillColor,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: inputBorderColor),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: inputBorderColor),
                           ),
                         ),
                       ),
 
                       const SizedBox(height: 18),
 
-                      const Text(
+                      Text(
                         "Proof of residence (optional)",
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: formTextColor,
+                        ),
                       ),
                       const SizedBox(height: 6),
 
@@ -304,7 +371,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                         const SizedBox(height: 12),
                         Container(
                           decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
+                            color: isDarkMode ? const Color(0xFF2A2A2A) : Colors.grey.shade100,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: const Color(0xFF00A651).withOpacity(0.3),
@@ -325,7 +392,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                                   'Proof of residence will be uploaded when you submit.',
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: Colors.grey.shade700,
+                                    color: isDarkMode ? Colors.white70 : Colors.grey.shade700,
                                   ),
                                 ),
                               ),
@@ -335,9 +402,12 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                       ],
                       const SizedBox(height: 18),
 
-                      const Text(
+                      Text(
                         "Select your demographic categories:",
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: formTextColor,
+                        ),
                       ),
                       const SizedBox(height: 10),
 
@@ -354,9 +424,13 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                                 selectedColor: const Color(0xFF00A651),
                                 labelStyle: TextStyle(
                                   color:
-                                      isSelected ? Colors.white : Colors.black,
+                                    isSelected
+                                      ? Colors.white
+                                      : (isDarkMode
+                                        ? Colors.white70
+                                        : Colors.black),
                                 ),
-                                backgroundColor: Colors.grey[200],
+                                backgroundColor: chipBackground,
                                 onSelected: (value) {
                                   setState(() {
                                     if (value) {
@@ -372,9 +446,12 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
 
                       const SizedBox(height: 18),
 
-                      const Text(
+                      Text(
                         'Sub-demography (optional)',
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: formTextColor,
+                        ),
                       ),
                       CheckboxListTile(
                         contentPadding: EdgeInsets.zero,
@@ -394,9 +471,12 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                       ),
                       if (_enableSubDemography) ...[
                         const SizedBox(height: 8),
-                        const Text(
+                        Text(
                           'Add household sub-demographies:',
-                          style: TextStyle(fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: formTextColor,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         Wrap(
@@ -414,9 +494,11 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                                     color:
                                         isSelected
                                             ? Colors.white
-                                            : Colors.black,
+                                        : (isDarkMode
+                                          ? Colors.white70
+                                          : Colors.black),
                                   ),
-                                  backgroundColor: Colors.grey[200],
+                                  backgroundColor: chipBackground,
                                   onSelected: (value) {
                                     setState(() {
                                       if (value) {
@@ -430,6 +512,35 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                               }).toList(),
                         ),
                       ],
+
+                      const SizedBox(height: 14),
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        value: _acceptedTerms,
+                        onChanged: (value) {
+                          setState(() => _acceptedTerms = value ?? false);
+                        },
+                        title: Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 4,
+                          children: [
+                            const Text('I agree to the'),
+                            InkWell(
+                              onTap: _showTermsAndConditions,
+                              child: const Text(
+                                'Terms and Conditions',
+                                style: TextStyle(
+                                  color: Color(0xFF00A651),
+                                  fontWeight: FontWeight.w700,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                            const Text('of LINKod.'),
+                          ],
+                        ),
+                      ),
 
                       const SizedBox(height: 30),
 
@@ -542,6 +653,15 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
       return;
     }
 
+    if (!_acceptedTerms) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please accept the Terms and Conditions to continue.'),
+        ),
+      );
+      return;
+    }
+
     final selectedPurokNumber = int.parse(_selectedPurok!.split(' ').last);
 
     setState(() => isLoading = true);
@@ -608,6 +728,9 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                 : <String>[],
         'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
+        'termsAccepted': true,
+        'termsAcceptedAt': FieldValue.serverTimestamp(),
+        'termsVersion': _termsVersion,
         'proofOfResidenceUrl': proofOfResidenceUrl,
         'fcmTokens': fcmTokens,
       });
@@ -775,5 +898,137 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
       // Silently fail if storage fails
       debugPrint('Failed to save registration data: $e');
     }
+  }
+
+  void _showTermsAndConditions() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (context) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.85,
+          minChildSize: 0.6,
+          maxChildSize: 0.95,
+          builder: (context, scrollController) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade400,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text(
+                    'LINKod Terms and Conditions',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Effective date: $_termsVersion',
+                    style: TextStyle(color: Colors.grey.shade700),
+                  ),
+                  const SizedBox(height: 14),
+                  Expanded(
+                    child: ListView(
+                      controller: scrollController,
+                      children: const [
+                        _TermsParagraph(
+                          '1. Service scope',
+                          'LINKod is a barangay communication and services platform for announcements, resident coordination, and account approval workflows. Your account access depends on barangay approval and compliance with these terms.',
+                        ),
+                        _TermsParagraph(
+                          '2. Account details and truthful information',
+                          'You agree to provide accurate profile details, contact number, and residence-related information. Impersonation, fake identity, or misleading submissions may result in denial, suspension, or removal of account access.',
+                        ),
+                        _TermsParagraph(
+                          '3. Acceptable use',
+                          'You will use LINKod only for lawful barangay-related purposes. Prohibited actions include harassment, hate speech, fraud, misinformation, unauthorized selling, malicious uploads, attempts to bypass security, or attempts to access data that is not yours.',
+                        ),
+                        _TermsParagraph(
+                          '4. Content and moderation',
+                          'Announcements and other records may be moderated by authorized barangay administrators. Content that violates barangay rules or applicable laws may be removed, and your access may be limited.',
+                        ),
+                        _TermsParagraph(
+                          '5. Personal data processing',
+                          'By continuing, you consent to the collection and processing of your registration data (such as name, phone number, purok, categories, optional proof of residence, and device token) for account verification, approvals, service notifications, and platform security.',
+                        ),
+                        _TermsParagraph(
+                          '6. Privacy and legal basis',
+                          'Data processing follows Republic Act No. 10173 (Data Privacy Act of 2012), including principles of transparency, legitimate purpose, and proportionality, and data subject rights (such as access and correction).',
+                        ),
+                        _TermsParagraph(
+                          '7. Third-party infrastructure',
+                          'LINKod uses Firebase services for authentication, cloud storage, messaging, and backend processing. As documented by Firebase privacy and security guidance, service data may be processed in Google infrastructure to provide these functions.',
+                        ),
+                        _TermsParagraph(
+                          '8. Security responsibilities',
+                          'You are responsible for keeping your credentials confidential and for activities under your account. Report suspected compromise to barangay support promptly so mitigation steps can be taken.',
+                        ),
+                        _TermsParagraph(
+                          '9. Availability and updates',
+                          'Features may be changed, paused, or updated for maintenance, compliance, or security reasons. Continued use after updates may require renewed acceptance of revised terms.',
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF00A651),
+                      ),
+                      child: const Text(
+                        'Close',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _TermsParagraph extends StatelessWidget {
+  final String heading;
+  final String body;
+
+  const _TermsParagraph(this.heading, this.body);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            heading,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            body,
+            style: const TextStyle(height: 1.45),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -230,13 +230,21 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
+    final subtleTextColor = isDarkMode ? Colors.white70 : Colors.grey[600]!;
+    final mutedBorderColor = isDarkMode ? const Color(0xFF3A3A3A) : Colors.grey[200]!;
+
     final minutes = _secondsRemaining ~/ 60;
     final seconds = _secondsRemaining % 60;
     final timeString = '$minutes:${seconds.toString().padLeft(2, '0')}';
     final resendTimeString = _resendCooldown > 0 ? '($_resendCooldown)' : '';
 
     return Scaffold(
+      backgroundColor: surfaceColor,
       appBar: AppBar(
+        backgroundColor: surfaceColor,
+        foregroundColor: isDarkMode ? Colors.white : Colors.black87,
         title: const Text('Verify Phone'),
         elevation: 0,
         leading: IconButton(
@@ -263,7 +271,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               'We sent a 6-digit code to your phone via push notification.',
               style: Theme.of(
                 context,
-              ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+              ).textTheme.bodyMedium?.copyWith(color: subtleTextColor),
             ),
             const SizedBox(height: kPaddingLarge),
 
@@ -271,13 +279,13 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
             Container(
               padding: const EdgeInsets.all(kPaddingMedium),
               decoration: BoxDecoration(
-                color: Colors.grey[50],
-                border: Border.all(color: Colors.grey[200]!),
+                color: isDarkMode ? const Color(0xFF2A2A2A) : Colors.grey[50],
+                border: Border.all(color: mutedBorderColor),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.phone_android, color: Colors.grey[600], size: 20),
+                  Icon(Icons.phone_android, color: subtleTextColor, size: 20),
                   const SizedBox(width: 8),
                   Text(
                     widget.phoneNumber,
@@ -318,9 +326,15 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
             Container(
               padding: const EdgeInsets.all(kPaddingMedium),
               decoration: BoxDecoration(
-                color: _isExpired ? Colors.red[50] : Colors.blue[50],
+                color:
+                    _isExpired
+                        ? (isDarkMode ? const Color(0xFF3A1F1F) : Colors.red[50])
+                        : (isDarkMode ? const Color(0xFF1E2A3A) : Colors.blue[50]),
                 border: Border.all(
-                  color: _isExpired ? Colors.red[200]! : Colors.blue[200]!,
+                  color:
+                      _isExpired
+                          ? (isDarkMode ? const Color(0xFF8B3A3A) : Colors.red[200]!)
+                          : (isDarkMode ? const Color(0xFF3D5A80) : Colors.blue[200]!),
                 ),
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -397,7 +411,10 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                     ? 'Resend Code $resendTimeString'
                     : 'Resend Code',
                 style: TextStyle(
-                  color: _resendCooldown > 0 ? Colors.grey : kFacebookBlue,
+                  color:
+                      _resendCooldown > 0
+                          ? (isDarkMode ? Colors.white38 : Colors.grey)
+                          : kFacebookBlue,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -409,8 +426,10 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
             Container(
               padding: const EdgeInsets.all(kPaddingMedium),
               decoration: BoxDecoration(
-                color: Colors.amber[50],
-                border: Border.all(color: Colors.amber[200]!),
+                color: isDarkMode ? const Color(0xFF332A10) : Colors.amber[50],
+                border: Border.all(
+                  color: isDarkMode ? const Color(0xFF7B6528) : Colors.amber[200]!,
+                ),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
@@ -449,6 +468,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   }
 
   Widget _buildOtpField(int index) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final hasValue = _otpControllers[index].text.isNotEmpty;
 
     return Container(
@@ -468,7 +488,10 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
           width: _otpFocuses[index].hasFocus ? 2 : 1,
         ),
         borderRadius: BorderRadius.circular(12),
-        color: hasValue ? Colors.green[50] : Colors.white,
+        color:
+            hasValue
+                ? (isDarkMode ? const Color(0xFF1D3A27) : Colors.green[50])
+                : (isDarkMode ? const Color(0xFF2A2A2A) : Colors.white),
       ),
       child: TextField(
         controller: _otpControllers[index],
@@ -485,7 +508,10 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         style: TextStyle(
           fontSize: 24,
           fontWeight: FontWeight.bold,
-          color: hasValue ? Colors.green[700] : Colors.black,
+          color:
+              hasValue
+                  ? Colors.green[700]
+                  : (isDarkMode ? Colors.white : Colors.black),
         ),
         onChanged: (value) {
           if (value.isNotEmpty) {
@@ -511,6 +537,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   }
 
   Widget _buildInfoBullet(String text) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -523,14 +550,17 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               height: 4,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.amber[700],
+                color: isDarkMode ? Colors.amber[400] : Colors.amber[700],
               ),
             ),
           ),
           Expanded(
             child: Text(
               text,
-              style: TextStyle(fontSize: 14, color: Colors.amber[800]),
+              style: TextStyle(
+                fontSize: 14,
+                color: isDarkMode ? Colors.amber[200] : Colors.amber[800],
+              ),
             ),
           ),
         ],

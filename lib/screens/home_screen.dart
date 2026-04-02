@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -589,7 +590,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         // Exit button (primary - full width)
                         ElevatedButton(
-                          onPressed: () => Navigator.of(context).pop(true),
+                          onPressed: () {
+                            Navigator.of(context).pop(true);
+                            SystemNavigator.pop();
+                          },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: primaryGreen,
                             foregroundColor: Colors.white,

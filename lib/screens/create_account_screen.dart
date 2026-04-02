@@ -23,6 +23,8 @@ class CreateAccountScreen extends StatefulWidget {
 }
 
 class _CreateAccountScreenState extends State<CreateAccountScreen> {
+  static const String _termsVersion = '2026-03-29';
+
   final TextEditingController firstNameController = TextEditingController();
   final TextEditingController middleNameController = TextEditingController();
   final TextEditingController lastNameController = TextEditingController();
@@ -32,6 +34,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   bool obscure = true;
   bool isLoading = false;
   bool _noMiddleName = false;
+  bool _acceptedTerms = false;
   String? _selectedPurok;
 
   /// Proof of residence: picked file is uploaded to Firebase Storage on submit; URL stored in awaitingApproval.
@@ -39,7 +42,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
   // Demographic categories
   final List<String> categories = [
-    "General Residents",
     "Senior",
     "Pregnant/Lactating Mother",
     "Student",
@@ -428,6 +430,35 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         ),
                       ],
 
+                      const SizedBox(height: 14),
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        value: _acceptedTerms,
+                        onChanged: (value) {
+                          setState(() => _acceptedTerms = value ?? false);
+                        },
+                        title: Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 4,
+                          children: [
+                            const Text('I agree to the'),
+                            InkWell(
+                              onTap: _showTermsAndConditions,
+                              child: const Text(
+                                'Terms and Conditions',
+                                style: TextStyle(
+                                  color: Color(0xFF00A651),
+                                  fontWeight: FontWeight.w700,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                            const Text('of LINKod.'),
+                          ],
+                        ),
+                      ),
+
                       const SizedBox(height: 30),
 
                       // SIGN UP BUTTON
@@ -602,6 +633,15 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       return;
     }
 
+    if (!_acceptedTerms) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please accept the Terms and Conditions to continue.'),
+        ),
+      );
+      return;
+    }
+
     final selectedPurokNumber = int.parse(_selectedPurok!.split(' ').last);
 
     setState(() => isLoading = true);
@@ -692,6 +732,9 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                   : <String>[],
           'status': 'pending',
           'createdAt': FieldValue.serverTimestamp(),
+          'termsAccepted': true,
+          'termsAcceptedAt': FieldValue.serverTimestamp(),
+          'termsVersion': _termsVersion,
           'proofOfResidenceUrl': proofOfResidenceUrl,
           'fcmTokens': fcmTokens,
         });
@@ -754,6 +797,110 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         setState(() => isLoading = false);
       }
     }
+  }
+
+  void _showTermsAndConditions() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (context) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.85,
+          minChildSize: 0.6,
+          maxChildSize: 0.95,
+          builder: (context, scrollController) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade400,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text(
+                    'LINKod Terms and Conditions',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Effective date: $_termsVersion',
+                    style: TextStyle(color: Colors.grey.shade700),
+                  ),
+                  const SizedBox(height: 14),
+                  Expanded(
+                    child: ListView(
+                      controller: scrollController,
+                      children: const [
+                        _TermsParagraph(
+                          '1. Service scope',
+                          'LINKod is a barangay communication and services platform for announcements, resident coordination, and account approval workflows. Your account access depends on barangay approval and compliance with these terms.',
+                        ),
+                        _TermsParagraph(
+                          '2. Account details and truthful information',
+                          'You agree to provide accurate profile details, contact number, and residence-related information. Impersonation, fake identity, or misleading submissions may result in denial, suspension, or removal of account access.',
+                        ),
+                        _TermsParagraph(
+                          '3. Acceptable use',
+                          'You will use LINKod only for lawful barangay-related purposes. Prohibited actions include harassment, hate speech, fraud, misinformation, unauthorized selling, malicious uploads, attempts to bypass security, or attempts to access data that is not yours.',
+                        ),
+                        _TermsParagraph(
+                          '4. Content and moderation',
+                          'Announcements and other records may be moderated by authorized barangay administrators. Content that violates barangay rules or applicable laws may be removed, and your access may be limited.',
+                        ),
+                        _TermsParagraph(
+                          '5. Personal data processing',
+                          'By continuing, you consent to the collection and processing of your registration data (such as name, phone number, purok, categories, optional proof of residence, and device token) for account verification, approvals, service notifications, and platform security.',
+                        ),
+                        _TermsParagraph(
+                          '6. Privacy and legal basis',
+                          'Data processing follows Republic Act No. 10173 (Data Privacy Act of 2012), including principles of transparency, legitimate purpose, and proportionality, and data subject rights (such as access and correction).',
+                        ),
+                        _TermsParagraph(
+                          '7. Third-party infrastructure',
+                          'LINKod uses Firebase services for authentication, cloud storage, messaging, and backend processing. As documented by Firebase privacy and security guidance, service data may be processed in Google infrastructure to provide these functions.',
+                        ),
+                        _TermsParagraph(
+                          '8. Security responsibilities',
+                          'You are responsible for keeping your credentials confidential and for activities under your account. Report suspected compromise to barangay support promptly so mitigation steps can be taken.',
+                        ),
+                        _TermsParagraph(
+                          '9. Availability and updates',
+                          'Features may be changed, paused, or updated for maintenance, compliance, or security reasons. Continued use after updates may require renewed acceptance of revised terms.',
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF00A651),
+                      ),
+                      child: const Text(
+                        'Close',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void _showSuccessDialog(BuildContext context) {
@@ -838,6 +985,34 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+class _TermsParagraph extends StatelessWidget {
+  final String heading;
+  final String body;
+
+  const _TermsParagraph(this.heading, this.body);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            heading,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            body,
+            style: const TextStyle(height: 1.45),
+          ),
+        ],
+      ),
     );
   }
 }

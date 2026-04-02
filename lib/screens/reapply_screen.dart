@@ -36,7 +36,6 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
   bool _obscure = true;
   XFile? _proofFile;
   final List<String> _categories = [
-    'General Residents',
     'Senior',
     'Pregnant/Lactating Mother',
     'Student',
@@ -154,6 +153,7 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
       }
       final currentCount = (doc.data()?['reapplicationCount'] as int?) ?? 0;
       final category = (doc.data()?['category'] as String?) ?? '';
+      final currentPurok = doc.data()?['purok'];
       final updates = <String, dynamic>{
         'accountStatus': 'pending',
         'reapplicationCount': currentCount + 1,
@@ -178,6 +178,8 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
             'status': 'pending',
             'reapplicationCount': currentCount + 1,
             'category': category,
+            if (currentPurok != null) 'purok': currentPurok,
+            'proofOfResidenceUrl': proofUrl,
             'createdAt': FieldValue.serverTimestamp(),
             'updatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
@@ -250,6 +252,7 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
         return;
       }
       final currentCount = (doc.data()?['reapplicationCount'] as int?) ?? 0;
+      final currentPurok = doc.data()?['purok'];
       await docRef.update({
         'fullName': name,
         'phoneNumber': phone,
@@ -277,6 +280,7 @@ class _ReapplyScreenState extends State<ReapplyScreen> {
             'reapplicationCount': currentCount + 1,
             'category': categoryString,
             'categories': _selectedCategories.toList(),
+            if (currentPurok != null) 'purok': currentPurok,
             'createdAt': FieldValue.serverTimestamp(),
             'updatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
