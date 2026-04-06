@@ -30,6 +30,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   final TextEditingController lastNameController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  final TextEditingController confirmPasswordController = TextEditingController();
 
   bool obscure = true;
   bool isLoading = false;
@@ -77,6 +78,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     lastNameController.dispose();
     phoneController.dispose();
     passwordController.dispose();
+    confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -244,6 +246,27 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         obscureText: obscure,
                         decoration: InputDecoration(
                           hintText: 'At least 6 characters',
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              obscure ? Icons.visibility_off : Icons.visibility,
+                            ),
+                            onPressed: () => setState(() => obscure = !obscure),
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 18),
+
+                      const Text("Confirm Password"),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: confirmPasswordController,
+                        obscureText: obscure,
+                        decoration: InputDecoration(
+                          hintText: 'Re-type your password',
                           suffixIcon: IconButton(
                             icon: Icon(
                               obscure ? Icons.visibility_off : Icons.visibility,
@@ -551,6 +574,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     final lastName = lastNameController.text.trim();
     final phoneRaw = phoneController.text.trim();
     final password = passwordController.text;
+    final confirmPassword = confirmPasswordController.text;
 
     if (firstName.isEmpty ||
         lastName.isEmpty ||
@@ -606,6 +630,13 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         const SnackBar(
           content: Text('Password must be at least 6 characters.'),
         ),
+      );
+      return;
+    }
+
+    if (password != confirmPassword) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Passwords do not match.')),
       );
       return;
     }

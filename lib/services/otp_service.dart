@@ -3,6 +3,26 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
+enum OtpErrorType {
+  invalidOtp,
+  expiredOtp,
+  tooManyRequests,
+  network,
+  invalidInput,
+  server,
+  unknown,
+}
+
+class OtpServiceException implements Exception {
+  final OtpErrorType type;
+  final String message;
+
+  OtpServiceException(this.type, this.message);
+
+  @override
+  String toString() => message;
+}
+
 /// Manages OTP state during registration/device verification.
 ///
 /// **Flow**:
@@ -94,13 +114,12 @@ class OtpService {
 
       return result.data['success'] == true;
     } on FirebaseFunctionsException catch (e) {
-      if (e.code == 'resource-exhausted') {
-        // Rate limited
-        return false;
-      }
-      rethrow;
+      throw _mapFunctionsException(e, isVerifyFlow: false);
     } catch (e) {
-      rethrow;
+      throw _mapUnknownException(
+        e,
+        fallback: 'Unable to send verification code right now. Please try again.',
+      );
     }
   }
 
@@ -138,11 +157,107 @@ class OtpService {
         clearReceivedOtp();
         return true;
       } else {
-        throw Exception(result.data['error'] ?? 'OTP verification failed');
+        throw OtpServiceException(
+          OtpErrorType.unknown,
+          'Verification failed. Please try again.',
+        );
       }
+    } on FirebaseFunctionsException catch (e) {
+      throw _mapFunctionsException(e, isVerifyFlow: true);
     } catch (e) {
-      rethrow;
+      if (e is OtpServiceException) rethrow;
+      throw _mapUnknownException(
+        e,
+        fallback: 'Verification failed. Please try again.',
+      );
     }
+  }
+
+  OtpServiceException _mapFunctionsException(
+    FirebaseFunctionsException e, {
+    required bool isVerifyFlow,
+  }) {
+    final message = e.message?.toLowerCase() ?? '';
+
+    if (e.code == 'resource-exhausted') {
+      return OtpServiceException(
+        OtpErrorType.tooManyRequests,
+        'Too many requests. Please wait before trying again.',
+      );
+    }
+
+    if (e.code == 'unavailable' ||
+        message.contains('network') ||
+        message.contains('internet') ||
+        message.contains('socket') ||
+        message.contains('timed out') ||
+        message.contains('failed to connect') ||
+        message.contains('connection')) {
+      return OtpServiceException(
+        OtpErrorType.network,
+        'No internet connection. Please check your network and try again.',
+      );
+    }
+
+    if (isVerifyFlow) {
+      if (e.code == 'not-found') {
+        return OtpServiceException(
+          OtpErrorType.invalidOtp,
+          'Wrong verification code. Please try again.',
+        );
+      }
+
+      if (e.code == 'failed-precondition') {
+        return OtpServiceException(
+          OtpErrorType.expiredOtp,
+          'OTP has expired. Please request a new one.',
+        );
+      }
+
+      if (e.code == 'invalid-argument') {
+        return OtpServiceException(
+          OtpErrorType.invalidInput,
+          'Invalid verification code format. Please enter 6 digits.',
+        );
+      }
+
+      return OtpServiceException(
+        OtpErrorType.server,
+        'Unable to verify code right now. Please try again.',
+      );
+    }
+
+    if (e.code == 'invalid-argument') {
+      return OtpServiceException(
+        OtpErrorType.invalidInput,
+        'Invalid phone number. Please check and try again.',
+      );
+    }
+
+    return OtpServiceException(
+      OtpErrorType.server,
+      'Unable to send verification code right now. Please try again.',
+    );
+  }
+
+  OtpServiceException _mapUnknownException(
+    Object error, {
+    required String fallback,
+  }) {
+    final text = error.toString().toLowerCase();
+    if (text.contains('network') ||
+        text.contains('internet') ||
+        text.contains('socket') ||
+        text.contains('timed out') ||
+        text.contains('failed to connect') ||
+        text.contains('connection')) {
+      return OtpServiceException(
+        OtpErrorType.network,
+        'No internet connection. Please check your network and try again.',
+      );
+    }
+
+    return OtpServiceException(OtpErrorType.unknown, fallback);
   }
 
   /// Validate OTP format (6 digits, numeric only)

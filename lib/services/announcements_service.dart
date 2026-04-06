@@ -1,5 +1,34 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firestore_service.dart';
+import 'name_formatter.dart';
+
+class AnnouncementViewer {
+  final String userId;
+  final String displayName;
+  final String? avatarUrl;
+  final String? purok;
+  final DateTime? viewedAt;
+
+  const AnnouncementViewer({
+    required this.userId,
+    required this.displayName,
+    this.avatarUrl,
+    this.purok,
+    this.viewedAt,
+  });
+}
+
+class AnnouncementViewersPage {
+  final List<AnnouncementViewer> viewers;
+  final QueryDocumentSnapshot<Map<String, dynamic>>? lastVisible;
+  final bool hasMore;
+
+  const AnnouncementViewersPage({
+    required this.viewers,
+    required this.lastVisible,
+    required this.hasMore,
+  });
+}
 
 class AnnouncementsService {
   static final CollectionReference _announcementsCollection = FirestoreService
@@ -201,5 +230,100 @@ class AnnouncementsService {
       final data = doc.data() as Map<String, dynamic>;
       return data['announcementId'] as String;
     }).toSet();
+  }
+
+  /// Get a page of viewers for an announcement (newest first).
+  static Future<AnnouncementViewersPage> getAnnouncementViewersPage({
+    required String announcementId,
+    int limit = 20,
+    QueryDocumentSnapshot<Map<String, dynamic>>? startAfter,
+  }) async {
+    Query<Map<String, dynamic>> query = FirebaseFirestore.instance
+        .collection('announcements')
+        .doc(announcementId)
+        .collection('views')
+        .orderBy('viewedAt', descending: true)
+        .limit(limit);
+
+    if (startAfter != null) {
+      query = query.startAfterDocument(startAfter);
+    }
+
+    final snapshot = await query.get();
+    final docs = snapshot.docs;
+
+    final viewers = await Future.wait(
+      docs.map((doc) async {
+        final data = doc.data();
+        final userId = (data['userId'] as String?) ?? doc.id;
+        final viewedAtRaw = data['viewedAt'];
+
+        String displayName = 'Resident';
+        String? avatarUrl;
+        String? purok;
+
+        try {
+          final userDoc =
+              await FirebaseFirestore.instance.collection('users').doc(userId).get();
+          if (userDoc.exists) {
+            final userData = userDoc.data();
+            final resolvedName = NameFormatter.fromUserDataDisplay(
+              userData,
+              fallback: '',
+            );
+
+            if (resolvedName.isNotEmpty) {
+              displayName = resolvedName;
+            } else {
+              final fallbackName = NameFormatter.fromAnyDisplay(
+                fullName: userData?['displayName'] as String?,
+                firstName: userData?['firstName'] as String?,
+                middleName: userData?['middleName'] as String?,
+                lastName: userData?['lastName'] as String?,
+                hasMiddleName: userData?['hasMiddleName'] as bool?,
+                fallback: '',
+              );
+              if (fallbackName.isNotEmpty) {
+                displayName = fallbackName;
+              }
+            }
+
+            final purokValue = userData?['purok'];
+            if (purokValue != null) {
+              purok = purokValue.toString();
+            }
+
+            final avatarValue =
+                (userData?['avatarUrl'] as String?)?.trim() ??
+                (userData?['profileImageUrl'] as String?)?.trim();
+            if (avatarValue != null && avatarValue.isNotEmpty) {
+              avatarUrl = avatarValue;
+            }
+          }
+        } catch (_) {
+          // Keep graceful fallback if user profile cannot be read.
+        }
+
+        return AnnouncementViewer(
+          userId: userId,
+          displayName: displayName,
+          avatarUrl: avatarUrl,
+          purok: purok,
+          viewedAt:
+              viewedAtRaw is Timestamp
+                  ? viewedAtRaw.toDate()
+                  : (viewedAtRaw is DateTime ? viewedAtRaw : null),
+        );
+      }),
+    );
+
+    final hasMore = docs.length == limit;
+    final lastVisible = docs.isNotEmpty ? docs.last : null;
+
+    return AnnouncementViewersPage(
+      viewers: viewers,
+      lastVisible: lastVisible,
+      hasMore: hasMore,
+    );
   }
 }

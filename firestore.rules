@@ -142,8 +142,9 @@ service cloud.firestore {
         // Any signed-in user can mark as read
         allow create: if isSignedIn();
 
-        // Only Super Admin can read reader list
-        allow read: if isSuperAdmin();
+        // Signed-in users can read the reader list for resident-side viewers UI.
+        // Super Admin keeps full access by virtue of signed-in access.
+        allow read: if isSignedIn();
 
         // No client updates/deletes
         allow update, delete: if false;

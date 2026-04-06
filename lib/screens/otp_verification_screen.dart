@@ -154,11 +154,13 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       } else {
         _showError('Invalid verification code. Please try again.');
       }
+    } on OtpServiceException catch (e) {
+      if (mounted) {
+        _showError(e.message);
+      }
     } catch (e) {
       if (mounted) {
-        _showError(
-          'Verification failed. Please check your connection and try again.',
-        );
+        _showError('Verification failed. Please try again.');
       }
     } finally {
       if (mounted) {
@@ -201,6 +203,10 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         );
       } else {
         _showError('Too many requests. Please wait before trying again.');
+      }
+    } on OtpServiceException catch (e) {
+      if (mounted) {
+        _showError(e.message);
       }
     } catch (e) {
       if (mounted) {

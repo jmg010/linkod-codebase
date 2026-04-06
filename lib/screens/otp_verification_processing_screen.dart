@@ -62,9 +62,8 @@ class _OtpVerificationProcessingScreenState
       if (!success) {
         setState(() {
           _isLoading = false;
-          _error =
-              'Too many OTP requests. Please wait 30 minutes before trying again.';
-          _canRetry = false;
+          _error = 'Unable to send verification code. Please try again.';
+          _canRetry = true;
         });
         return;
       }
@@ -81,16 +80,25 @@ class _OtpVerificationProcessingScreenState
           ),
         );
       }
-    } catch (e) {
-      debugPrint('OTP request error: $e');
-      debugPrint('Error type: ${e.runtimeType}');
-      debugPrint('Error message: ${e.toString()}');
+    } on OtpServiceException catch (e) {
+      debugPrint('OTP request mapped error: ${e.type} - ${e.message}');
 
       if (mounted) {
         setState(() {
           _isLoading = false;
-          // Show the actual error instead of generic message
-          _error = 'Error: ${e.toString()}';
+          _error = e.message;
+          _canRetry = e.type != OtpErrorType.tooManyRequests;
+        });
+      }
+    } catch (e) {
+      debugPrint('OTP request error: $e');
+      debugPrint('Error type: ${e.runtimeType}');
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error =
+              'Unable to send verification code. Please check your connection and try again.';
           _canRetry = true;
         });
       }

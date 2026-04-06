@@ -42,6 +42,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
   final TextEditingController middleNameController = TextEditingController();
   final TextEditingController lastNameController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  final TextEditingController confirmPasswordController = TextEditingController();
 
   bool obscure = true;
   bool isLoading = false;
@@ -88,6 +89,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
     middleNameController.dispose();
     lastNameController.dispose();
     passwordController.dispose();
+    confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -299,6 +301,41 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                         style: TextStyle(color: formTextColor),
                         decoration: InputDecoration(
                           hintText: 'At least 6 characters',
+                          hintStyle: TextStyle(
+                            color: isDarkMode ? Colors.white54 : Colors.black45,
+                          ),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              obscure ? Icons.visibility_off : Icons.visibility,
+                            ),
+                            onPressed: () => setState(() => obscure = !obscure),
+                          ),
+                          filled: true,
+                          fillColor: inputFillColor,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: inputBorderColor),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: inputBorderColor),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 18),
+
+                      Text(
+                        "Confirm Password",
+                        style: TextStyle(color: formTextColor),
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: confirmPasswordController,
+                        obscureText: obscure,
+                        style: TextStyle(color: formTextColor),
+                        decoration: InputDecoration(
+                          hintText: 'Re-type your password',
                           hintStyle: TextStyle(
                             color: isDarkMode ? Colors.white54 : Colors.black45,
                           ),
@@ -589,6 +626,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
     final middleName = middleNameController.text.trim();
     final lastName = lastNameController.text.trim();
     final password = passwordController.text;
+    final confirmPassword = confirmPasswordController.text;
 
     if (firstName.isEmpty || lastName.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -626,6 +664,13 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
         const SnackBar(
           content: Text('Password must be at least 6 characters.'),
         ),
+      );
+      return;
+    }
+
+    if (password != confirmPassword) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Passwords do not match.')),
       );
       return;
     }
