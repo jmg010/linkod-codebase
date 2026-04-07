@@ -83,8 +83,10 @@ class BarangayInfoService {
     }).toList();
   }
 
-  /// Reconstruct IconData from Firestore iconCodePoint
-  /// Handles both int and String codePoint for backward compatibility
+  /// Resolve Firestore iconCodePoint to a predefined Material icon.
+  ///
+  /// Creating IconData dynamically (IconData(codePoint, ...)) breaks
+  /// icon tree-shaking in release builds, so we only return known icons.
   static IconData? getIconFromCodePoint(dynamic codePoint, String? fontFamily) {
     if (codePoint == null) return null;
 
@@ -97,10 +99,35 @@ class BarangayInfoService {
 
     if (parsedCodePoint == null) return null;
 
-    return IconData(
-      parsedCodePoint,
-      fontFamily: fontFamily?.isNotEmpty == true ? fontFamily : 'MaterialIcons',
-    );
+    final family = fontFamily?.trim();
+    if (family != null && family.isNotEmpty && family != 'MaterialIcons') {
+      return null;
+    }
+
+    if (parsedCodePoint == Icons.calendar_today.codePoint) {
+      return Icons.calendar_today;
+    }
+    if (parsedCodePoint == Icons.phone.codePoint) return Icons.phone;
+    if (parsedCodePoint == Icons.location_on.codePoint) {
+      return Icons.location_on;
+    }
+    if (parsedCodePoint == Icons.campaign.codePoint) return Icons.campaign;
+    if (parsedCodePoint == Icons.push_pin.codePoint) return Icons.push_pin;
+    if (parsedCodePoint == Icons.article_outlined.codePoint) {
+      return Icons.article_outlined;
+    }
+    if (parsedCodePoint == Icons.notifications.codePoint) {
+      return Icons.notifications;
+    }
+    if (parsedCodePoint == Icons.announcement.codePoint) {
+      return Icons.announcement;
+    }
+    if (parsedCodePoint == Icons.event.codePoint) return Icons.event;
+    if (parsedCodePoint == Icons.home.codePoint) return Icons.home;
+    if (parsedCodePoint == Icons.storefront.codePoint) return Icons.storefront;
+    if (parsedCodePoint == Icons.handshake.codePoint) return Icons.handshake;
+
+    return null;
   }
 
   /// Get image URLs from posting data
