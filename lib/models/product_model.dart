@@ -17,6 +17,7 @@ class ProductModel {
   final String location;
   final String contactNumber;
   final int messagesCount;
+  final int viewCount;
   /// Gatekeeper: Pending (awaiting admin approval) or Approved (visible on feed/market).
   final String status;
 
@@ -36,6 +37,7 @@ class ProductModel {
     this.location = 'Location not specified',
     this.contactNumber = '',
     this.messagesCount = 0,
+    this.viewCount = 0,
     this.status = 'Pending',
   });
 
@@ -56,6 +58,7 @@ class ProductModel {
       'location': location,
       'contactNumber': contactNumber,
       'messagesCount': messagesCount,
+      'viewCount': viewCount,
       'status': status,
     };
   }
@@ -80,6 +83,7 @@ class ProductModel {
       location: json['location'] as String? ?? 'Location not specified',
       contactNumber: json['contactNumber'] as String? ?? '',
       messagesCount: (json['messagesCount'] as num?)?.toInt() ?? 0,
+      viewCount: (json['viewCount'] as num?)?.toInt() ?? 0,
       status: json['status'] as String? ?? 'Approved',
     );
   }

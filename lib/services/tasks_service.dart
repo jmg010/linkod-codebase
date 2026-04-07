@@ -2,12 +2,144 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/task_model.dart';
 import 'firestore_service.dart';
+import 'name_formatter.dart';
 import 'notifications_service.dart';
 import 'task_chat_service.dart';
+
+class TaskViewer {
+  final String userId;
+  final String displayName;
+  final String? avatarUrl;
+  final String? purok;
+  final DateTime? viewedAt;
+
+  const TaskViewer({
+    required this.userId,
+    required this.displayName,
+    this.avatarUrl,
+    this.purok,
+    this.viewedAt,
+  });
+}
+
+class TaskViewersPage {
+  final List<TaskViewer> viewers;
+  final QueryDocumentSnapshot<Map<String, dynamic>>? lastVisible;
+  final bool hasMore;
+
+  const TaskViewersPage({
+    required this.viewers,
+    required this.lastVisible,
+    required this.hasMore,
+  });
+}
 
 class TasksService {
   static final CollectionReference _tasksCollection = FirestoreService.instance
       .collection('tasks');
+
+  /// Mark task as viewed once per user and increment viewCount without duplicates.
+  static Future<void> markAsViewed(String taskId, String userId) async {
+    final taskRef = _tasksCollection.doc(taskId);
+    final viewRef = taskRef.collection('views').doc(userId);
+
+    await FirestoreService.instance.runTransaction((tx) async {
+      final viewSnap = await tx.get(viewRef);
+      if (viewSnap.exists) return;
+
+      tx.set(viewRef, {
+        'userId': userId,
+        'viewedAt': FieldValue.serverTimestamp(),
+      });
+
+      tx.update(taskRef, {
+        'viewCount': FieldValue.increment(1),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
+  /// Get a page of task viewers (newest first).
+  static Future<TaskViewersPage> getTaskViewersPage({
+    required String taskId,
+    int limit = 20,
+    QueryDocumentSnapshot<Map<String, dynamic>>? startAfter,
+  }) async {
+    Query<Map<String, dynamic>> query = FirebaseFirestore.instance
+        .collection('tasks')
+        .doc(taskId)
+        .collection('views')
+        .orderBy('viewedAt', descending: true)
+        .limit(limit);
+
+    if (startAfter != null) {
+      query = query.startAfterDocument(startAfter);
+    }
+
+    final snapshot = await query.get();
+    final docs = snapshot.docs;
+
+    final viewers = await Future.wait(
+      docs.map((doc) async {
+        final data = doc.data();
+        final userId = (data['userId'] as String?) ?? doc.id;
+        final viewedAtRaw = data['viewedAt'];
+
+        String displayName = 'Resident';
+        String? avatarUrl;
+        String? purok;
+
+        try {
+          final userDoc =
+              await FirebaseFirestore.instance.collection('users').doc(userId).get();
+          if (userDoc.exists) {
+            final userData = userDoc.data();
+            final resolvedName = NameFormatter.fromUserDataDisplay(
+              userData,
+              fallback: '',
+            );
+            if (resolvedName.isNotEmpty) {
+              displayName = resolvedName;
+            }
+
+            final avatarValue =
+                (userData?['avatarUrl'] as String?)?.trim() ??
+                (userData?['profileImageUrl'] as String?)?.trim();
+            if (avatarValue != null && avatarValue.isNotEmpty) {
+              avatarUrl = avatarValue;
+            }
+
+            final purokValue = userData?['purok'];
+            if (purokValue != null) {
+              purok = purokValue.toString();
+            }
+          }
+        } catch (_) {
+          // Fallback values are used if profile fetch fails.
+        }
+
+        return TaskViewer(
+          userId: userId,
+          displayName: displayName,
+          avatarUrl: avatarUrl,
+          purok: purok,
+          viewedAt:
+              viewedAtRaw is Timestamp
+                  ? viewedAtRaw.toDate()
+                  : (viewedAtRaw is DateTime ? viewedAtRaw : null),
+        );
+      }),
+    );
+
+    final hasMore = docs.length == limit;
+    final lastVisible = docs.isNotEmpty ? docs.last : null;
+
+    return TaskViewersPage(
+      viewers: viewers,
+      lastVisible: lastVisible,
+      hasMore: hasMore,
+    );
+  }
 
   // ==================== INTERACTED TASKS (Activity Log) ====================
 

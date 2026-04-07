@@ -241,7 +241,13 @@ service cloud.firestore {
         && !isAdminPanelUser()
         && resource.data.sellerId != request.auth.uid
         && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['messagesCount', 'updatedAt']);
+             .hasOnly(['messagesCount', 'viewCount', 'updatedAt']);
+
+      match /views/{viewId} {
+        // Any signed-in user can record and read product viewers.
+        allow create, read: if isSignedIn();
+        allow update, delete: if false;
+      }
 
       match /messages/{messageId} {
         allow read: if isSignedIn();
@@ -277,6 +283,11 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys()
              .hasOnly(['volunteersCount', 'pendingVolunteersCount', 'unreadVolunteersCount', 'updatedAt']);
 
+      // View tracking flow: any signed-in user may update only viewCount and updatedAt.
+      allow update: if isSignedIn()
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['viewCount', 'updatedAt']);
+
       // Participants can delete their own tasks? (Keep legacy behavior)
       allow delete: if isSignedIn()
         && (resource.data.requesterId == request.auth.uid
@@ -307,6 +318,12 @@ service cloud.firestore {
           && request.auth.uid == userId
           && (get(/databases/$(database)/documents/tasks/$(taskId)).data.requesterId == request.auth.uid
               || get(/databases/$(database)/documents/tasks/$(taskId)).data.assignedTo == request.auth.uid);
+      }
+
+      match /views/{viewId} {
+        // Any signed-in user can record and read task viewers.
+        allow create, read: if isSignedIn();
+        allow update, delete: if false;
       }
     }
 

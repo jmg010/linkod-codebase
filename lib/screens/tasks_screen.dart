@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:rxdart/rxdart.dart';
+import 'dart:async';
+import 'package:visibility_detector/visibility_detector.dart';
 
 import '../models/task_model.dart';
 import '../widgets/errand_job_card.dart';
@@ -37,6 +39,39 @@ class TasksScreenState extends State<TasksScreen> {
   int _displayCount = _initialPageSize;
   int _totalTaskCount = 0;
   final ScrollController _scrollController = ScrollController();
+  final Set<String> _autoViewedTaskIds = <String>{};
+
+  Future<void> _markTaskAsViewedIfNeeded(
+    String taskId,
+    String currentUserId,
+  ) async {
+    if (_autoViewedTaskIds.contains(taskId)) return;
+
+    _autoViewedTaskIds.add(taskId);
+    try {
+      await TasksService.markAsViewed(taskId, currentUserId);
+    } catch (_) {
+      _autoViewedTaskIds.remove(taskId);
+    }
+  }
+
+  Widget _withTaskViewTracking({
+    required TaskModel task,
+    required String? currentUserId,
+    required Widget child,
+  }) {
+    if (currentUserId == null) return child;
+
+    return VisibilityDetector(
+      key: Key('tasks-feed-visibility-${task.id}'),
+      onVisibilityChanged: (info) {
+        if (info.visibleFraction >= 0.6) {
+          unawaited(_markTaskAsViewedIfNeeded(task.id, currentUserId));
+        }
+      },
+      child: child,
+    );
+  }
 
   List<TaskModel> _filterByCategory(List<TaskModel> tasks) {
     if (_selectedFilter == _filterAll) return tasks;
@@ -421,7 +456,6 @@ class TasksScreenState extends State<TasksScreen> {
                   orderedTasks.length,
                 );
                 final showLoadMore = visibleCount < orderedTasks.length;
-                final hasNewListing = todayTasks.isNotEmpty;
                 final visibleRestCount = (visibleCount - todayTasks.length)
                     .clamp(0, restTasks.length);
 
@@ -501,51 +535,57 @@ class TasksScreenState extends State<TasksScreen> {
                                     12,
                                     12,
                                   ),
-                                  child: ErrandJobCard(
-                                    title: task.title,
-                                    description: task.description,
-                                    postedBy: task.requesterName,
-                                    date: task.createdAt,
-                                    imageUrls: task.imageUrls,
-                                    status: _mapStatus(task.status)!,
-                                    statusLabel: task.status.displayName,
-                                    volunteerName: task.assignedByName,
-                                    viewButtonLabel:
-                                        (currentUserId != null &&
-                                                task.requesterId ==
-                                                    currentUserId)
-                                            ? 'Edit'
-                                            : 'View',
-                                    viewButtonIcon:
-                                        (currentUserId != null &&
-                                                task.requesterId ==
-                                                    currentUserId)
-                                            ? Icons.edit_outlined
-                                            : Icons.visibility_outlined,
-                                    onViewPressed: () {
-                                      final isOwner =
-                                          currentUserId != null &&
-                                          task.requesterId == currentUserId;
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder:
-                                              (_) =>
-                                                  isOwner
-                                                      ? TaskEditScreen(
-                                                        task: task,
-                                                        contactNumber:
-                                                            task.contactNumber ??
-                                                            '',
-                                                      )
-                                                      : TaskDetailScreen(
-                                                        task: task,
-                                                        contactNumber:
-                                                            task.contactNumber ??
-                                                            '',
-                                                      ),
-                                        ),
-                                      );
-                                    },
+                                  child: _withTaskViewTracking(
+                                    task: task,
+                                    currentUserId: currentUserId,
+                                    child: ErrandJobCard(
+                                      title: task.title,
+                                      description: task.description,
+                                      postedBy: task.requesterName,
+                                      date: task.createdAt,
+                                      taskId: task.id,
+                                      viewCount: task.viewCount,
+                                      imageUrls: task.imageUrls,
+                                      status: _mapStatus(task.status)!,
+                                      statusLabel: task.status.displayName,
+                                      volunteerName: task.assignedByName,
+                                      viewButtonLabel:
+                                          (currentUserId != null &&
+                                                  task.requesterId ==
+                                                      currentUserId)
+                                              ? 'Edit'
+                                              : 'View',
+                                      viewButtonIcon:
+                                          (currentUserId != null &&
+                                                  task.requesterId ==
+                                                      currentUserId)
+                                              ? Icons.edit_outlined
+                                              : Icons.visibility_outlined,
+                                      onViewPressed: () {
+                                        final isOwner =
+                                            currentUserId != null &&
+                                            task.requesterId == currentUserId;
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder:
+                                                (_) =>
+                                                    isOwner
+                                                        ? TaskEditScreen(
+                                                          task: task,
+                                                          contactNumber:
+                                                              task.contactNumber ??
+                                                              '',
+                                                        )
+                                                        : TaskDetailScreen(
+                                                          task: task,
+                                                          contactNumber:
+                                                              task.contactNumber ??
+                                                              '',
+                                                        ),
+                                          ),
+                                        );
+                                      },
+                                    ),
                                   ),
                                 ),
                               ),
@@ -593,47 +633,53 @@ class TasksScreenState extends State<TasksScreen> {
                       padding: EdgeInsets.only(
                         bottom: index - 2 < visibleRestCount - 1 ? 16 : 0,
                       ),
-                      child: ErrandJobCard(
-                        title: task.title,
-                        description: task.description,
-                        postedBy: task.requesterName,
-                        date: task.createdAt,
-                        imageUrls: task.imageUrls,
-                        status: status!,
-                        statusLabel: task.status.displayName,
-                        volunteerName: task.assignedByName,
-                        viewButtonLabel:
-                            (currentUserId != null &&
-                                    task.requesterId == currentUserId)
-                                ? 'Edit'
-                                : 'View',
-                        viewButtonIcon:
-                            (currentUserId != null &&
-                                    task.requesterId == currentUserId)
-                                ? Icons.edit_outlined
-                                : Icons.visibility_outlined,
-                        onViewPressed: () {
-                          final isOwner =
-                              currentUserId != null &&
-                              task.requesterId == currentUserId;
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder:
-                                  (_) =>
-                                      isOwner
-                                          ? TaskEditScreen(
-                                            task: task,
-                                            contactNumber:
-                                                task.contactNumber ?? '',
-                                          )
-                                          : TaskDetailScreen(
-                                            task: task,
-                                            contactNumber:
-                                                task.contactNumber ?? '',
-                                          ),
-                            ),
-                          );
-                        },
+                      child: _withTaskViewTracking(
+                        task: task,
+                        currentUserId: currentUserId,
+                        child: ErrandJobCard(
+                          title: task.title,
+                          description: task.description,
+                          postedBy: task.requesterName,
+                          date: task.createdAt,
+                          taskId: task.id,
+                          viewCount: task.viewCount,
+                          imageUrls: task.imageUrls,
+                          status: status!,
+                          statusLabel: task.status.displayName,
+                          volunteerName: task.assignedByName,
+                          viewButtonLabel:
+                              (currentUserId != null &&
+                                      task.requesterId == currentUserId)
+                                  ? 'Edit'
+                                  : 'View',
+                          viewButtonIcon:
+                              (currentUserId != null &&
+                                      task.requesterId == currentUserId)
+                                  ? Icons.edit_outlined
+                                  : Icons.visibility_outlined,
+                          onViewPressed: () {
+                            final isOwner =
+                                currentUserId != null &&
+                                task.requesterId == currentUserId;
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder:
+                                    (_) =>
+                                        isOwner
+                                            ? TaskEditScreen(
+                                              task: task,
+                                              contactNumber:
+                                                  task.contactNumber ?? '',
+                                            )
+                                            : TaskDetailScreen(
+                                              task: task,
+                                              contactNumber:
+                                                  task.contactNumber ?? '',
+                                            ),
+                              ),
+                            );
+                          },
+                        ),
                       ),
                     );
                   },

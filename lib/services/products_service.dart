@@ -4,11 +4,143 @@ import 'package:flutter/foundation.dart';
 import '../models/message_model.dart';
 import '../models/product_model.dart';
 import 'firestore_service.dart';
+import 'name_formatter.dart';
+
+class ProductViewer {
+  final String userId;
+  final String displayName;
+  final String? avatarUrl;
+  final String? purok;
+  final DateTime? viewedAt;
+
+  const ProductViewer({
+    required this.userId,
+    required this.displayName,
+    this.avatarUrl,
+    this.purok,
+    this.viewedAt,
+  });
+}
+
+class ProductViewersPage {
+  final List<ProductViewer> viewers;
+  final QueryDocumentSnapshot<Map<String, dynamic>>? lastVisible;
+  final bool hasMore;
+
+  const ProductViewersPage({
+    required this.viewers,
+    required this.lastVisible,
+    required this.hasMore,
+  });
+}
 
 class ProductsService {
   static final CollectionReference _productsCollection = FirestoreService
       .instance
       .collection('products');
+
+  /// Mark product as viewed once per user and increment viewCount without duplicates.
+  static Future<void> markAsViewed(String productId, String userId) async {
+    final productRef = _productsCollection.doc(productId);
+    final viewRef = productRef.collection('views').doc(userId);
+
+    await FirestoreService.instance.runTransaction((tx) async {
+      final viewSnap = await tx.get(viewRef);
+      if (viewSnap.exists) return;
+
+      tx.set(viewRef, {
+        'userId': userId,
+        'viewedAt': FieldValue.serverTimestamp(),
+      });
+
+      tx.update(productRef, {
+        'viewCount': FieldValue.increment(1),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
+  /// Get a page of product viewers (newest first).
+  static Future<ProductViewersPage> getProductViewersPage({
+    required String productId,
+    int limit = 20,
+    QueryDocumentSnapshot<Map<String, dynamic>>? startAfter,
+  }) async {
+    Query<Map<String, dynamic>> query = FirebaseFirestore.instance
+        .collection('products')
+        .doc(productId)
+        .collection('views')
+        .orderBy('viewedAt', descending: true)
+        .limit(limit);
+
+    if (startAfter != null) {
+      query = query.startAfterDocument(startAfter);
+    }
+
+    final snapshot = await query.get();
+    final docs = snapshot.docs;
+
+    final viewers = await Future.wait(
+      docs.map((doc) async {
+        final data = doc.data();
+        final userId = (data['userId'] as String?) ?? doc.id;
+        final viewedAtRaw = data['viewedAt'];
+
+        String displayName = 'Resident';
+        String? avatarUrl;
+        String? purok;
+
+        try {
+          final userDoc =
+              await FirebaseFirestore.instance.collection('users').doc(userId).get();
+          if (userDoc.exists) {
+            final userData = userDoc.data();
+            final resolvedName = NameFormatter.fromUserDataDisplay(
+              userData,
+              fallback: '',
+            );
+            if (resolvedName.isNotEmpty) {
+              displayName = resolvedName;
+            }
+
+            final avatarValue =
+                (userData?['avatarUrl'] as String?)?.trim() ??
+                (userData?['profileImageUrl'] as String?)?.trim();
+            if (avatarValue != null && avatarValue.isNotEmpty) {
+              avatarUrl = avatarValue;
+            }
+
+            final purokValue = userData?['purok'];
+            if (purokValue != null) {
+              purok = purokValue.toString();
+            }
+          }
+        } catch (_) {
+          // Fallback values are used if profile fetch fails.
+        }
+
+        return ProductViewer(
+          userId: userId,
+          displayName: displayName,
+          avatarUrl: avatarUrl,
+          purok: purok,
+          viewedAt:
+              viewedAtRaw is Timestamp
+                  ? viewedAtRaw.toDate()
+                  : (viewedAtRaw is DateTime ? viewedAtRaw : null),
+        );
+      }),
+    );
+
+    final hasMore = docs.length == limit;
+    final lastVisible = docs.isNotEmpty ? docs.last : null;
+
+    return ProductViewersPage(
+      viewers: viewers,
+      lastVisible: lastVisible,
+      hasMore: hasMore,
+    );
+  }
 
   /// Get all available products (Gatekeeper: only Approved)
   static Stream<List<ProductModel>> getProductsStream() {

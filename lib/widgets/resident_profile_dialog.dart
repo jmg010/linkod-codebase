@@ -75,33 +75,40 @@ class ResidentProfileDialog extends StatelessWidget {
                 child: Column(
                   children: [
                     // Avatar
-                    Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 4),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: ClipOval(
-                        child:
-                            avatarUrl != null && avatarUrl!.isNotEmpty
-                                ? OptimizedNetworkImage(
-                                  imageUrl: avatarUrl!,
-                                  width: 80,
-                                  height: 80,
-                                  fit: BoxFit.cover,
-                                  cacheWidth: 160,
-                                  cacheHeight: 160,
-                                  errorWidget: _buildFallbackAvatar(initials),
-                                )
-                                : _buildFallbackAvatar(initials),
+                    GestureDetector(
+                      onTap: () {
+                        if (avatarUrl != null && avatarUrl!.isNotEmpty) {
+                          _showExpandedAvatar(context, avatarUrl!, displayName);
+                        }
+                      },
+                      child: Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 4),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: ClipOval(
+                          child:
+                              avatarUrl != null && avatarUrl!.isNotEmpty
+                                  ? OptimizedNetworkImage(
+                                    imageUrl: avatarUrl!,
+                                    width: 80,
+                                    height: 80,
+                                    fit: BoxFit.cover,
+                                    cacheWidth: 160,
+                                    cacheHeight: 160,
+                                    errorWidget: _buildFallbackAvatar(initials),
+                                  )
+                                  : _buildFallbackAvatar(initials),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -217,6 +224,72 @@ class ResidentProfileDialog extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> _showExpandedAvatar(
+    BuildContext context,
+    String imageUrl,
+    String displayName,
+  ) async {
+    await showDialog<void>(
+      context: context,
+      barrierColor: Colors.black87,
+      builder:
+          (_) => GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: Stack(
+              children: [
+                Center(
+                  child: InteractiveViewer(
+                    minScale: 1,
+                    maxScale: 4,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: OptimizedNetworkImage(
+                        imageUrl: imageUrl,
+                        fit: BoxFit.contain,
+                        errorWidget: Container(
+                          width: 220,
+                          height: 220,
+                          color: const Color(0xFF2C2C2C),
+                          alignment: Alignment.center,
+                          child: const Icon(
+                            Icons.image_not_supported_outlined,
+                            color: Colors.white70,
+                            size: 36,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 52,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Text(
+                      displayName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 36,
+                  right: 20,
+                  child: IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close, color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          ),
     );
   }
 

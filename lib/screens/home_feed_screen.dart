@@ -547,6 +547,8 @@ class HomeFeedScreenState extends State<HomeFeedScreen> {
         description: task.description,
         postedBy: task.requesterName,
         date: task.createdAt,
+        taskId: task.id,
+        viewCount: task.viewCount,
         imageUrls: task.imageUrls,
         status: errandStatus,
         statusLabel: task.status.displayName,

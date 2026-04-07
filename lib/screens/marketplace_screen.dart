@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
+import 'package:visibility_detector/visibility_detector.dart';
 import '../constants/marketplace_categories.dart';
 import '../models/product_model.dart';
 import '../widgets/product_card.dart';
@@ -29,8 +31,41 @@ class MarketplaceScreenState extends State<MarketplaceScreen> {
   int _displayCount = _initialPageSize;
   int _totalProductCount = 0;
   final ScrollController _scrollController = ScrollController();
+  final Set<String> _autoViewedProductIds = <String>{};
   String? _cachedMarketplaceBadgeUid;
   Stream<int>? _cachedMarketplaceBadgeStream;
+
+  Future<void> _markProductAsViewedIfNeeded(
+    String productId,
+    String currentUserId,
+  ) async {
+    if (_autoViewedProductIds.contains(productId)) return;
+
+    _autoViewedProductIds.add(productId);
+    try {
+      await ProductsService.markAsViewed(productId, currentUserId);
+    } catch (_) {
+      _autoViewedProductIds.remove(productId);
+    }
+  }
+
+  Widget _withProductViewTracking({
+    required ProductModel product,
+    required String? currentUserId,
+    required Widget child,
+  }) {
+    if (currentUserId == null) return child;
+
+    return VisibilityDetector(
+      key: Key('market-product-visibility-${product.id}'),
+      onVisibilityChanged: (info) {
+        if (info.visibleFraction >= 0.6) {
+          unawaited(_markProductAsViewedIfNeeded(product.id, currentUserId));
+        }
+      },
+      child: child,
+    );
+  }
 
   void addProduct(ProductModel product) {
     // Product will be added to Firestore and stream will update automatically
@@ -350,7 +385,6 @@ class MarketplaceScreenState extends State<MarketplaceScreen> {
                   orderedProducts.length,
                 );
                 final showLoadMore = visibleCount < orderedProducts.length;
-                final hasTodaysPicks = todayProducts.isNotEmpty;
                 final visibleRestCount = (visibleCount - todayProducts.length)
                     .clamp(0, restProducts.length);
 
@@ -430,18 +464,22 @@ class MarketplaceScreenState extends State<MarketplaceScreen> {
                                     12,
                                     12,
                                   ),
-                                  child: ProductCard(
+                                  child: _withProductViewTracking(
                                     product: product,
-                                    onInteract: () {
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder:
-                                              (_) => ProductDetailScreen(
-                                                product: product,
-                                              ),
-                                        ),
-                                      );
-                                    },
+                                    currentUserId: currentUserId,
+                                    child: ProductCard(
+                                      product: product,
+                                      onInteract: () {
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder:
+                                                (_) => ProductDetailScreen(
+                                                  product: product,
+                                                ),
+                                          ),
+                                        );
+                                      },
+                                    ),
                                   ),
                                 ),
                               ),
@@ -488,16 +526,20 @@ class MarketplaceScreenState extends State<MarketplaceScreen> {
                       padding: EdgeInsets.only(
                         bottom: index - 2 < visibleRestCount - 1 ? 16 : 0,
                       ),
-                      child: ProductCard(
+                      child: _withProductViewTracking(
                         product: product,
-                        onInteract: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder:
-                                  (_) => ProductDetailScreen(product: product),
-                            ),
-                          );
-                        },
+                        currentUserId: currentUserId,
+                        child: ProductCard(
+                          product: product,
+                          onInteract: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder:
+                                    (_) => ProductDetailScreen(product: product),
+                              ),
+                            );
+                          },
+                        ),
                       ),
                     );
                   },

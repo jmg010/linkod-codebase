@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
+import 'package:visibility_detector/visibility_detector.dart';
 import '../models/post_model.dart';
 import '../models/product_model.dart';
 import '../models/task_model.dart';
@@ -39,6 +41,8 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _queryController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
+  final Set<String> _searchAutoViewedProductIds = <String>{};
+  final Set<String> _searchAutoViewedTaskIds = <String>{};
 
   /// Only set after user presses search icon or Enter; null = not searched yet.
   String? _searchQuery;
@@ -247,6 +251,76 @@ class _SearchScreenState extends State<SearchScreen> {
       _homeTasksDisplayCount += _loadMorePageSize;
       _homeProductsDisplayCount += _loadMorePageSize;
     });
+  }
+
+  Future<void> _markSearchProductAsViewedIfNeeded(
+    ProductModel product,
+    String currentUserId,
+  ) async {
+    if (product.id.isEmpty || product.sellerId == currentUserId) return;
+    if (_searchAutoViewedProductIds.contains(product.id)) return;
+
+    _searchAutoViewedProductIds.add(product.id);
+    try {
+      await ProductsService.markAsViewed(product.id, currentUserId);
+    } catch (_) {
+      _searchAutoViewedProductIds.remove(product.id);
+    }
+  }
+
+  Future<void> _markSearchTaskAsViewedIfNeeded(
+    TaskModel task,
+    String currentUserId,
+  ) async {
+    if (task.id.isEmpty || task.requesterId == currentUserId) return;
+    if (_searchAutoViewedTaskIds.contains(task.id)) return;
+
+    _searchAutoViewedTaskIds.add(task.id);
+    try {
+      await TasksService.markAsViewed(task.id, currentUserId);
+    } catch (_) {
+      _searchAutoViewedTaskIds.remove(task.id);
+    }
+  }
+
+  Widget _withSearchProductViewTracking({
+    required ProductModel product,
+    required String? currentUserId,
+    required Widget child,
+  }) {
+    if (currentUserId == null || product.sellerId == currentUserId) {
+      return child;
+    }
+
+    return VisibilityDetector(
+      key: Key('search-product-visibility-${widget.mode.name}-${product.id}'),
+      onVisibilityChanged: (info) {
+        if (info.visibleFraction >= 0.6) {
+          unawaited(_markSearchProductAsViewedIfNeeded(product, currentUserId));
+        }
+      },
+      child: child,
+    );
+  }
+
+  Widget _withSearchTaskViewTracking({
+    required TaskModel task,
+    required String? currentUserId,
+    required Widget child,
+  }) {
+    if (currentUserId == null || task.requesterId == currentUserId) {
+      return child;
+    }
+
+    return VisibilityDetector(
+      key: Key('search-task-visibility-${widget.mode.name}-${task.id}'),
+      onVisibilityChanged: (info) {
+        if (info.visibleFraction >= 0.6) {
+          unawaited(_markSearchTaskAsViewedIfNeeded(task, currentUserId));
+        }
+      },
+      child: child,
+    );
   }
 
   String _normalizeSearchText(String input) {
@@ -828,7 +902,11 @@ class _SearchScreenState extends State<SearchScreen> {
             // Products Section
             if (products.isNotEmpty)
               SliverToBoxAdapter(
-                child: _buildHomeProductsSectionFromData(products, queryLower),
+                child: _buildHomeProductsSectionFromData(
+                  products,
+                  queryLower,
+                  currentUserId,
+                ),
               ),
             // Bottom padding
             SliverToBoxAdapter(child: _buildHomeLoadMoreIndicator()),
@@ -1086,30 +1164,36 @@ class _SearchScreenState extends State<SearchScreen> {
               currentUserId != null && task.requesterId == currentUserId;
           return Padding(
             padding: const EdgeInsets.only(bottom: 16),
-            child: ErrandJobCard(
-              title: task.title,
-              description: task.description,
-              postedBy: task.requesterName,
-              date: task.createdAt,
-              imageUrls: task.imageUrls,
-              status: _mapTaskStatus(task.status),
-              statusLabel: task.status.displayName,
-              volunteerName: task.assignedByName,
-              showTag: true,
-              viewButtonLabel: isOwner ? 'Edit' : 'View',
-              viewButtonIcon:
-                  isOwner ? Icons.edit_outlined : Icons.visibility_outlined,
-              onViewPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder:
-                        (_) =>
-                            isOwner
-                                ? TaskEditScreen(task: task)
-                                : TaskDetailScreen(task: task),
-                  ),
-                );
-              },
+            child: _withSearchTaskViewTracking(
+              task: task,
+              currentUserId: currentUserId,
+              child: ErrandJobCard(
+                title: task.title,
+                description: task.description,
+                postedBy: task.requesterName,
+                date: task.createdAt,
+                taskId: task.id,
+                viewCount: task.viewCount,
+                imageUrls: task.imageUrls,
+                status: _mapTaskStatus(task.status),
+                statusLabel: task.status.displayName,
+                volunteerName: task.assignedByName,
+                showTag: true,
+                viewButtonLabel: isOwner ? 'Edit' : 'View',
+                viewButtonIcon:
+                    isOwner ? Icons.edit_outlined : Icons.visibility_outlined,
+                onViewPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder:
+                          (_) =>
+                              isOwner
+                                  ? TaskEditScreen(task: task)
+                                  : TaskDetailScreen(task: task),
+                    ),
+                  );
+                },
+              ),
             ),
           );
         }),
@@ -1143,6 +1227,7 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget _buildHomeProductsSectionFromData(
     List<ProductModel> products,
     String queryLower,
+    String? currentUserId,
   ) {
     final visibleCount = _homeProductsDisplayCount.clamp(0, products.length);
     final showLoadMore = visibleCount < products.length;
@@ -1156,16 +1241,20 @@ class _SearchScreenState extends State<SearchScreen> {
             .map(
               (product) => Padding(
                 padding: const EdgeInsets.only(bottom: 16),
-                child: ProductCard(
+                child: _withSearchProductViewTracking(
                   product: product,
-                  showTag: true,
-                  onInteract: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => ProductDetailScreen(product: product),
-                      ),
-                    );
-                  },
+                  currentUserId: currentUserId,
+                  child: ProductCard(
+                    product: product,
+                    showTag: true,
+                    onInteract: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ProductDetailScreen(product: product),
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
@@ -1456,30 +1545,38 @@ class _SearchScreenState extends State<SearchScreen> {
                   currentUserId != null && task.requesterId == currentUserId;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 16),
-                child: ErrandJobCard(
-                  title: task.title,
-                  description: task.description,
-                  postedBy: task.requesterName,
-                  date: task.createdAt,
-                  imageUrls: task.imageUrls,
-                  status: _mapTaskStatus(task.status),
-                  statusLabel: task.status.displayName,
-                  volunteerName: task.assignedByName,
-                  showTag: true,
-                  viewButtonLabel: isOwner ? 'Edit' : 'View',
-                  viewButtonIcon:
-                      isOwner ? Icons.edit_outlined : Icons.visibility_outlined,
-                  onViewPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder:
-                            (_) =>
-                                isOwner
-                                    ? TaskEditScreen(task: task)
-                                    : TaskDetailScreen(task: task),
-                      ),
-                    );
-                  },
+                child: _withSearchTaskViewTracking(
+                  task: task,
+                  currentUserId: currentUserId,
+                  child: ErrandJobCard(
+                    title: task.title,
+                    description: task.description,
+                    postedBy: task.requesterName,
+                    date: task.createdAt,
+                    taskId: task.id,
+                    viewCount: task.viewCount,
+                    imageUrls: task.imageUrls,
+                    status: _mapTaskStatus(task.status),
+                    statusLabel: task.status.displayName,
+                    volunteerName: task.assignedByName,
+                    showTag: true,
+                    viewButtonLabel: isOwner ? 'Edit' : 'View',
+                    viewButtonIcon:
+                        isOwner
+                            ? Icons.edit_outlined
+                            : Icons.visibility_outlined,
+                    onViewPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder:
+                              (_) =>
+                                  isOwner
+                                      ? TaskEditScreen(task: task)
+                                      : TaskDetailScreen(task: task),
+                        ),
+                      );
+                    },
+                  ),
                 ),
               );
             }),
@@ -1542,17 +1639,21 @@ class _SearchScreenState extends State<SearchScreen> {
                 .map(
                   (product) => Padding(
                     padding: const EdgeInsets.only(bottom: 16),
-                    child: ProductCard(
+                    child: _withSearchProductViewTracking(
                       product: product,
-                      showTag: true,
-                      onInteract: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder:
-                                (_) => ProductDetailScreen(product: product),
-                          ),
-                        );
-                      },
+                      currentUserId: currentUserId,
+                      child: ProductCard(
+                        product: product,
+                        showTag: true,
+                        onInteract: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder:
+                                  (_) => ProductDetailScreen(product: product),
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ),
@@ -1830,16 +1931,20 @@ class _SearchScreenState extends State<SearchScreen> {
                 padding: EdgeInsets.only(
                   bottom: index < visibleCount - 1 ? 16 : 0,
                 ),
-                child: ProductCard(
+                child: _withSearchProductViewTracking(
                   product: product,
-                  showTag: true,
-                  onInteract: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => ProductDetailScreen(product: product),
-                      ),
-                    );
-                  },
+                  currentUserId: currentUserId,
+                  child: ProductCard(
+                    product: product,
+                    showTag: true,
+                    onInteract: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ProductDetailScreen(product: product),
+                        ),
+                      );
+                    },
+                  ),
                 ),
               );
             } else {
@@ -1946,30 +2051,38 @@ class _SearchScreenState extends State<SearchScreen> {
                 padding: EdgeInsets.only(
                   bottom: index < visibleCount - 1 ? 16 : 0,
                 ),
-                child: ErrandJobCard(
-                  title: task.title,
-                  description: task.description,
-                  postedBy: task.requesterName,
-                  date: task.createdAt,
-                  imageUrls: task.imageUrls,
-                  status: _mapTaskStatus(task.status),
-                  statusLabel: task.status.displayName,
-                  volunteerName: task.assignedByName,
-                  showTag: true,
-                  viewButtonLabel: isOwner ? 'Edit' : 'View',
-                  viewButtonIcon:
-                      isOwner ? Icons.edit_outlined : Icons.visibility_outlined,
-                  onViewPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder:
-                            (_) =>
-                                isOwner
-                                    ? TaskEditScreen(task: task)
-                                    : TaskDetailScreen(task: task),
-                      ),
-                    );
-                  },
+                child: _withSearchTaskViewTracking(
+                  task: task,
+                  currentUserId: currentUserId,
+                  child: ErrandJobCard(
+                    title: task.title,
+                    description: task.description,
+                    postedBy: task.requesterName,
+                    date: task.createdAt,
+                    taskId: task.id,
+                    viewCount: task.viewCount,
+                    imageUrls: task.imageUrls,
+                    status: _mapTaskStatus(task.status),
+                    statusLabel: task.status.displayName,
+                    volunteerName: task.assignedByName,
+                    showTag: true,
+                    viewButtonLabel: isOwner ? 'Edit' : 'View',
+                    viewButtonIcon:
+                        isOwner
+                            ? Icons.edit_outlined
+                            : Icons.visibility_outlined,
+                    onViewPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder:
+                              (_) =>
+                                  isOwner
+                                      ? TaskEditScreen(task: task)
+                                      : TaskDetailScreen(task: task),
+                        ),
+                      );
+                    },
+                  ),
                 ),
               );
             } else {
@@ -2198,16 +2311,20 @@ class _SearchScreenState extends State<SearchScreen> {
               padding: EdgeInsets.only(
                 bottom: index < filtered.length - 1 ? 16 : 0,
               ),
-              child: ProductCard(
+              child: _withSearchProductViewTracking(
                 product: product,
-                showTag: true,
-                onInteract: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => ProductDetailScreen(product: product),
-                    ),
-                  );
-                },
+                currentUserId: currentUserId,
+                child: ProductCard(
+                  product: product,
+                  showTag: true,
+                  onInteract: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ProductDetailScreen(product: product),
+                      ),
+                    );
+                  },
+                ),
               ),
             );
           },
@@ -2298,29 +2415,35 @@ class _SearchScreenState extends State<SearchScreen> {
               padding: EdgeInsets.only(
                 bottom: index < filtered.length - 1 ? 16 : 0,
               ),
-              child: ErrandJobCard(
-                title: task.title,
-                description: task.description,
-                postedBy: task.requesterName,
-                date: task.createdAt,
-                imageUrls: task.imageUrls,
-                status: _mapTaskStatus(task.status),
-                statusLabel: task.status.displayName,
-                volunteerName: task.assignedByName,
-                showTag: true,
-                viewButtonLabel: 'Edit',
-                viewButtonIcon: Icons.edit_outlined,
-                onViewPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder:
-                          (_) => TaskEditScreen(
-                            task: task,
-                            contactNumber: task.contactNumber ?? '',
-                          ),
-                    ),
-                  );
-                },
+              child: _withSearchTaskViewTracking(
+                task: task,
+                currentUserId: currentUserId,
+                child: ErrandJobCard(
+                  title: task.title,
+                  description: task.description,
+                  postedBy: task.requesterName,
+                  date: task.createdAt,
+                  taskId: task.id,
+                  viewCount: task.viewCount,
+                  imageUrls: task.imageUrls,
+                  status: _mapTaskStatus(task.status),
+                  statusLabel: task.status.displayName,
+                  volunteerName: task.assignedByName,
+                  showTag: true,
+                  viewButtonLabel: 'Edit',
+                  viewButtonIcon: Icons.edit_outlined,
+                  onViewPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder:
+                            (_) => TaskEditScreen(
+                              task: task,
+                              contactNumber: task.contactNumber ?? '',
+                            ),
+                      ),
+                    );
+                  },
+                ),
               ),
             );
           },

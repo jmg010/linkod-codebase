@@ -34,6 +34,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     super.initState();
     final uid = FirestoreService.auth.currentUser?.uid;
     _isOwner = uid != null && uid == widget.task.requesterId;
+    if (uid != null) {
+      TasksService.markAsViewed(widget.task.id, uid);
+    }
     // Do NOT mark chat read here; mark only when user opens TaskChatScreen.
   }
 
@@ -604,7 +607,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         color: Color(0xFF4C4C4C),
                       ),
               label: Text(
-                _isVolunteering ? 'Volunteering...' : 'Volunteer',
+                _isVolunteering ? 'Applying...' : 'Apply',
                 style: TextStyle(
                   fontSize: 14,
                   color: isDark ? Colors.white : const Color(0xFF4C4C4C),

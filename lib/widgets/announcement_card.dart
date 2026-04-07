@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../screens/announcement_detail_screen.dart';
 import '../services/announcements_service.dart';
 import 'optimized_image.dart';
+import 'resident_profile_dialog.dart';
 
 class AnnouncementCard extends StatelessWidget {
   final String title;
@@ -174,29 +175,29 @@ class AnnouncementCard extends StatelessWidget {
                 Icon(
                   Icons.visibility_outlined,
                   size: 16,
-                  color: const Color(0xFF6E6E6E),
+                  color: isDark ? Colors.grey.shade400 : const Color(0xFF6E6E6E),
                 ),
                 const SizedBox(width: 6),
                 if (announcementId != null && announcementId!.isNotEmpty)
                   InkWell(
                     onTap: () => _showViewersSheet(context),
                     child: Text(
-                      '${unreadCount ?? 0} viewers',
+                      '${unreadCount ?? 0} views',
                       style: TextStyle(
                         fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
+                        color: isDark ? Colors.grey.shade300 : Colors.grey.shade600,
                         decoration: TextDecoration.underline,
-                        decorationColor: Colors.black87,
+                        decorationColor:
+                            isDark ? Colors.grey.shade300 : Colors.grey.shade600,
                       ),
                     ),
                   )
                 else
                   Text(
-                    '${unreadCount ?? 0} viewers',
+                    '${unreadCount ?? 0} views',
                     style: TextStyle(
                       fontSize: 12,
-                      color: Colors.black87,
+                      color: isDark ? Colors.grey.shade300 : Colors.grey.shade600,
                     ),
                   ),
               ],
@@ -389,6 +390,89 @@ class _AnnouncementViewersSheetState extends State<_AnnouncementViewersSheet> {
     return 'Viewed $day/$month/$year';
   }
 
+  String? _formatDemographicCategories(dynamic categories) {
+    if (categories is List) {
+      final values =
+          categories
+              .map((e) => e?.toString().trim() ?? '')
+              .where((e) => e.isNotEmpty)
+              .toList();
+      return values.isEmpty ? null : values.join(', ');
+    }
+    if (categories is String) {
+      final value = categories.trim();
+      return value.isEmpty ? null : value;
+    }
+    return null;
+  }
+
+  Future<void> _showViewerProfileDialog(AnnouncementViewer viewer) async {
+    String? avatarUrl = viewer.avatarUrl;
+    String displayName = viewer.displayName;
+    String? purok = viewer.purok;
+    String? phoneNumber;
+    String? demographicCategory;
+
+    try {
+      final userDoc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(viewer.userId)
+              .get();
+      final data = userDoc.data();
+      if (data != null) {
+        final fullName = (data['fullName'] as String?)?.trim();
+        final firstName = (data['firstName'] as String?)?.trim();
+        final middleName = (data['middleName'] as String?)?.trim();
+        final lastName = (data['lastName'] as String?)?.trim();
+        final combinedName =
+            [firstName, middleName, lastName]
+                .where((part) => part != null && part.isNotEmpty)
+                .join(' ')
+                .trim();
+
+        if (fullName != null && fullName.isNotEmpty) {
+          displayName = fullName;
+        } else if (combinedName.isNotEmpty) {
+          displayName = combinedName;
+        }
+
+        final avatarValue =
+            (data['avatarUrl'] as String?)?.trim() ??
+            (data['profileImageUrl'] as String?)?.trim();
+        if (avatarValue != null && avatarValue.isNotEmpty) {
+          avatarUrl = avatarValue;
+        }
+        final purokValue = data['purok'];
+        if (purokValue != null) {
+          purok = purokValue.toString();
+        }
+        final phoneValue = (data['phoneNumber'] as String?)?.trim();
+        if (phoneValue != null && phoneValue.isNotEmpty) {
+          phoneNumber = phoneValue;
+        }
+        demographicCategory = _formatDemographicCategories(data['categories']);
+      }
+    } catch (_) {
+      // Use viewer fallback data when profile fetch fails.
+    }
+
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder:
+          (_) => ResidentProfileDialog(
+            avatarUrl: avatarUrl,
+            name: displayName,
+            purok: purok,
+            phoneNumber: phoneNumber,
+            demographicCategory: demographicCategory,
+            isSeller: false,
+          ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -444,7 +528,7 @@ class _AnnouncementViewersSheetState extends State<_AnnouncementViewersSheet> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Announcement Viewers',
+                          'Announcement Views',
                           style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
@@ -514,7 +598,7 @@ class _AnnouncementViewersSheetState extends State<_AnnouncementViewersSheet> {
                       : _viewers.isEmpty
                       ? Center(
                         child: Text(
-                          'No viewers yet',
+                          'No views yet',
                           style: TextStyle(color: muted),
                         ),
                       )
@@ -548,6 +632,7 @@ class _AnnouncementViewersSheetState extends State<_AnnouncementViewersSheet> {
                               horizontal: 18,
                               vertical: 2,
                             ),
+                            onTap: () => _showViewerProfileDialog(viewer),
                             leading: Container(
                               width: 44,
                               height: 44,

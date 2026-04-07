@@ -70,6 +70,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     super.initState();
     _currentProduct = widget.product;
 
+    final viewerUid = FirestoreService.auth.currentUser?.uid;
+    if (viewerUid != null) {
+      ProductsService.markAsViewed(widget.product.id, viewerUid);
+    }
+
     // Mark notification as read if opened from notification
     if (widget.notificationId != null) {
       NotificationsService.markAsRead(widget.notificationId!);

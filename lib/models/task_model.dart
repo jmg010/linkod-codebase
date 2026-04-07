@@ -21,6 +21,7 @@ class TaskModel {
 
   /// Number of new pending volunteers not yet seen by the task owner.
   final int unreadVolunteersCount;
+  final int viewCount;
   final bool isActive;
 
   /// Gatekeeper: Pending (awaiting admin) or Approved (visible on feed).
@@ -52,6 +53,7 @@ class TaskModel {
     this.volunteersCount = 0,
     this.pendingVolunteersCount = 0,
     this.unreadVolunteersCount = 0,
+    this.viewCount = 0,
     this.isActive = true,
     this.approvalStatus = 'Pending',
     this.category,
@@ -77,6 +79,7 @@ class TaskModel {
       'volunteersCount': volunteersCount,
       'pendingVolunteersCount': pendingVolunteersCount,
       'unreadVolunteersCount': unreadVolunteersCount,
+      'viewCount': viewCount,
       'isActive': isActive,
       'approvalStatus': approvalStatus,
       'category': category,
@@ -113,6 +116,7 @@ class TaskModel {
           (json['pendingVolunteersCount'] as num?)?.toInt() ?? 0,
       unreadVolunteersCount:
           (json['unreadVolunteersCount'] as num?)?.toInt() ?? 0,
+        viewCount: (json['viewCount'] as num?)?.toInt() ?? 0,
       isActive: json['isActive'] as bool? ?? true,
       approvalStatus: json['approvalStatus'] as String? ?? 'Approved',
       category: json['category'] as String?,
