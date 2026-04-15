@@ -1,0 +1,114 @@
+Implementation prompt you can paste directly:
+
+You are implementing a priority announcement alert flow across the admin and resident mobile apps. Base all edits on the current implementation context below and keep changes minimal, isolated, and backward-compatible.
+
+Current context discovered
+1. Admin can create announcements with audience targeting and can publish directly or submit for approval.
+2. Announcement push delivery already exists through backend HTTP endpoint send-announcement-push, with payload including type announcement and announcementId.
+3. Push can be triggered from direct publish flow and from approval flow.
+4. Resident mobile app already initializes FCM, handles foreground/background/terminated states, shows local notifications, and deep-links announcement notifications to the existing announcement detail screen.
+5. Resident app currently uses a general announcement channel with non-high default importance for most announcement notifications.
+6. Resident app has Android 13 notification permission handling in place.
+7. Resident app currently does not implement explicit full-screen intent flow for announcement alerts.
+
+Objective
+1. Every admin-published announcement should behave as a priority announcement alert by default.
+2. Resident app should show high-priority alert behavior for announcements, with full-screen style opening where permitted.
+3. Existing announcement detail screen must remain the canonical destination.
+4. Non-announcement notification behavior must remain unchanged.
+
+Implementation requirements
+1. Do not create a parallel notification system.
+2. Reuse existing announcement push endpoint and existing resident notification routing.
+3. Introduce a clear payload contract for priority announcements without breaking legacy payload parsing.
+4. Keep all edits limited to announcement creation and dispatch, resident notification handling, and Android config required for alert behavior.
+5. Do not refactor unrelated modules.
+
+Payload contract changes
+1. Ensure all announcement pushes include existing fields and add explicit priority metadata.
+2. Required fields to preserve:
+- type announcement
+- announcementId
+- title and body
+3. New priority fields to add:
+- priority high
+- alertStyle announcement_priority
+- attemptFullScreen true
+4. Maintain backward compatibility so older clients still open announcement detail via announcementId.
+
+Admin-side tasks
+1. Normalize direct publish and approval-triggered announcement push paths so they emit the same payload contract.
+2. Ensure all published announcements are treated as priority by default.
+3. Preserve audience filtering and existing targeting logic.
+4. Preserve existing post-only workflow where needed, but when a push is sent it must use the priority contract.
+5. Add lightweight logging for payload shape and dispatch outcome.
+
+Resident mobile tasks
+1. In foreground:
+- show urgent-style local notification for announcement priority payload
+- show in-app modal alert dialog immediately when app is active and context is available
+- dialog primary action opens announcement detail
+- dialog secondary action dismisses only
+2. In background and terminated:
+- show high-priority heads-up notification
+- route tap to announcement detail
+- preserve existing deep-link path
+3. For full-screen behavior:
+- attempt full-screen intent only when OS capability and permission allow it
+- if denied or unsupported, fall back to heads-up notification
+4. Keep legacy payload compatibility:
+- if priority fields are missing but type announcement plus announcementId exists, continue normal announcement behavior.
+
+Android compatibility requirements
+1. Android 8 to 12:
+- use high importance channel for priority announcements
+- heads-up must be the baseline behavior
+2. Android 13:
+- respect runtime notification permission state
+- if denied, degrade gracefully and avoid crash
+3. Android 14 and above:
+- perform runtime capability check for full-screen intent
+- do not assume full-screen permission is granted
+- fallback to heads-up when unavailable
+4. Manifest and channel changes:
+- only add permissions and flags that are strictly required for this flow
+- do not alter unrelated activity behavior
+
+Failure and fallback behavior
+1. If push payload lacks new priority keys, existing announcement handling still works.
+2. If full-screen is blocked by OS, show heads-up and deep-link normally.
+3. If foreground modal cannot be shown due to navigation state, still show local notification.
+4. If announcement document is missing or deleted, show graceful error state already used by announcement detail flow.
+
+Testing requirements
+1. Validate admin direct publish sends priority payload.
+2. Validate admin approval-triggered publish sends same priority payload.
+3. Validate resident foreground receives alert notification and modal dialog.
+4. Validate resident background tap opens announcement detail.
+5. Validate resident terminated launch from notification opens announcement detail.
+6. Validate Android 13 denied notifications path does not crash.
+7. Validate Android 14 full-screen denied path falls back to heads-up.
+8. Validate non-announcement push types still behave exactly as before.
+
+Acceptance criteria
+1. Every sent announcement push is marked as priority by payload contract.
+2. Resident receives a high-priority announcement alert experience.
+3. Full-screen style opening is attempted only when permitted.
+4. Heads-up fallback always works.
+5. Existing announcement detail screen remains the only destination route for announcement taps.
+6. No regressions to likes, comments, task, product, or account approval notification flows.
+
+Delivery format required from implementer
+1. Summary of what existed before changes.
+2. Exact files changed and logic areas touched.
+3. Compatibility notes by Android version band.
+4. Fallback behavior summary.
+5. Test evidence for each acceptance criterion.
+
+Considerations
+1. Keep user trust high by avoiding intrusive behavior for non-announcement messages.
+2. Minimize OS-fragile logic and rely on capability checks instead of assumptions.
+3. Prefer payload-driven behavior flags over duplicated client branching logic.
+4. Preserve current UX patterns by routing to the same announcement detail experience.
+
+If you want, I can also generate a second version optimized for task-tracker tickets with implementation phases and estimates.
