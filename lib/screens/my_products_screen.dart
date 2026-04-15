@@ -719,7 +719,6 @@ class _MyProductCard extends StatelessWidget {
           ),
     );
   }
-
 }
 
 /// Card for INTERACTED POSTS tab - custom card with badge inside button
@@ -1228,7 +1227,8 @@ class _OwnerProductViewersSheetState extends State<_OwnerProductViewersSheet> {
                               Icon(
                                 Icons.error_outline,
                                 size: 40,
-                                color: isDark ? Colors.red.shade300 : Colors.red,
+                                color:
+                                    isDark ? Colors.red.shade300 : Colors.red,
                               ),
                               const SizedBox(height: 10),
                               Text(
@@ -1298,9 +1298,10 @@ class _OwnerProductViewersSheetState extends State<_OwnerProductViewersSheet> {
                                           fit: BoxFit.cover,
                                           cacheWidth: 80,
                                           cacheHeight: 80,
-                                          errorWidget: _OwnerProductFallbackAvatar(
-                                            initials: initials,
-                                          ),
+                                          errorWidget:
+                                              _OwnerProductFallbackAvatar(
+                                                initials: initials,
+                                              ),
                                         ),
                                       )
                                       : _OwnerProductFallbackAvatar(

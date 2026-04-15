@@ -85,22 +85,18 @@ class BarangayInfoService {
 
   /// Resolve Firestore iconCodePoint to a predefined Material icon.
   ///
-  /// Creating IconData dynamically (IconData(codePoint, ...)) breaks
-  /// icon tree-shaking in release builds, so we only return known icons.
+  /// Known icons are preferred for release safety. If no known icon matches,
+  /// we fall back to dynamic Material IconData for compatibility with
+  /// admin-selected Firestore icon code points.
   static IconData? getIconFromCodePoint(dynamic codePoint, String? fontFamily) {
     if (codePoint == null) return null;
 
-    int? parsedCodePoint;
-    if (codePoint is int) {
-      parsedCodePoint = codePoint;
-    } else if (codePoint is String) {
-      parsedCodePoint = int.tryParse(codePoint);
-    }
+    final parsedCodePoint = _parseCodePoint(codePoint);
 
     if (parsedCodePoint == null) return null;
 
-    final family = fontFamily?.trim();
-    if (family != null && family.isNotEmpty && family != 'MaterialIcons') {
+    final normalizedFamily = _normalizeFontFamily(fontFamily);
+    if (normalizedFamily != null && normalizedFamily != 'materialicons') {
       return null;
     }
 
@@ -127,7 +123,43 @@ class BarangayInfoService {
     if (parsedCodePoint == Icons.storefront.codePoint) return Icons.storefront;
     if (parsedCodePoint == Icons.handshake.codePoint) return Icons.handshake;
 
-    return null;
+    // Fallback to the exact Material icon selected by admins in Firestore.
+    return IconData(parsedCodePoint, fontFamily: 'MaterialIcons');
+  }
+
+  static int? _parseCodePoint(dynamic codePoint) {
+    if (codePoint is int) return codePoint;
+    if (codePoint is num) return codePoint.toInt();
+    if (codePoint is! String) return null;
+
+    final raw = codePoint.trim();
+    if (raw.isEmpty) return null;
+
+    // Supports values like "0xe88a", "e88a", "U+E88A", and plain decimals.
+    final normalized = raw.toLowerCase().replaceFirst('u+', '');
+    final without0x =
+        normalized.startsWith('0x') ? normalized.substring(2) : normalized;
+    final isHex = RegExp(r'^[0-9a-f]+$').hasMatch(without0x);
+
+    if (isHex &&
+        (normalized.startsWith('0x') ||
+            raw.startsWith('U+') ||
+            raw.startsWith('u+'))) {
+      return int.tryParse(without0x, radix: 16);
+    }
+
+    // If it looks like hex-only text and not a plain integer, parse as hex.
+    if (isHex && int.tryParse(raw) == null) {
+      return int.tryParse(without0x, radix: 16);
+    }
+
+    return int.tryParse(raw);
+  }
+
+  static String? _normalizeFontFamily(String? fontFamily) {
+    final family = fontFamily?.trim();
+    if (family == null || family.isEmpty) return null;
+    return family.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
   }
 
   /// Get image URLs from posting data

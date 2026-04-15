@@ -319,25 +319,30 @@ class BulletinBoardScreenState extends State<BulletinBoardScreen> {
             final categoryData = categoriesData[index];
             final iconCodePoint = categoryData['iconCodePoint'];
             final iconFontFamily = categoryData['iconFontFamily'] as String?;
+            final title = categoryData['title'] as String? ?? 'Untitled';
 
-            IconData? icon = BarangayInfoService.getIconFromCodePoint(
-              iconCodePoint,
-              iconFontFamily,
-            );
+            final predefined =
+                BulletinCategoryModel.getById(categoryData['id'] as String) ??
+                BulletinCategoryModel.getByTitle(title);
 
-            final predefined = BulletinCategoryModel.getById(categoryData['id']);
-            icon ??= predefined?.icon ?? Icons.info_outline;
+            final icon =
+                BarangayInfoService.getIconFromCodePoint(
+                  iconCodePoint,
+                  iconFontFamily,
+                ) ??
+                predefined?.icon ??
+                Icons.info_outline;
 
             return BarangayInfoCategoryCard(
               icon: icon,
-              title: categoryData['title'] as String? ?? 'Untitled',
+              title: title,
               description: categoryData['description'] as String? ?? '',
               onTap: () {
                 final category = BulletinCategoryModel(
                   id: categoryData['id'] as String,
-                  title: categoryData['title'] as String? ?? 'Untitled',
+                  title: title,
                   description: categoryData['description'] as String? ?? '',
-                  icon: icon ?? Icons.info_outline,
+                  icon: icon,
                   backgroundColor: predefined?.backgroundColor ?? const Color(0xFFE8F4FD),
                   iconColor: predefined?.iconColor ?? const Color(0xFF2196F3),
                 );
