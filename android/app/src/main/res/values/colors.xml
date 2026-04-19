@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- LINKod Green Theme -->
+    <color name="linkod_green_primary">#10B981</color>
+    <color name="linkod_green_dark">#059669</color>
+    <color name="linkod_white">#FFFFFF</color>
+    <color name="linkod_gray_light">#F3F4F6</color>
+    <color name="linkod_gray_text">#6B7280</color>
+    <color name="linkod_green_light">#D1FAE5</color>
+</resources>

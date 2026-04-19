@@ -1,0 +1,12 @@
+﻿REVIEW OF RELATED LITERATURE
+Foreign Literature
+Digital governance improves transparency and citizen participation worldwide. AI and ICT tools help make communication clearer, decisions more data-driven, and services more accessible. Studies show digital platforms strengthen community cooperation and support local entrepreneurship. Literature emphasizes that successful digital systems must align technology, users, and organizational readiness.
+Local Literature
+Philippine barangays increasingly adopt digital tools but struggle with limited skills and infrastructure. Social media and basic online systems help speed up announcements and coordination. Research shows ICT training improves engagement and transparency, but most existing systems remain fragmented. Local literature highlights the need for integrated platforms that combine governance, communication, and livelihood support.
+REVIEW OF RELATED STUDIES
+Foreign Studies
+AI-assisted systems abroad improve targeted communication, citizen engagement, and administrative efficiency. Digital platforms for governance and livelihood show gains in transparency, responsiveness, and local economic activity. Studies stress the importance of trust and ethical design for AI-supported public services. Findings support multifunctional platforms that integrate communication and livelihood features.
+Local Studies
+Local digital platforms improve barangay communication and record-keeping but often lack livelihood or community-aid modules. Studies show better system adoption when paired with digital literacy programs. Research on livelihood platforms helps vendors reach more buyers but operates separately from barangay governance. Overall, local studies justify the need for a unified, AI-assisted barangay platform like LINKod.
+Synthesis
+These gaps highlight the need for a unified platform. This is where LINKod becomes relevantâ€”a single, AI-assisted barangay system that brings together communication, administrative functions, and livelihood support. Guided by established technology and governance models, LINKod aims to strengthen local services and promote digital bayanihan.

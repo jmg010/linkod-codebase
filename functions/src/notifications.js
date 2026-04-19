@@ -84,8 +84,9 @@ function defaultBodyForType(type) {
 }
 
 function buildDataPayload(notificationId, data) {
+  const type = toStr(data.type) || 'notification';
   const payload = {
-    type: toStr(data.type) || 'notification',
+    type,
     notificationId: toStr(notificationId) || '',
   };
 
@@ -106,6 +107,14 @@ function buildDataPayload(notificationId, data) {
     if (value) {
       payload[key] = value;
     }
+  }
+
+  if (type === 'announcement') {
+    payload.priority = toStr(data.priority) || 'high';
+    payload.alertStyle = toStr(data.alertStyle) || 'announcement_priority';
+    payload.attemptFullScreen = toStr(data.attemptFullScreen) || 'true';
+    payload.title = toStr(data.title) || titleForType(type);
+    payload.body = toStr(data.message) || defaultBodyForType(type);
   }
 
   return payload;
@@ -274,18 +283,26 @@ exports.sendPushForNotification = functions.firestore
     const body = toStr(data.message) || defaultBodyForType(type);
     const tokens = dedupedEntries.map((entry) => entry.token);
 
+    const dataPayload = buildDataPayload(notificationId, data);
+    const isPriorityAnnouncement =
+      dataPayload.type === 'announcement' &&
+      dataPayload.alertStyle === 'announcement_priority';
+
     const response = await messaging.sendEachForMulticast({
       tokens,
       notification: {
         title,
         body,
       },
-      data: buildDataPayload(notificationId, data),
+      data: dataPayload,
       android: {
         priority: 'high',
         collapseKey: notificationId,
         notification: {
           tag: notificationId,
+          channelId: isPriorityAnnouncement
+            ? 'linkod_announcements_priority'
+            : 'linkod_announcements',
         },
       },
       apns: {

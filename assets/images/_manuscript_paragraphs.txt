@@ -1,0 +1,352 @@
+﻿LINKod: AN AI-ASSISTED BARANGAY-BASED SOCIAL PLATFORM INTEGRATING NATURAL LANGUAGE PROCESSING AND RULE-BASED RECOMMENDATION ALGORITHMS.
+Presented to
+The Faculty of the College of Information Technology Education
+North Eastern Mindanao State University
+Rosario, Tandag City
+In partial Fulfillment of the Requirements
+For the Degree Bachelor of Science Major
+in Computer Science
+Buenaflor, Andrew James L.
+Garcia, Jun Mark C.
+Estrada, Kane Gabriel P.
+Vistal, Charyniel C.
+November 2025
+CHAPTER I
+INTRODUCTION
+Background of the Study
+In an era of rapid digitalization, local governance structures are compelled to innovate to maintain relevance and effectiveness. The barangay, as the fundamental unit of the Philippine government, is no exception. Traditionally, these communities have relied on analog methods like bulletin boards, assemblies, and word-of-mouth for communication â€” methods plagued by delays, limited reach, and low resident engagement (Santiago, Ulanday, Centeno, & Bayla, 2021). Recent empirical work shows many barangays are already adopting social media and simple digital systems (Facebook pages, Messenger groups, barangay websites, and bespoke e-forms) to share announcements, coordinate relief, and engage youth â€” improving speed and reach compared with analog channels (Ecleo, 2023; Gallera, 2023; UPOU & Partners, 2024; David, 2023). This communication inefficiency is paralleled by economic and social challenges: local vendors and micro-businesses often operate with minimal market visibility, constraining livelihood opportunities. However, recent Philippine studies show social media and low-cost digital marketing can increase customer reach and sales for barangay-level MSMEs (Guillen, 2023; Olazo, 2025; IJISRT, 2023â€“2025). Meanwhile, residents frequently lack a formal, local platform to request or offer assistance for errands and short-term jobs, undermining the potential for community-based support (Nguyen & Le, 2020). Evidence from pilot programs and scoping reviews suggests that lightweight barangay digital hubs and targeted ICT capacity-building for frontliners can help bridge these gaps and improve both participation and service delivery (UPOU & Partners, 2024; Corpuz, 2021; Gallegos, Comidoy, Cabal, Acol, & Polistico, 2023).
+Scholarly work affirms the potential of technology to bridge these gaps. Recent studies indicate that Information and Communication Technology (ICT) tools can significantly enhance transparency, information dissemination, and public participation in local government units (Valle, Bugayao, Gutierrez, & Malang, 2024). Furthermore, a scoping review in the Philippines demonstrates that digital governance improves public service delivery via responsiveness, accessibility, and efficiency when adoption barriers such as digital literacy and infrastructure are addressed (Pamantasan ng Lungsod ng Valenzuela, Orlina, & Ilustre, 2025). The literature also suggests that integrating features for e-participation and social interaction can foster a more collaborative and open governance model (Nguyen, 2024), providing a theoretical basis for a multifunctional community platform.
+However, a critical gap persists between the general promise of e-governance and the integrated, hyper-local needs of a barangay. Recent systems such as Barangay Connect (Surigao del Norte, 2025) and eBARANGAY.ph strongly demonstrate the benefits of digitizing administrative records and streamlining service-delivery processes. These platforms primarily focus on resident data, certificate issuance, blotter/report tracking, announcements, and information dissemination (Padilla et al., 2025; eBARANGAY, 2022-2023). While valuable, they typically lack fully integrated modules that simultaneously address official communication, local economic promotion (e.g. promoting barangay vendors, local marketplaces), and community-driven social cooperation (e.g. mutual aid, errand or job sharing). Consequently, these piecemeal solutions fail to holistically address the interconnected nature of communication, livelihood, and mutual aid within small communities. This study aims to fill this gap by developing and evaluating LINKod, a unified application that consolidates these three vital functions into a single, barangay-centric platform.
+The pursuit of this study is justified by its potential to generate significant public value and serve as a replicable model for digital empowerment at the grassroots level. By leveraging the widespread use of mobile technology, this research translates the abstract concept of "smart cities" into a tangible "smart barangay" initiative. More than a technical undertaking, this project represents a socio-technical intervention that integrates governance efficiency, stimulate local commerce, and digitally revive the Filipino tradition ofÂ bayanihan. The findings from this study will provide a valuable proof-of-concept that can be adapted, scaled, and further developed for other communities, thereby contributing to the broader national goal of inclusive digital transformation.
+THEORETICAL FRAMEWORK
+This study is grounded on three interrelated frameworks: the Technology Acceptance Model (TAM) (Davis, 1989), Public Value Theory (Moore, 1995), and the Augmented Intelligence Model (AIM) (Raisch & Krakowski, 2021). Together, these theories provide a comprehensive foundation for understanding the design, adoption, and public impact of the LINKod application.
+The Technology Acceptance Model (TAM) explains how users come to accept and use new technologies. It posits that two key factorsâ€”Perceived Usefulness (PU) and Perceived Ease of Use (PEOU)â€”determine user attitudes and behavioral intention toward adoption. Within LINKod, this model informs the user-centered design and evaluation process. For barangay officials, the AI-assisted announcement generator enhances Perceived Usefulness by simplifying and accelerating the dissemination of official information. For residents, an intuitive, mobile-friendly interface for posting errands, browsing goods, or accessing community updates strengthens Perceived Ease of Use. The study will empirically assess these perceptions to determine overall adoption potential.
+Complementing TAM, Public Value Theory (Moore, 1995) emphasizes that the ultimate goal of public sector innovation is to create value for citizens. Public value is generated when technological solutions improve service delivery, social outcomes, and public trust. LINKod operationalizes this theory across three dimensions:
+Service Value: Enhancing the speed, accuracy, and accessibility of official communication;
+Social and Economic Outcomes: Expanding livelihood opportunities for local vendors and facilitating community-based support through digital cooperation; and
+Trust and Legitimacy: Promoting transparency, accountability, and engagement between the barangay and its residents.
+To integrate Artificial Intelligence responsibly within the barangay governance context, the study adopts the Augmented Intelligence Model (AIM), which conceptualizes AI as a system that enhancesâ€”rather than replacesâ€”human decision-making (Raisch & Krakowski, 2021; Shneiderman, 2020). In LINKod, AI functions as a decision-support tool for barangay officials. The rule-based recommendation algorithm assists officials by suggesting which resident groups or sectors should receive particular announcements or information for push notification (e.g., senior citizens for health updates, vendors for market advisories). Meanwhile, the Natural Language Processing (NLP) module helps generate clear, ready-to-send messages. Guided by AIM, these features are designed to maintain human oversight and accountability, ensuring that final communication decisions remain under the control of barangay personnel. Through this human-centered integration, AI strengthens the efficiency, precision, and inclusivity of local information dissemination while preserving trust and contextual sensitivity.
+By integrating TAM, Public Value Theory, and AIM, this framework positions LINKod as both a technological and socio-technical innovation. It captures how user perceptions (from TAM) and humanâ€“AI collaboration (from AIM) collectively drive adoption and contribute to the creation of public value (from Mooreâ€™s framework). Ultimately, this integration supports the studyâ€™s aim of developing a smart barangay model that strengthens communication, promotes livelihood, and revives the Filipino spirit of bayanihan through digital means.
+STATEMENT OF THE PROBLEM
+General Problem
+Despite ongoing efforts toward digital transformation, many barangays continue to struggle with fragmented systems for communication, local commerce, and community assistance. Survey results among residents and local vendors revealed recurring problems such as delayed or unclear barangay announcements, limited visibility of local products and services, and difficulty in finding or offering help for small errands and short-term jobs. These issues highlight the absence of an integrated digital platform that can effectively connect barangay officials, vendors, and residents.
+Hence, this study aims to address these gaps by developing and evaluating LINKod, a barangay-based social platform designed to enhance local information dissemination, vendor visibility, and community cooperation. The system incorporates AI-assisted featuresâ€”specifically Natural Language Processing (NLP) to help barangay officials craft accurate, clear, and resident-friendly messages, and a Rule-Based Recommendation Algorithm to assist in identifying the most relevant target groups for announcements.
+Specific Problems
+How can the identified issues of delayed, unclear, and inaccessible barangay announcements be addressed through a digital platform that assists officials in composing and targeting messages more effectively?
+How can the limited visibility and promotion of local vendorsâ€™ products be improved through a digital marketplace integrated into the platform?
+How can the lack of a formal system for residents to request or offer help for small errands and short-term jobs be resolved through a community-driven task and service-sharing module?
+OBJECTIVES OF THE STUDY
+General Objective
+This study aims to develop and evaluate LINKod, an AI-assisted barangay-based social platform that enhances local information dissemination, vendor visibility, and community cooperation. The system integrates AI-assisted componentsâ€”specifically Natural Language Processing (NLP) to assist barangay officials in crafting accurate, clear, and resident-friendly messages, and a Rule-Based Recommendation Algorithm to help identify the most appropriate target groups for specific announcements.
+Specific Objectives
+To design and implement a communication module in the LINKod platform that supports barangay officials in generating clear, accurate, and timely announcements by using Natural Language Processing and rule-based audience targeting, ensuring effective delivery of information to the appropriate groups of residents.
+To develop a digital marketplace module that allows local vendors to post, promote, and manage their products, thereby increasing their online visibility and accessibility to residents within the barangay.
+To create a community task and service-sharing module that enables residents to request or offer help for errands and short-term jobs, thereby fostering cooperation and promoting the Filipino value of bayanihan through digital means.
+SCOPE AND DELIMITATION
+ScopeÂ 
+This study focuses on the design, development, and pilot testing of LINKod, an AI-assisted barangay-based social platform, within Barangay Cagbaoto, Bayabas, Surigao del Sur. The system integrates three core modules: (1) a communication feature that assists barangay officials in crafting clear and timely announcements through Natural Language Processing (NLP) and in identifying target recipient groups using a rule-based recommendation algorithm; (2) a digital marketplace that enables local vendors to promote their products and services to residents within the barangay; and (3) a community cooperation feature that allows residents to post errands or short-term job requests and offer services to fulfill them. The primary users and participants of this study include barangay officials, registered local vendors, and resident volunteers, who will participate in the evaluation through surveys, interviews, and direct system testing. The assessment will focus on the platformâ€™s usability, its effectiveness in improving information dissemination, its utility in promoting local livelihood, and its functionality in facilitating community-based assistance.
+Delimitation
+The study is delimited to the development and testing of LINKod as a pilot model for a single barangay and will not involve deployment across multiple locations. Financial transactions within the system will be limited to simple offline methods, such as cash-on-delivery or cash-on-hand agreements, as the integration of advanced online payment gateways is beyond the current research scope. The project will concentrate solely on micro and small-scale local vendors, excluding medium and large enterprises. Moreover, while the system incorporates standard data privacy and user authentication mechanisms, the implementation of advanced security measures such as end-to-end encryption, multi-factor authentication, or biometric verification is not included in this initial prototype. The study will also not cover the long-term economic impact or behavioral changes among users beyond the pilot testing phase.
+SIGNIFICANCE OF THE STUDY
+The findings of this study are expected to be significant to the following stakeholders:
+Barangay Officials:Â The application will provide a more efficient and reliable channel for disseminating information, reducing delays, improving transparency, and ensuring timely delivery of important announcements.
+Residents:Â They will benefit from instant access to barangay updates, a directory of local goods and services, and a platform to seek or offer assistance, fostering greater convenience, engagement, and a stronger sense of community.
+Local Vendors:Â This group will gain a dedicated digital space to promote their products, increasing their visibility, customer reach, and potential for sales, thereby supporting local economic growth.
+The Community as a Whole:Â The barangay will benefit from stronger social ties among its members. The application promotesÂ bayanihanÂ by enabling mutual support through errands, jobs, and commerce, fostering a digitally connected and more resilient community.
+Future Researchers:Â This study will serve as a foundational reference and a validated model for subsequent research in hyper-local e-governance, AI integration in public service, and the digitization of community social networks. It provides a framework and empirical data that can be built upon.
+DEFINITION OF TERMS
+For clarity and precision, the following terms are defined as used in the context of this study:
+AI (Artificial Intelligence):Â In this study, refers to rule-based systems and natural language processing algorithms used to auto-generate clear announcements and filter recipients based on pre-defined demographic tags (e.g., senior citizen, student).
+Barangay:Â The smallest administrative division in the Philippines, which serves as the primary planning and implementing unit of government policies and the specific context for deploying the LINKod application.
+Bayanihan:Â Operationally defined in this study as the act of mutual aid and cooperationÂ measured byÂ the number of successfully completed errand or job assistance requests facilitated through the application's community board.
+Community Engagement:Â The degree of interaction and participation of residents with barangay affairs,Â operationalized asÂ their response rates to digital announcements, frequency of posting on the community board, and usage metrics of the application's features.
+Digital Platform:Â The integrated web and mobile software system named "LINKod," developed for this study, which hosts the three core features of information dissemination, business promotion, and errand assistance.
+Information Dissemination:Â The process of distributing information from barangay officials to residents, which in this study isÂ measured byÂ the speed, reach, and comprehension of push notifications and digital announcements sent via the application, compared to traditional methods.
+Local Livelihood:Â The income-generating activities and small-scale enterprises of barangay residents, particularly local vendors and service providers, whose visibility and market reach are supported through the business promotion feature of the LINKod platform.
+Multi-Feature Application:Â A software application that integrates several distinct but interconnected functionsâ€”specifically, information dissemination, business promotion, and errand assistanceâ€”into a single, cohesive system.
+CHAPTER II
+REVIEW OF RELATED LITERATURE AND STUDIES
+This chapter reviews literature and studies that serve as the foundation for developing LINKod. It examines foreign and local sources on digital transformation, artificial intelligence, and information and communication technologies in strengthening governance, transparency, citizen participation, and local economic development. The review is divided into related literature and related studies, highlighting how previous research and technological initiatives have shaped modern e-governance and community-based digital systems. Through this synthesis, key concepts, innovations, and gaps are identified to guide the design and implementation of LINKod as an integrated, AI-assisted platform for improving local communication, engagement, and livelihood opportunities.
+RELATED LITERATURE
+Foreign Literature
+Digital transformation in local governance has become a cornerstone of public administration worldwide. According to the United Nations Department of Economic and Social Affairs (UN DESA, 2022), e-governance initiatives have redefined how local governments interact with citizens by integrating technology into public service delivery, thereby improving transparency, accountability, and accessibility. Similarly, the Organisation for Economic Co-operation and Development (OECD, 2024) emphasized that local digital platforms promote participatory governance by allowing citizens to engage directly in local affairs through digital communication channels.
+â€ƒThe adoption of Artificial Intelligence (AI) in governance is also a growing trend. Shneiderman (2020) introduced the concept of human-centered AI, emphasizing that AI systems should augment human decision-making rather than replace itâ€”ensuring reliability, safety, and trust. In alignment, Raisch and Krakowski (2021) proposed the Augmented Intelligence Model (AIM), where AI assists in decision-making processes by providing data-driven recommendations that improve accuracy and efficiency. This principle directly applies to AI-assisted platforms such as LINKod, where Natural Language Processing (NLP) supports message clarity and rule-based algorithms help identify appropriate target audiences.
+â€ƒIn community informatics, Nguyen and Le (2020) highlighted that technology-mediated community engagement platforms enhance local cooperation and social cohesion by connecting residents to mutual aid and livelihood opportunities. Their findings demonstrate how digital tools can empower communities through shared tasks and peer-to-peer assistance. Additionally, Bertot et al. (2020) noted that integrating Information and Communication Technology (ICT) in governance creates â€œdigital social capital,â€ wherein citizens develop trust and collaboration through online interactions facilitated by local government units.
+Digital entrepreneurship literature further supports the role of digital platforms in stimulating local economies. Chatterjee et al. (2022) argued that small-scale entrepreneurs and local vendors benefit significantly from online visibility through digital marketplaces, leading to improved income and business growth. This aligns with the purpose of LINKodâ€™s integrated livelihood feature, which aims to digitally empower local micro-enterprises.
+Novianto (2023) conducted a systematic literature review on digital transformation in the public sector and identified four key dimensions that influence successful implementation: external context, organizational factors, citizen-related issues, and technology. This model emphasizes that digital transformation is not just about deploying toolsâ€”rather, it requires alignment across institutional culture, stakeholder readiness, infrastructure, and citizen engagement. Such a holistic framework underscores the importance of designing platforms like LINKod with attention not only to technical features (e.g., AI-assisted communication) but also to organizational support, user capacity, and local adaptation.
+Local Literature
+In the Philippine context, literature consistently highlights both the potential and challenges of barangay-level digital transformation. Bayla et al. (2021) found that many barangay officials exhibit interest in ICT adoption but are constrained by limited digital literacy, funding, and technical infrastructure. Despite these barriers, studies indicate a growing shift toward digital tools. Recent empirical work shows many barangays are already adopting social media and simple digital systems (Facebook pages, Messenger groups, barangay websites, and bespoke e-forms) to share announcements, coordinate relief, and engage youth â€” improving speed and reach compared with analog channels (Ecleo, 2023; Gallera, 2023; UP Open University & Partners, 2024; David, 2023)
+â€ƒThe UP Open University (2024) report on Barangay Digital Transformation Hubs demonstrated that ICT capacity-building can significantly improve participation and transparency at the barangay level. Similarly, Valle et al. (2024) emphasized that e-governance tools enhance communication efficiency, citizen engagement, and trust in local government when properly implemented.
+Moreover, Ecleo (2023) and Gallera (2023) emphasized that the adoption of social media and online systems enhanced barangay communication and record-keeping efficiency. However, these systems were found to lack integrationâ€”most focus solely on announcements or administrative processes without addressing livelihood promotion or community assistance, underscoring the relevance of a unified platform such as LINKod.
+From an economic perspective, Guillen (2023) and Olazo (2024) revealed that social media marketing dramatically improves visibility for local micro, small, and medium enterprises (MSMEs), suggesting that digital platforms can serve as economic lifelines for barangay-level vendors. The International Journal of Innovative Science and Research Technology (IJISRT, 2023â€“2025) supports this by documenting how community-based online marketplaces promote micro-entrepreneurship and revive local commerce.
+PeÃ±a and Yao (2022) in DigitALL for Her: Futurecasting Platform Work for Women in Rural Philippines describes how platform-mediated online work becomes a vital source of livelihood for rural women, but also identifies structural constraints    network access, digital literacy, and gender norms  that limit full participation. This underscores the need for inclusion features and capacity building in platforms like LINKod.
+RELATED STUDIES
+Foreign Studies
+Empirical research in AI-assisted governance demonstrates the practical benefits of technology in local public management. Nguyen (2024) conducted an experimental study revealing that citizens are more likely to engage with e-participation platforms when information is targeted, relevant, and written in clear language  principles that guide LINKodâ€™s NLP-assisted communication module.
+In India, the study Citizen Centric Panchayat System with Digital Management and Automation (2022) highlighted how local governments adopting ICT tools for record digitization, service requests, and citizen communication achieved significant improvements in administrative efficiency and public satisfaction. The systemâ€™s integration of automated processes and accessible online services demonstrated how digital transformation strengthens transparency and local responsiveness.
+In terms of livelihood promotion, Smith and Johnson (2021) found that community-driven digital marketplaces in Indonesia helped small vendors increase sales by connecting them directly with nearby consumers through hyper-localized online systems. These studies provide evidence that multifunctional, AI-supported digital platforms can improve communication, social cooperation, and economic activity at the community level.
+Dedema & Hagen (2025), in AI-driven Public Consultation Platforms: Transforming Civic Engagement in Local Governments, provide empirical evidence on how public servants and tech developers view AI consultation platforms. Their findings about public trust, transparency, and ethical oversight are especially relevant to LINKodâ€™s design of rule-based recommendations and audience targeting.
+Pislaru et al. (2024) conducted an empirical study titled Citizen-Centric Governance: Enhancing Citizen Engagement through Artificial Intelligence Tools, which explored how AI-based systems such as virtual assistants and chatbots can transform local governance. Surveying 507 respondents across several Romanian municipalities, the researchers found that integrating AI tools into local public management improved citizen engagement, reduced service wait times, and enhanced overall accessibility to government services. Their findings emphasize the growing potential of AI to foster responsive and inclusive governanceâ€”principles that align closely with LINKodâ€™s goal of promoting efficient citizen communication and participatory digital governance.
+Local Studies
+Recent Philippine studies support the integration of digital tools into barangay governance and community livelihood systems. Padilla et al. (2025) developed Barangay Connect, a digital platform focused on administrative management and announcement posting. While successful in streamlining communication, the study noted the absence of modules for livelihood support and community engagement. Likewise, Dela Cruz (2023) assessed various barangay information systems and concluded that most lacked inclusivity and resident-driven functionalities, such as job-sharing or service exchanges.
+The Pamantasan ng Lungsod ng Valenzuela study by Orlina and Ilustre (2025) conducted a scoping review revealing that barangay e-governance systems significantly improved responsiveness and accessibility when paired with digital literacy programs. Corpuz (2021) and David (2023) both found that social media-based barangay hubs increased community participation and transparency but faced issues with scalability and sustainability.
+In livelihood-focused systems, Duldulao et al. (2023) developed an agricultural e-commerce platform for smallholder vendors in Quirino Province, enabling them to directly list their produce online via a multi-vendor interface and thereby improving their market reach and sales. However, although the platform enhanced visibility for farmers, it operated outside of local government administrative systems, limiting synergies with barangay-level governance and service-support mechanisms. Collectively, these studies demonstrate that while Philippine barangays are progressing in digital adoption, existing systems remain fragmented. Thus, a unified AI-assisted solution like LINKod  combining governance, livelihood, and community aid  is a needed innovation in the field.
+Briones et al. (2025) in Empowering Communities Through E-SITIO assess a Barangay-level digital information system in Camarines Sur. They found that real-time data access, system reliability, and user friendliness significantly affected both uptake and satisfaction among local government users and residents. These findings align with LINKodâ€™s planned evaluation on usability, information dissemination, and vendor/resident engagement.
+Ballaran et al. (2023) developed and evaluated a web-based Barangay Profiling and Issuance System that aimed to streamline administrative processes and improve record-keeping efficiency in a local barangay. Their study demonstrated that the system significantly reduced certificate issuance time and enhanced data-driven decision-making within barangay operations. The authors also pointed out key challenges including limited digital literacy among barangay staff and unreliable internet connectivity, underscoring the need for capacity building alongside system deployment. This empirical evidence supports the rationale behind platforms like LINKod which aim to integrate digital tools for governance, communication and community services at the barangay level.
+Synthesis
+The reviewed literature and studiesâ€”both foreign and localâ€”collectively establish a strong foundation for understanding how digital transformation and AI-driven systems can enhance local governance and community development. Foreign literature emphasizes theoretical frameworks such as Human-Centered AI (Shneiderman, 2020), the Augmented Intelligence Model (Raisch & Krakowski, 2021), and digital governance paradigms (UN DESA, 2022; OECD, 2024), all of which highlight the importance of leveraging technology to improve efficiency, transparency, and citizen participation. These works underscore that successful e-governance depends not only on technology itself but also on institutional readiness, user trust, and inclusive designâ€”factors that directly inform LINKodâ€™s development.
+Complementing these are local studies that situate digital transformation within the Philippine barangay context. Research consistently reveals a growing adoption of ICT tools and online systems for communication, documentation, and service delivery (Ecleo, 2023; Gallera, 2023; Orlina & Ilustre, 2025; Ballaran et al., 2023). However, these systems often remain fragmented, addressing only specific administrative or communication needs without integrating livelihood promotion, citizen engagement, or AI-driven insights. Moreover, studies such as those by Duldulao et al. (2023) and PeÃ±a and Yao (2022) stress the potential of digital platforms to empower local economies and marginalized groups, while also identifying barriers related to inclusivity, digital literacy, and infrastructure.
+Taken together, these findings reveal a persistent gap: while digital systems have improved efficiency and participation, they lack integration across governance, communication, and livelihood domains. This gap defines the conceptual and practical relevance of LINKod, a unified, AI-assisted barangay platform designed to merge these functions within a single ecosystem. Guided by the Technology Acceptance Model (Davis, 1989), Public Value Theory (Moore, 1995), and the Augmented Intelligence Model (Raisch & Krakowski, 2021), LINKod aspires not only to enhance local administrative processes but also to foster bayanihan in the digital eraâ€”bridging technology, governance, and community empowerment into one coherent framework.
+CHAPTER III
+RESEARCH METHODOLOGY
+This chapter presents the methodology used in the design, development, and evaluation of the system entitled â€œLINKod: An AI-Assisted Barangay-Based Social Platform Integrating Natural Language Processing and Rule-Based Recommendation Algorithms.â€ It discusses the research design, research locale, respondents, data gathering procedures, and the algorithm design of the system. Additionally, it includes descriptions of the system architecture, flowcharts, research instruments, statistical treatment, materials, software and hardware requirements, project timeline, team responsibilities, and budget cost management plan.
+RESEARCH DESIGN
+This study employs a Developmental Research Design, which focuses on the systematic design, development, and evaluation of an innovative technological solution. The researchers follow the Agile Software Development Life Cycle (SDLC) methodology, consisting of iterative phases of planning, design, development, testing, and evaluation.
+The design stage includes gathering user requirements through surveys and interviews with barangay officials, local vendors, and residents. The development stage involves constructing the LINKod system using Flutter for cross-platform mobile development and integrating Natural Language Processing (NLP) for announcement generation and rule-based recommendation algorithms for audience targeting. The testing and evaluation phasebility, functionality, and effectiveness in improving barangay communication, livelihood promotion, and community engagement.
+RESEARCH LOCALE
+Figure 1. Location Map of Barangay Cagbaoto, Bayabas, SdS
+The study is conducted in Barangay Cagbaoto, Bayabas, Surigao del Sur, a small coastal community that reflects typical challenges faced by rural barangays such as limited digital communication channels, restricted market visibility for vendors, and lack of formal community coordination platforms. This locale is chosen due to its active local governance and accessibility of mobile internet among residents, making it an appropriate pilot site for implementing the LINKod system.
+RESEARCH RESPONDENTS
+The respondents of this study consisted of three primary user groups: barangay officials, local vendors, and residents or community volunteers from Barangay Cagbaoto, Bayabas, Surigao del Sur. Barangay officials participated as administrative users responsible for creating, refining, and disseminating digital announcements through the LINKod system. Local vendors served as participants for the business promotion feature, where they were able to post and advertise their products within the community platform. Meanwhile, residents and volunteers engaged with the errand and job assistance modules, testing how the application facilitated peer-to-peer support and community cooperation.
+Purposive sampling to ensure that participants represented the key stakeholders and user roles relevant to the systemâ€™s design and intended functions. The inclusion criteria specified that participants must be at least eighteen years old, registered residents or vendors of Barangay Cagbaoto, and possess a smartphone or device capable of running Android applications. They were also required to demonstrate willingness to participate in testing, interviews, and evaluation activities related to the system. This selection ensured that all respondents had both the contextual familiarity and the technological capability necessary to provide meaningful feedback on the LINKod application.
+DATA GATHERING PROCEDURE
+The data gathering process is divided into three sequential phases designed to align with the systemâ€™s development lifecycle: the pre-development phase, the development and testing phase, and the evaluation phase.
+During the pre-development phase, a needs assessment is conducted through surveys and informal consultations with barangay officials, vendors, and residents. This process identified key issues in local communication, limited visibility for small-scale vendors, and the absence of a centralized digital platform for community coordination. The findings from this stage served as the foundation for the design and feature prioritization of the LINKod application.
+In the development and testing phase, a functional prototype of LINKod is deployed for initial pilot testing. Selected participants were invited to use the systemâ€™s main features, including digital announcements, vendor listings, and errand/job postings. Observations were made regarding usability, navigation flow, and feature accessibility. Feedback is collected through semi-structured interviews, allowing the researchers to document user experiences, encountered difficulties, and suggestions for system refinement.
+The evaluation phase follows the refinement of the application based on pilot feedback. The final version of LINKod is introduced to the same participant groups for formal usability and satisfaction testing. A validated questionnaire is administered to measure perceptions of usefulness, ease of use, efficiency, and overall satisfaction with the systemâ€™s performance. Data collection is carried out with informed consent and in close coordination with the Barangay Council of Cagbaoto to ensure ethical compliance, transparency, and community approval throughout the research process.
+ALGORITHM DESIGN
+This section presents the algorithmic logic and system architecture used in the development of LINKod: An AI-Assisted Barangay-Based Social Platform Integrating Natural Language Processing and Rule-Based Recommendation Algorithms. The algorithm design defines the logical flow of the systemâ€™s major components â€” information dissemination, vendor promotion, and errand/job assistance â€” which work together to enhance local governance communication, economic visibility, and community support.
+The LINKod system follows a clientâ€“server architecture using a modular, cloud-based design, ensuring scalability, cross-platform compatibility, and real-time synchronization between users. The system consists of three main layers: Client Layer, Application Layer, and Data Layer.
+Client Layer
+The client layer serves as the user-facing environment where barangay officials, local vendors, and residents interact with the system. Developed using Flutter, this layer enables seamless accessibility on both Android and iOS devices. It manages all user interactions such as composing and posting announcements, uploading products or services, creating and responding to errand requests, and viewing community updates or marketplace listings in real time.
+ Application Layer
+The application layer handles system logic, AI processing, and communication services. It acts as the bridge between user actions and data management. It consists of the following modules:
+Natural Language Processing (NLP) Module:Utilizes Python-based text preprocessing and sentence structuring (through NLTK or spaCy) to refine the grammar, readability, and tone of barangay announcements. This ensures that messages are clear, concise, and resident-friendly before dissemination.
+Pseudocode for NLP Module:
+Input: raw_message      // message text input from barangay official
+Output: refined_message // processed and improved announcement text
+Begin
+    // Step 1: Preprocess Text
+    tokens â† Tokenize(raw_message)
+    tokens â† Remove_StopWords(tokens)
+    tokens â† Normalize_Case(tokens)
+    // Step 2: Grammar and Readability Correction
+    corrected_text â† Grammar_Check(tokens)
+    simplified_text â† Readability_Adjust(corrected_text)
+    // Step 3: Tone Adjustment
+    If Detect_Tone(simplified_text) â‰  "Formal" then
+        refined_message â† Adjust_Tone(simplified_text, "Formal")
+    Else
+        refined_message â† simplified_text
+    End If
+    // Step 4: Output Result
+    Return refined_message
+End
+Rule-Based Recommendation Algorithm:This logic identifies the appropriate audience for each announcement based on pre-defined demographic tags such as senior citizens, students, local vendors, or general residents. The system uses simple conditional rules set by barangay officials or the administrator.
+Pseudocode for Rule-Based Recommendation Algorithm:
+Input: announcement_category       //e.g.,"Health", "Livelihood", 
+"YouthActivity"
+Output: target_group           // recipient group(s) for announcement
+Begin
+    // Step 1: Retrieve Recipients
+    residents â† Retrieve_All_Residents_From_Database()
+    // Step 2: Apply Rule Set
+    If announcement_category = "Health" then
+        target_group â† Filter(residents, tag = "Senior Citizen")
+    Else If announcement_category = "Livelihood" then
+        target_group â† Filter(residents, tag = "Vendor")
+    Else If announcement_category = "Youth Activity" then
+        target_group â† Filter(residents, tag = "Student")
+    Else
+        target_group â† residents   // default to all residents
+    End If
+    // Step 3: Send Notifications
+    For each user in target_group do
+        Send_Notification(user, announcement_message)
+    End For
+    // Step 4: Log Dissemination
+    Log_To_Database(announcement_category, target_group, timestamp)
+    Return target_group
+End
+Notification and Messaging Services:Uses Firebase Cloud Messaging (FCM) to deliver push notifications in real-time to selected residents.
+User Management and Authentication Module:Handles login, registration, and account validation through Firebase Authentication, ensuring secure access for officials, vendors, and residents.
+Data Layer
+The data layer handles storage, retrieval, and synchronization of all system data using Firebase Firestore, a NoSQL cloud database. This layer maintains structured collections for users, announcements, vendors, errands, and system logs, ensuring efficient access and real-time updates. Sensitive information is encrypted to preserve confidentiality and security. The database is organized into key collections such as users (for storing demographic and role data), announcements (for content and metadata), vendors (for business and product listings), errands (for community task requests), and logs (for tracking dissemination history and user activity).
+Integration of AI Modules
+The integration of NLP and Rule-Based Algorithms is designed to support, not replace, human decision-making â€” consistent with the Augmented Intelligence Model (AIM). AI operates as a decision-support mechanism that assists barangay officials in: crafting polished, clear messages (via NLP), and accurately targeting the correct group of recipients (via the rule-based recommendation algorithm).
+These AI components are executed through Python microservices hosted in Firebase Cloud Functions, which communicate with the main Flutter application through HTTPS requests. This modular integration ensures: efficient processing of announcements, reduced human error, real-time recommendation output, and full human oversight before information dissemination.
+Interaction Between Modules
+LINKodâ€™s architecture is composed of three interconnected functional modules: the Information Dissemination Module for crafting and distributing barangay announcements; the Vendor Module for promoting local products and services; and the Errand/Job Module for facilitating short-term tasks and community assistance. All modules communicate through the shared Firebase backend, which handles synchronization, authentication, and storage. The interaction between these components creates a unified, intelligent, and responsive platform that strengthens local communication, commerce, and cooperation within the barangay community.
+SYSTEM ARCHITECTURE
+Figure 2. System Architecture of LINKod
+FLOWCHARTS
+Figure 3. Information Dissemination Flow
+The flow begins when a barangay official logs into the LINKod system and composes an announcement. The message is then processed by the Natural Language Processing (NLP) module, which refines the text for clarity and readability. Next, the rule-based recommendation algorithm determines the appropriate audience group based on predefined categories (e.g., senior citizens, vendors, students). The official reviews and approves the suggested recipients before the system disseminates the message to target users. Residents receive the announcement via push notification, and the system logs all delivery and read data for analytics and reporting.
+Figure 3. Information Dissemination Flow
+The vendor module enables barangay vendors to digitally promote their products within the LINKod platform. Upon login, vendors can post details of their products, which are validated and stored in the systemâ€™s database. The listings are then displayed in the community marketplace, where residents can browse and contact vendors for purchases. Transactions occur through simple offline methods (e.g., cash-on-delivery or in-person meetups). This process aims to enhance livelihood visibility, convenience, and local economic participation while maintaining a secure, barangay-level marketplace.
+Figure 3. Information Dissemination Flow
+The errand/job module allows residents to post and respond to community-based requests for short-term help or services. Residents enter task details, which are validated and stored in the systemâ€™s database. Posts appear on the community feed, where other users can volunteer or offer assistance. The system notifies the job poster of interested helpers, and upon acceptance, the task status is updated to â€œOngoing.â€ After completion, the resident marks the errand as done, and the system logs the record for transparency and accountability. This process promotes localized cooperation, strengthens community ties, and digitally revives the Filipino value of bayanihan.
+RESEARCH INSTRUMENT
+The primary research instrument used in this study is a structured questionnaire designed to evaluate the usability, effectiveness, and user satisfaction with the LINKod application. The questionnaire will be administered to barangay officials, local vendors, and residents of Barangay Cagbaoto, Bayabas, Surigao del Sur, as they represent the main user groups of the system. It will consist of two main parts. The first section gathers demographic data such as age, gender, role in the barangay, and frequency of digital application use. The second section contains statements measured on a five-point Likert scale ranging from Strongly Disagree (1) to Strongly Agree (5), assessing perceptions of usability, efficiency in information dissemination, effectiveness in livelihood promotion, and usefulness of the errand or job assistance feature.
+The questionnaire is adapted from established usability and technology adoption frameworks, particularly the System Usability Scale (SUS) developed by Brooke (1996) and constructs from the Technology Acceptance Model (Davis, 1989), which focus on perceived usefulness and ease of use. These items are contextualized to suit the barangay-level application environment of the LINKod system. Open-ended questions are also included to capture qualitative feedback regarding the user experience, perceived benefits, and suggested improvements.
+To ensure validity, the instrument will undergo both content and face validation. Three subject matter expertsâ€”one in computer science and human-computer interaction, one in local governance and ICT, and one in research and evaluationâ€”will review the questionnaire. Their evaluation will focus on clarity, relevance, and alignment with the study objectives. Revisions will be made based on their feedback before pilot testing. The pilot test will be conducted with a small group of 10â€“15 participants who are similar to the actual respondents but not part of the final data collection. The reliability of the instrument will be measured using Cronbachâ€™s Alpha coefficient, where a value of 0.70 or higher will indicate acceptable internal consistency.
+STATISTICAL TREATMENT
+The data to be collected from the survey will be analyzed using descriptive statistical methods. Frequency and percentage will be used to summarize the demographic profile of the respondents, while the mean and standard deviation will be applied to determine their overall perception of the LINKod system in terms of usability, communication efficiency, and system effectiveness. To guide the interpretation of the results, the study will use the following verbal scale: 4.21â€“5.00 (Very Highly Effective), 3.41â€“4.20 (Effective), 2.61â€“3.40 (Moderately Effective), 1.81â€“2.60 (Less Effective), and 1.00â€“1.80 (Not Effective). The mean values will represent the respondentsâ€™ general evaluation of each system component, and the standard deviation will indicate the consistency of their ratings. Through these descriptive measures, the study will provide a clear and straightforward basis for evaluating the LINKod applicationâ€™s potential to enhance barangay communication, support local livelihood promotion, and encourage community engagement.
+MATERIALS
+The following materials were used during the research:
+Survey and interview forms
+Evaluation sheets
+Laptops and mobile devices for testing
+Internet connection for data access
+Documentation tools (Google Docs, Google Sheets, Canva)
+Recording Devices (Smartphone Recorder or Laptop Microphone)
+SOFTWARE
+The development utilized the following software and tools:
+Flutter â€“ for mobile application development
+Firebase â€“ for real-time database and authentication
+Python (NLTK library) â€“ for NLP text processing
+Visual Studio Code â€“ for coding and debugging
+Figma â€“ for user interface design
+Google Colab / Jupyter Notebook â€“ for algorithm prototyping
+Google Workspace (Docs, Sheets, Slides, Drive) â€“ for documentation, file sharing, and collaborative editing among researchers.
+Microsoft Excel / SPSS â€“ for data analysis
+Zoom / Google Meet â€“ for online meetings, consultations, and remote coordination with advisers and respondents.
+HARDWARE
+Laptop (Intel Core i5, 8GB RAM, 512GB SSD) â€“ for development and testing
+Secondary Laptop (Intel Core i5, 8GB RAM) â€“ used for additional testing and parallel development tasks.
+Android smartphones (version 10 or higher) â€“ for user testing
+Wireless internet connection (minimum 10 Mbps) â€“ for cloud communication
+External Storage (Flash Drives, External HDD/SSD, or Cloud Storage) â€“ for regular data backup and secure storage of system files.
+SCHEDULE AND TIMELINE (GANTT CHART)
+The following chart outlines the project's phased schedule and key milestones.
+Table 1. Schedule and Timeline (Gantt Chart)
+Project phase
+Activities
+Month
+Week 1
+Week 2
+Week 3
+Week 4
+Planning Phase
+Topic selection, title formulation, and approval with adviser
+September 2025
+â– â– â– 
+â– â– â– â– 
+â– â– 
+Research and Data Gathering Phase
+Coordinating with Barangay Cagbaoto, creation of survey and interview questions, data collection from residents, vendors, and Barangay Captain
+October 2025
+â– â– 
+â– 
+â– â– â– â– 
+â– â– â– â– 
+System Design Phase
+Designing the initial UI layout and flow for the LINKod platform
+November 2025
+â– â– â– â– 
+â– â– â– â– 
+System Development Phase
+Developing system prototype, database structure, and user interface
+December 2025 â€“ January 2026
+â– â– â– â– â– 
+â– â– â– â– â– 
+â– â– â– â– 
+â– â– â– â– 
+Testing and Evaluation Phase
+System testing, debugging, and revisions based on feedback
+February 2026
+â– â– â– â– 
+â– â– â– â– 
+â– â– 
+Documentation Phase
+Completion of Chapters 3â€“5 and revisions of previous chapters
+March 2026
+â– â– â– â– 
+â– â– â– â– 
+Final Defense and Submission Phase
+Preparation and finalization of documentation, presentation, and defense
+April 2026
+â– â– â– â– â– 
+â– â– â– â– 
+PROJECT TEAM AND RESPONSIBILITIES
+This table details the core project team members and their respective responsibilities.
+Table 2. Project Team and Responsibilities
+Name
+Role
+Responsibility
+Jun Mark C. Garcia
+Project Leader
+System design, integration, coordination
+Kane Gabriel P. Estrada
+Programmer
+Front-end and Back-end development
+Charyniel C. Vistal 
+Designer
+UI/UX design
+Andrew James L. Buenaflor
+Research Analyst
+Data gathering and documentation
+BUDGET COST / MANAGEMENT PLAN
+The estimated budget for project resources and activities is summarized below.
+Table 3. Budget Cost / Management Plan
+Item
+Description
+Estimated Cost (â‚±)
+Internet & Hosting
+Firebase, domain, and cloud functions
+â‚±2,000
+Software Licenses & Tools
+Access to premium tools such as Figma (UI design), Canva (poster/presentation materials), and other design or prototyping software
+â‚±1,000
+Printing and Materials
+Surveys, forms, documentation
+â‚±800
+Data Backup and Storage
+External hard drive or cloud storage subscription for storing project files, system backups, and datasets
+â‚±800
+Transportation
+Fieldwork, barangay coordination
+â‚±1,500
+Allowance for Participants
+Snacks/incentives during evaluation
+â‚±1,000
+Miscellaneous and Contingency
+Unforeseen costs such as extra printing, additional transportation, or technical adjustments
+â‚±900
+Equipment and Maintenance
+Temporary use and maintenance of mobile devices, laptops, and accessories during system testing and evaluation
+â‚±1,000
+Total Estimated Cost
+â‚±9,000
+REFERENCES
+Bertot, J. C., Jaeger, P. T., & Grimes, J. M. (2020). Using ICTs to create a culture of transparency: E-government and social media as openness and anti-corruption tools for societies. Government Information Quarterly, 27(3), 264â€“271. https://doi.org/10.1016/j.giq.2010.03.001
+Briones, S. V., Atole, R. R., Bello, L. C. S., Lirag, J. R. S., Seboguero, A. A., Seboguero, C. J. D. C., & Sabaria, J. S. (2025). Empowering communities through E-SITIO: A data-driven approach towards transformative local governance. Journal of Information Systems Engineering and Management, 10(25s). JISEM
+Citizen Centric Panchayat System with Digital Management and Automation. (2022). International Journal for Research in Applied Science and Engineering Technology, 10(6), 1523â€“1530. https://doi.org/10.22214/ijraset.2022.45849
+Corpuz, M. G. (2021). Social media use and satisfaction among youth during barangay engagement. SSRN. https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3799511
+Corpuz, M. G. (2021). Social media use and satisfaction among youth during pandemic: Case study of social media use in a barangay context. SSRN. https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3799511
+David, A. (2023). Understanding local government digital technology adoption. Sustainability. https://www.mdpi.com/2071-1050/15/12/9645
+David, A., & Corpuz, M. G. (2023). Bridging the digital divide through barangay digital hubs in Laguna. https://www.upou.edu.ph/news/bridging-the-digital-divide-with-the-barangay-digital-transformation-hubs/
+Davies, F. D. (1989). Perceived usefulness, perceived ease of use, and user acceptance of information technology. MIS Quarterly, 13(3), 319â€“340.https://www.researchgate.net/publication/200085965_Perceived_Usefulness_Perceived_Ease_of_Use_and_User_Acceptance_of_Information_Technology
+Dedema, M., & Hagen, L. (2025). AI-driven public consultation platforms: Transforming civic engagement in local governments. Proceedings of the Conference on Digital Government Research. https://doi.org/10.59490/dgo.2025.953
+Dela Cruz, R. (2023). Assessment of digital information systems for local barangays. SSRN / IRJAES. https://irjaes.com/wp-content/uploads/2023/04/IRJAES-V8N2P171Y23.pdf
+Duldulao, J.-R. R., Concepcion, J. D. D., & Valdez Duldulao, A. (2023). Agricultural e-commerce: A new business platform for smallholders in Quirino Province. International Journal of Computing Sciences Research, 7, 1769â€“1789. https://stepacademic.net/ijcsr/article/view/397
+Ecleo, J. J. (2023). Advancing the Digital Cities Program in Iligan: Barangays adopting Facebook pages and online tools. E3S Web of Conferences. https://doi.org/10.1051/e3sconf/202344001013
+Gallera, J. M. (2023). Assessment of digital information systems for local barangays. International Research Journal of Advanced Engineering and Science, 7(1), 76â€“82. https://irjaes.com/wp-content/uploads/2023/04/IRJAES-V8N2P171Y23.pdf
+Guillen, N. (2023). Unlocking growth opportunities for Philippine MSMEs through social media marketing. International Journal of Management, Accounting and Business Economics Research, 5(3), 221â€“233. https://doi.org/10.11594/ijmaber.04.08.26
+IJISRT. (2023â€“2025). Studies on social media use and microbusiness digital marketing. https://www.ijisrt.com/assets/upload/files/IJISRT23JUL1036.pdf
+Moore, M. H. (1995). Creating public value: Strategic management in government. Harvard University Press. https://www.researchgate.net/publication/257496373_Creating_public_value_Strategic_management_in_government_Cambridge_MA_Harvard_University_Press_by_Mark_Moore 
+Nguyen, P. (2024). The influence of local government responsiveness and information quality on citizen acceptance of e-participation: An experimental study. JeDEM â€“ eJournal of eDemocracy and Open Government. https://doi.org/10.29379/jedem.v16i1.825
+Novianto, N. (2023). Models of digital transformation in the public sector: A systematic literature review. Policy & Governance Review, 7(2), 170â€“194. https://doi.org/10.30589/pgr.v7i2.753
+OECD. (2024). 2023 OECD Digital Government Index. OECD Publishing. https://www.oecd.org/content/dam/oecd/en/publications/reports/2024/01/2023-oecd-digital-government-index_b11e8e8e/1a89ed5e-en.pdf
+Olazo, D. (2024/2025). Social media marketing as a lifeline for COVID-19â€“affected MSMEs. International Journal of Innovative Science and Research Technology, 9(2), 145â€“153. https://doi.org/10.33215/enkg1858
+Padilla, M., et al. (2025). Barangay Connect: Digitizing community information management. Surigao del Norte Research Institute. https://doi.org/10.52783/jisem.v10i27s.4405
+Pamantasan ng Lungsod ng Valenzuela, Orlina, R. J. G., & Ilustre, R. G. (2025). Digital governance in the Philippines: A scoping review. Global Sustainability Research. https://www.jescae.com/index.php/gssr/article/view/1204
+PeÃ±a, P. J. M., & Yao, V. E. (2022). DigitALL for her: Futurecasting platform work for women in rural Philippines. Philippine Institute for Development Studies. https://doi.org/10.62986/dp2022.24
+Pislaru, M., Vlad, C. S., & Mircea, I. I. (2024). Citizen-centric governance: Enhancing citizen engagement through artificial intelligence tools. Sustainability, 16(7), 2686. https://doi.org/10.3390/su16072686
+Raisch, S., & Krakowski, S. (2021). Artificial intelligence and management: The automationâ€“augmentation paradox. Academy of Management Review, 46(1), 192â€“210. https://doi.org/10.5465/amr.2018.0072
+Santiago, C. S. Jr., Ulanday, M. L. P., Centeno, Z. J. R., & Bayla, M. C. (2021). Access, skills, and constraints of barangay officials toward ICT use. International Journal of Knowledge Content Development & Technology, 11(2), 37â€“54.https://ijkcdt.journals.publicknowledgeproject.org/ijkcdt/index.php/ijkcdt/article/view/569
+Shneiderman, B. (2020). Human-centered artificial intelligence: Reliable, safe, and trustworthy. International Journal of Humanâ€“Computer Interaction, 36(6), 495â€“504. https://doi.org/10.1080/10447318.2020.1741118
+United Nations Department of Economic and Social Affairs. (2022). E-Government Survey 2022: The future of digital government. https://desapublications.un.org/sites/default/files/publications/2022-09/Web%20version%20E-Government%202022.pdf
+UP Open University. (2024). Barangay digital transformation hubs: Bridging governance and citizen participation. Los BaÃ±os, Philippines. https://www.upou.edu.ph/news/bridging-the-digital-divide-with-the-barangay-digital-transformation-hubs/
+UPOU & Partners. (2024). Bridging the digital divide with Barangay Digital Transformation Hubs: Program description and early outcomes for barangay digital hubs in Laguna. https://www.upou.edu.ph/news/bridging-the-digital-divide-with-the-barangay-digital-transformation-hubs/
+Valle, J. S., Bugayao, Z. R., Gutierrez, C., & Malang, B. P. D. S. (2024). Impact of e-government technologies on citizen engagement and service delivery: A case study of local government units in Caloocan. International Journal of Management, Accounting and Business Economics Research, 5(2), 112â€“128..https://www.ejournals.ph/article.php?id=25226

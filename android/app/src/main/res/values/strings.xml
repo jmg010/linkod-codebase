@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Announcement Alert Activity Strings -->
+    <string name="barangay_announcement">Barangay Announcement</string>
+    <string name="new_announcement_message">You have received a new announcement</string>
+    <string name="view_button">View</string>
+    <string name="dismiss_button">Dismiss</string>
+    <string name="announcement_icon_description">Announcement notification icon</string>
+</resources>
