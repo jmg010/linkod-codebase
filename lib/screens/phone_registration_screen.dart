@@ -4,6 +4,8 @@ import '../services/otp_service.dart';
 import '../ui_constants.dart';
 import 'otp_verification_processing_screen.dart';
 
+const Color _kLinkodGreen = Color(0xFF00A651);
+
 /// First step of registration: User selects country and enters phone number
 ///
 /// **Flow**:
@@ -106,7 +108,7 @@ class _PhoneRegistrationScreenState extends State<PhoneRegistrationScreen> {
                         trailing: Text(
                           country['code']!,
                           style: TextStyle(
-                            color: isSelected ? kFacebookBlue : Colors.grey,
+                            color: isSelected ? _kLinkodGreen : Colors.grey,
                             fontWeight:
                                 isSelected
                                     ? FontWeight.bold
@@ -171,7 +173,14 @@ class _PhoneRegistrationScreenState extends State<PhoneRegistrationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Phone Verification'), elevation: 0),
+      appBar: AppBar(
+        title: const Text('Phone Verification'),
+        elevation: 0,
+        foregroundColor:
+            Theme.of(context).brightness == Brightness.dark
+                ? Colors.white
+                : _kLinkodGreen,
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(kPaddingMedium),
         child: Column(
@@ -276,6 +285,8 @@ class _PhoneRegistrationScreenState extends State<PhoneRegistrationScreen> {
             ElevatedButton(
               onPressed: _isValidPhone ? _continueToVerification : null,
               style: ElevatedButton.styleFrom(
+                backgroundColor: _kLinkodGreen,
+                foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -293,8 +304,8 @@ class _PhoneRegistrationScreenState extends State<PhoneRegistrationScreen> {
             Container(
               padding: const EdgeInsets.all(kPaddingMedium),
               decoration: BoxDecoration(
-                color: Colors.blue[50],
-                border: Border.all(color: Colors.blue[200]!),
+                color: Colors.green[50],
+                border: Border.all(color: Colors.green[200]!),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
@@ -304,7 +315,7 @@ class _PhoneRegistrationScreenState extends State<PhoneRegistrationScreen> {
                     children: [
                       Icon(
                         Icons.info_outline,
-                        color: Colors.blue[700],
+                        color: Colors.green[700],
                         size: 20,
                       ),
                       const SizedBox(width: 8),
@@ -312,7 +323,7 @@ class _PhoneRegistrationScreenState extends State<PhoneRegistrationScreen> {
                         'How it works',
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
-                          color: Colors.blue[700],
+                          color: Colors.green[700],
                         ),
                       ),
                     ],
@@ -348,14 +359,14 @@ class _PhoneRegistrationScreenState extends State<PhoneRegistrationScreen> {
               height: 4,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.blue[700],
+                color: Colors.green[700],
               ),
             ),
           ),
           Expanded(
             child: Text(
               text,
-              style: TextStyle(fontSize: 14, color: Colors.blue[700]),
+              style: TextStyle(fontSize: 14, color: Colors.green[700]),
             ),
           ),
         ],

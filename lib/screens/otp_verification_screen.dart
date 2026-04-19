@@ -3,23 +3,32 @@ import '../services/otp_service.dart';
 import '../ui_constants.dart';
 import 'otp_success_screen.dart';
 
-/// Second step of registration: User enters 6-digit OTP from push notification
+const Color _kLinkodGreen = Color(0xFF00A651);
+
+/// Second step of registration: User enters the 6-digit SMS code
 ///
 /// **Features**:
 /// - Manual input with 6 character fields
-/// - Auto-filled if OTP received via FCM (via otpStream)
-/// - Countdown timer showing OTP expiration
+/// - Requests an SMS verification code from Firebase Auth
 /// - Resend OTP option with 30-second cooldown
 /// - Validation before submission
 /// - Success navigation to confirmation screen
 class OtpVerificationScreen extends StatefulWidget {
   final String phoneNumber;
   final String fcmToken;
+  final String? verificationId;
+  final int? resendToken;
+  final bool returnResultOnSuccess;
+  final bool keepSignedInOnSuccess;
 
   const OtpVerificationScreen({
     super.key,
     required this.phoneNumber,
     required this.fcmToken,
+    this.verificationId,
+    this.resendToken,
+    this.returnResultOnSuccess = false,
+    this.keepSignedInOnSuccess = false,
   });
 
   @override
@@ -33,19 +42,27 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   );
   final List<FocusNode> _otpFocuses = List.generate(6, (_) => FocusNode());
 
+  bool _isRequestingCode = false;
   bool _isVerifying = false;
+  bool _verificationFinished = false;
   String? _error;
-  int _secondsRemaining = 120; // 2 minutes
-  bool _isExpired = false;
   int _resendCooldown = 0; // 30 seconds cooldown after resend
-  bool _otpAutoFilled = false;
+  bool _codeSent = false;
+  String? _verificationId;
+  int? _resendToken;
 
   @override
   void initState() {
     super.initState();
-    _startCountdown();
-    _listenForOtpFromFcm();
-    // OTP already requested in OtpVerificationProcessingScreen - don't request again
+    _verificationId = widget.verificationId;
+    _resendToken = widget.resendToken;
+    if (_verificationId != null) {
+      _codeSent = true;
+      _resendCooldown = 30;
+      _startResendCooldown();
+    } else {
+      _requestVerificationCode();
+    }
   }
 
   @override
@@ -59,57 +76,88 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     super.dispose();
   }
 
-  void _startCountdown() {
-    Future.doWhile(() async {
-      if (!mounted) return false;
-      await Future.delayed(const Duration(seconds: 1));
-      if (!mounted) return false;
+  Future<void> _requestVerificationCode({bool isResend = false}) async {
+    if (_isRequestingCode || _verificationFinished) return;
 
-      if (_secondsRemaining <= 0) {
-        setState(() {
-          _isExpired = true;
-        });
+    setState(() {
+      _isRequestingCode = true;
+      _error = null;
+    });
+
+    try {
+      final result = await OtpService.instance.requestPhoneOtp(
+        phoneNumber: widget.phoneNumber,
+        forceResendingToken: isResend ? _resendToken : null,
+      );
+
+      if (!mounted || _verificationFinished) return;
+
+      if (result.autoVerified) {
+        await _finishVerified();
+        return;
+      }
+
+      setState(() {
+        _verificationId = result.verificationId;
+        _resendToken = result.resendToken;
+        _codeSent = true;
+        _resendCooldown = 30;
+      });
+      _startResendCooldown();
+    } on OtpServiceException catch (e) {
+      if (mounted) {
+        _showError(e.message);
+      }
+    } catch (e) {
+      if (mounted) {
+        _showError('Unable to send verification code. Please try again.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isRequestingCode = false);
+      }
+    }
+  }
+
+  void _startResendCooldown() {
+    Future.doWhile(() async {
+      if (!mounted || _verificationFinished) return false;
+      await Future.delayed(const Duration(seconds: 1));
+      if (!mounted || _verificationFinished) return false;
+
+      if (_resendCooldown <= 0) {
         return false;
       }
 
       setState(() {
-        _secondsRemaining--;
-        if (_resendCooldown > 0) {
-          _resendCooldown--;
-        }
+        _resendCooldown--;
       });
-      return true;
+      return _resendCooldown > 0;
     });
   }
 
-  void _listenForOtpFromFcm() {
-    OtpService.instance.otpStream.listen((otp) {
-      if (!mounted || _otpAutoFilled) return;
-
-      // Auto-fill the OTP fields
-      for (var i = 0; i < 6 && i < otp.length; i++) {
-        _otpControllers[i].text = otp[i];
-      }
-
-      setState(() => _otpAutoFilled = true);
-
-      // Show indication that OTP was received
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('📱 OTP received! Code auto-filled below.'),
-          duration: Duration(seconds: 3),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      // Auto-verify if all fields are filled
-      final enteredOtp = _getEnteredOtp();
-      if (enteredOtp.length == 6 && !_isExpired) {
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted) _verifyOtp();
-        });
-      }
+  Future<void> _finishVerified() async {
+    if (_verificationFinished || !mounted) return;
+    setState(() {
+      _verificationFinished = true;
+      _isVerifying = false;
+      _isRequestingCode = false;
     });
+
+    if (widget.returnResultOnSuccess) {
+      Navigator.of(context).pop(<String, dynamic>{'verified': true});
+      return;
+    }
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder:
+            (_) => OtpSuccessScreen(
+              phoneNumber: widget.phoneNumber,
+              fcmToken: widget.fcmToken,
+            ),
+      ),
+    );
   }
 
   Future<void> _verifyOtp() async {
@@ -120,8 +168,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       return;
     }
 
-    if (_isExpired) {
-      _showError('OTP has expired. Please request a new one.');
+    if (_verificationId == null || _verificationId!.isEmpty) {
+      _showError('Verification code is still being prepared. Please try again.');
       return;
     }
 
@@ -131,26 +179,16 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     });
 
     try {
-      final success = await OtpService.instance.verifyOtp(
-        phoneNumber: widget.phoneNumber,
-        otp: otp,
+      final success = await OtpService.instance.verifyPhoneOtp(
+        verificationId: _verificationId!,
+        smsCode: otp,
+        keepSignedIn: widget.keepSignedInOnSuccess,
       );
 
       if (!mounted) return;
 
       if (success) {
-        // Navigate to success screen
-        if (mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder:
-                  (_) => OtpSuccessScreen(
-                    phoneNumber: widget.phoneNumber,
-                    fcmToken: widget.fcmToken,
-                  ),
-            ),
-          );
-        }
+        await _finishVerified();
       } else {
         _showError('Invalid verification code. Please try again.');
       }
@@ -170,53 +208,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   }
 
   Future<void> _resendOtp() async {
-    if (_isVerifying || _resendCooldown > 0) return;
-
-    setState(() {
-      _isVerifying = true;
-      _error = null;
-    });
-
-    try {
-      final success = await OtpService.instance.requestOtp(
-        phoneNumber: widget.phoneNumber,
-        fcmToken: widget.fcmToken,
-      );
-
-      if (!mounted) return;
-
-      if (success) {
-        setState(() {
-          _secondsRemaining = 120;
-          _isExpired = false;
-          _resendCooldown = 30; // 30 second cooldown
-          _otpAutoFilled = false; // Reset auto-fill flag
-        });
-        _startCountdown();
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('📤 New verification code sent!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
-          ),
-        );
-      } else {
-        _showError('Too many requests. Please wait before trying again.');
-      }
-    } on OtpServiceException catch (e) {
-      if (mounted) {
-        _showError(e.message);
-      }
-    } catch (e) {
-      if (mounted) {
-        _showError('Failed to resend code. Please try again.');
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isVerifying = false);
-      }
-    }
+    if (_isVerifying || _isRequestingCode || _resendCooldown > 0) return;
+    await _requestVerificationCode(isResend: true);
   }
 
   String _getEnteredOtp() {
@@ -240,18 +233,23 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     final surfaceColor = isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
     final subtleTextColor = isDarkMode ? Colors.white70 : Colors.grey[600]!;
     final mutedBorderColor = isDarkMode ? const Color(0xFF3A3A3A) : Colors.grey[200]!;
-
-    final minutes = _secondsRemaining ~/ 60;
-    final seconds = _secondsRemaining % 60;
-    final timeString = '$minutes:${seconds.toString().padLeft(2, '0')}';
     final resendTimeString = _resendCooldown > 0 ? '($_resendCooldown)' : '';
 
     return Scaffold(
       backgroundColor: surfaceColor,
       appBar: AppBar(
         backgroundColor: surfaceColor,
-        foregroundColor: isDarkMode ? Colors.white : Colors.black87,
-        title: const Text('Verify Phone'),
+        foregroundColor: isDarkMode ? Colors.white : _kLinkodGreen,
+        iconTheme: IconThemeData(
+          color: isDarkMode ? Colors.white : _kLinkodGreen,
+        ),
+        title: Text(
+          'Verify Phone',
+          style: TextStyle(
+            color: isDarkMode ? Colors.white : _kLinkodGreen,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -274,7 +272,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
             ),
             const SizedBox(height: kPaddingSmall),
             Text(
-              'We sent a 6-digit code to your phone via push notification.',
+              'We sent a 6-digit SMS code to your phone number.',
               style: Theme.of(
                 context,
               ).textTheme.bodyMedium?.copyWith(color: subtleTextColor),
@@ -303,6 +301,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                   TextButton(
                     onPressed:
                         _isVerifying ? null : () => Navigator.of(context).pop(),
+                    style: TextButton.styleFrom(
+                      foregroundColor: _kLinkodGreen,
+                    ),
                     child: const Text('Change'),
                   ),
                 ],
@@ -328,36 +329,27 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
             const SizedBox(height: kPaddingLarge),
 
-            // Expiration timer
+            // Code status
             Container(
               padding: const EdgeInsets.all(kPaddingMedium),
               decoration: BoxDecoration(
-                color:
-                    _isExpired
-                        ? (isDarkMode ? const Color(0xFF3A1F1F) : Colors.red[50])
-                        : (isDarkMode ? const Color(0xFF1E2A3A) : Colors.blue[50]),
-                border: Border.all(
-                  color:
-                      _isExpired
-                          ? (isDarkMode ? const Color(0xFF8B3A3A) : Colors.red[200]!)
-                          : (isDarkMode ? const Color(0xFF3D5A80) : Colors.blue[200]!),
-                ),
+                color: isDarkMode ? const Color(0xFF1E3328) : Colors.green[50],
+                border: Border.all(color: isDarkMode ? const Color(0xFF2D6A4F) : Colors.green[200]!),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 children: [
-                  Icon(
-                    _isExpired ? Icons.error_outline : Icons.schedule,
-                    color: _isExpired ? Colors.red : Colors.blue,
-                  ),
+                  const Icon(Icons.sms_outlined, color: _kLinkodGreen),
                   const SizedBox(width: kPaddingSmall),
                   Expanded(
                     child: Text(
-                      _isExpired
-                          ? 'Code expired. Please request a new one.'
-                          : 'Code expires in $timeString',
+                      _isRequestingCode
+                          ? 'Sending your SMS code...'
+                          : _codeSent
+                          ? 'Code sent. Enter the 6-digit SMS code below.'
+                          : 'Preparing your verification code...',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: _isExpired ? Colors.red[700] : Colors.blue[700],
+                        color: Colors.green[700],
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -370,8 +362,13 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
             // Verify button
             ElevatedButton(
-              onPressed: (_isVerifying || _isExpired) ? null : _verifyOtp,
+              onPressed:
+                  (_isVerifying || _isRequestingCode || !_codeSent || _verificationId == null)
+                      ? null
+                      : _verifyOtp,
               style: ElevatedButton.styleFrom(
+                backgroundColor: _kLinkodGreen,
+                foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -408,7 +405,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
             // Resend button
             TextButton(
               onPressed:
-                  (_isVerifying || _resendCooldown > 0) ? null : _resendOtp,
+                  (_isVerifying || _isRequestingCode || _resendCooldown > 0)
+                      ? null
+                      : _resendOtp,
               style: TextButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
@@ -420,7 +419,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                   color:
                       _resendCooldown > 0
                           ? (isDarkMode ? Colors.white38 : Colors.grey)
-                          : kFacebookBlue,
+                          : _kLinkodGreen,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -432,9 +431,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
             Container(
               padding: const EdgeInsets.all(kPaddingMedium),
               decoration: BoxDecoration(
-                color: isDarkMode ? const Color(0xFF332A10) : Colors.amber[50],
+                color: isDarkMode ? const Color(0xFF163125) : Colors.green[50],
                 border: Border.all(
-                  color: isDarkMode ? const Color(0xFF7B6528) : Colors.amber[200]!,
+                  color: isDarkMode ? const Color(0xFF2D6A4F) : Colors.green[200]!,
                 ),
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -445,7 +444,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                     children: [
                       Icon(
                         Icons.info_outline,
-                        color: Colors.amber[700],
+                        color: Colors.green[700],
                         size: 20,
                       ),
                       const SizedBox(width: 8),
@@ -453,17 +452,15 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                         'Important',
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
-                          color: Colors.amber[800],
+                          color: Colors.green[800],
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: kPaddingSmall),
-                  _buildInfoBullet('Make sure notifications are enabled'),
-                  _buildInfoBullet('Code is valid for 2 minutes only'),
+                  _buildInfoBullet('Make sure your phone can receive SMS messages'),
+                  _buildInfoBullet('If the code does not arrive, tap Resend Code'),
                   _buildInfoBullet('Do not share your code with anyone'),
-                  if (_otpAutoFilled)
-                    _buildInfoBullet('Code was auto-filled from notification'),
                 ],
               ),
             ),
@@ -487,7 +484,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               _error != null
                   ? Colors.red
                   : _otpFocuses[index].hasFocus
-                  ? kFacebookBlue
+                  ? _kLinkodGreen
                   : hasValue
                   ? Colors.green
                   : Colors.grey[300]!,
@@ -505,7 +502,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         textAlign: TextAlign.center,
         keyboardType: TextInputType.number,
         maxLength: 1,
-        enabled: !_isVerifying && !_isExpired,
+        enabled: !_isVerifying && !_isRequestingCode && _codeSent,
         decoration: const InputDecoration(
           counterText: '',
           border: InputBorder.none,
@@ -556,7 +553,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               height: 4,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isDarkMode ? Colors.amber[400] : Colors.amber[700],
+                color: isDarkMode ? Colors.green[400] : Colors.green[700],
               ),
             ),
           ),
@@ -565,7 +562,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               text,
               style: TextStyle(
                 fontSize: 14,
-                color: isDarkMode ? Colors.amber[200] : Colors.amber[800],
+                color: isDarkMode ? Colors.green[200] : Colors.green[800],
               ),
             ),
           ),

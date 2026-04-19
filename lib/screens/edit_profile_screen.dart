@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -45,14 +46,62 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.dispose();
   }
 
+  int? _extractPurokNumber(dynamic raw) {
+    if (raw is num) {
+      final value = raw.toInt();
+      if (value >= 1 && value <= 5) return value;
+    }
+    if (raw is String) {
+      final match = RegExp(r'(\d+)').firstMatch(raw);
+      if (match != null) {
+        final parsed = int.tryParse(match.group(1)!);
+        if (parsed != null && parsed >= 1 && parsed <= 5) return parsed;
+      }
+    }
+    return null;
+  }
+
+  List<String> _extractCategories(dynamic raw) {
+    if (raw is List) {
+      return raw
+          .map((entry) => entry?.toString().trim() ?? '')
+          .where((entry) => entry.isNotEmpty)
+          .toList();
+    }
+
+    if (raw is String) {
+      return raw
+          .split(',')
+          .map((entry) => entry.trim())
+          .where((entry) => entry.isNotEmpty)
+          .toList();
+    }
+
+    return <String>[];
+  }
+
+  Map<String, dynamic> _mergeProfileSources({
+    Map<String, dynamic>? primary,
+    Map<String, dynamic>? fallback,
+  }) {
+    return <String, dynamic>{
+      if (fallback != null) ...fallback,
+      if (primary != null) ...primary,
+    };
+  }
+
   Future<void> _loadUserProfile() async {
-    final currentUser = FirestoreService.auth.currentUser;
+    User? currentUser = FirestoreService.auth.currentUser;
+    currentUser ??= await FirestoreService.auth.authStateChanges().first;
+    if (!mounted) return;
     if (currentUser == null) {
       setState(() {
         _isLoading = false;
       });
       return;
     }
+
+    final resolvedUser = currentUser;
 
     try {
       final userDoc =
@@ -61,36 +110,80 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               .doc(currentUser.uid)
               .get();
 
-      if (userDoc.exists) {
-        final data = userDoc.data();
-        // Parse demography categories from comma-separated string
-        final categoryString = data?['category'] as String? ?? '';
-        final categories =
-            categoryString
-                .split(',')
-                .map((c) => c.trim())
-                .where((c) => c.isNotEmpty)
-                .toList();
+      Map<String, dynamic>? awaitingData;
+      try {
+        final awaitingSnapshot =
+            await FirestoreService.instance
+                .collection('awaitingApproval')
+                .where('requestedByUid', isEqualTo: currentUser.uid)
+                .limit(1)
+                .get();
+        if (awaitingSnapshot.docs.isNotEmpty) {
+          awaitingData = awaitingSnapshot.docs.first.data();
+        }
+      } catch (_) {
+        // Non-blocking fallback: the edit screen should still load from users/.
+      }
+
+      final data = _mergeProfileSources(
+        primary: userDoc.data(),
+        fallback: awaitingData,
+      );
+
+      if (userDoc.exists || awaitingData != null) {
+        final categories = _extractCategories(data['categories']);
+        final fallbackPhone =
+            resolvedUser.email == null
+                ? ''
+                : resolvedUser.email!.replaceFirst(
+                  RegExp(r'@linkod\.com$'),
+                  '',
+                );
+        final resolvedName = NameFormatter.fromAnyFull(
+          fullName: data['fullName'] as String? ?? data['displayName'] as String?,
+          firstName: data['firstName'] as String?,
+          middleName: data['middleName'] as String?,
+          lastName: data['lastName'] as String?,
+          hasMiddleName: data['hasMiddleName'] as bool?,
+          fallback: 'User',
+        );
+        final resolvedPurok =
+            _extractPurokNumber(data['purok']) ??
+            _extractPurokNumber(data['location']) ??
+            1;
         setState(() {
-          _fullName = NameFormatter.fromUserDataFull(data, fallback: 'User');
-          _phoneController.text = data?['phoneNumber'] as String? ?? '';
-          _selectedPurok = (data?['purok'] as num?)?.toInt() ?? 1;
+          _fullName = resolvedName;
+          _phoneController.text =
+              (data['phoneNumber'] as String?)?.trim().isNotEmpty == true
+                  ? data['phoneNumber'] as String
+                  : fallbackPhone;
+          _selectedPurok = resolvedPurok;
           _purokController.text = purokDisplayName(_selectedPurok);
           _nameController.text = _fullName ?? 'User';
-          _profileImageUrl = data?['profileImageUrl'] as String?;
+          _profileImageUrl = data['profileImageUrl'] as String?;
           _demographyCategories = categories;
           _isLoading = false;
         });
       } else {
         setState(() {
-          _fullName = 'User';
+          _fullName = NameFormatter.fromAnyFull(fallback: 'User');
+          _phoneController.text =
+              resolvedUser.email == null
+                  ? ''
+                  : resolvedUser.email!.replaceFirst(
+                    RegExp(r'@linkod\.com$'),
+                    '',
+                  );
+          _selectedPurok = 1;
+          _purokController.text = purokDisplayName(_selectedPurok);
+          _nameController.text = _fullName ?? 'User';
           _isLoading = false;
         });
       }
     } catch (e) {
       debugPrint('Error loading user profile: $e');
       setState(() {
-        _fullName = 'User';
+        _fullName = NameFormatter.fromAnyFull(fallback: 'User');
         _isLoading = false;
       });
     }
@@ -623,9 +716,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 vertical: 8,
                               ),
                               decoration: BoxDecoration(
-                                color: const Color(
-                                  0xFF20BF6B,
-                                ).withOpacity(0.15),
+                                color: const Color(0xFF20BF6B).withValues(
+                                  alpha: 0.15,
+                                ),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(

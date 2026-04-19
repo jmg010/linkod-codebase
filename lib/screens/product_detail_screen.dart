@@ -189,7 +189,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             avatarUrl: userData['avatarUrl'],
             name: displayName,
             purok: userData['purok'],
-            phoneNumber: userData['phoneNumber'],
+            phoneNumber:
+                _canViewContact(_currentProduct) ? userData['phoneNumber'] : null,
             demographicCategory: userData['demographicCategory'],
             isSeller: true,
           ),
@@ -278,6 +279,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   bool get _isOwner {
     final uid = FirestoreService.auth.currentUser?.uid;
     return uid != null && _currentProduct.sellerId == uid;
+  }
+
+  bool _canViewLocation(ProductModel product) {
+    return _isOwner || product.showLocationToResidents;
+  }
+
+  bool _canViewContact(ProductModel product) {
+    return _isOwner || product.showContactToResidents;
   }
 
   /// Price string with unit only when explicitly set on the product.
@@ -432,7 +441,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           isAvailable: _currentProduct.isAvailable,
           location: location.isEmpty ? 'Location not specified' : location,
           contactNumber: contact,
+          showLocationToResidents: _currentProduct.showLocationToResidents,
+          showContactToResidents: _currentProduct.showContactToResidents,
           messagesCount: _currentProduct.messagesCount,
+          viewCount: _currentProduct.viewCount,
           status: _currentProduct.status,
         );
         _isEditing = false;
@@ -719,7 +731,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                   ),
                                 )
                                 : Text(
-                                  product.location,
+                                  _canViewLocation(product)
+                                      ? product.location
+                                      : 'Location hidden by seller',
                                   style: TextStyle(
                                     fontSize: 14,
                                     color:
@@ -753,9 +767,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                   ),
                                 )
                                 : Text(
-                                  product.contactNumber.isEmpty
+                                  _canViewContact(product)
+                                    ? (product.contactNumber.isEmpty
                                       ? 'Not provided'
-                                      : product.contactNumber,
+                                      : product.contactNumber)
+                                    : 'Contact hidden by seller. Use in-app messages.',
                                   style: TextStyle(
                                     fontSize: 14,
                                     color:

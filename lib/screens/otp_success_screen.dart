@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../ui_constants.dart';
 import 'profile_completion_screen.dart';
 
+const Color _kLinkodGreen = Color(0xFF00A651);
+
 /// Success screen shown after successful OTP verification
 ///
 /// **Flow**:
@@ -79,7 +81,7 @@ class _OtpSuccessScreenState extends State<OtpSuccessScreen>
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [kFacebookBlue.withOpacity(0.1), Colors.white],
+            colors: [_kLinkodGreen.withOpacity(0.1), Colors.white],
           ),
         ),
         child: SafeArea(
@@ -197,7 +199,7 @@ class _OtpSuccessScreenState extends State<OtpSuccessScreen>
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      backgroundColor: kFacebookBlue,
+                      backgroundColor: _kLinkodGreen,
                     ),
                     child: const Text(
                       'Continue',
@@ -215,8 +217,8 @@ class _OtpSuccessScreenState extends State<OtpSuccessScreen>
                   Container(
                     padding: const EdgeInsets.all(kPaddingMedium),
                     decoration: BoxDecoration(
-                      color: Colors.blue[50],
-                      border: Border.all(color: Colors.blue[200]!),
+                      color: Colors.green[50],
+                      border: Border.all(color: Colors.green[200]!),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
@@ -226,7 +228,7 @@ class _OtpSuccessScreenState extends State<OtpSuccessScreen>
                           children: [
                             Icon(
                               Icons.security,
-                              color: Colors.blue[700],
+                              color: Colors.green[700],
                               size: 20,
                             ),
                             const SizedBox(width: 8),
@@ -234,7 +236,7 @@ class _OtpSuccessScreenState extends State<OtpSuccessScreen>
                               'Security Features',
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
-                                color: Colors.blue[700],
+                                color: Colors.green[700],
                               ),
                             ),
                           ],
@@ -269,7 +271,7 @@ class _OtpSuccessScreenState extends State<OtpSuccessScreen>
           Expanded(
             child: Text(
               text,
-              style: TextStyle(fontSize: 14, color: Colors.blue[700]),
+              style: TextStyle(fontSize: 14, color: Colors.green[700]),
             ),
           ),
         ],

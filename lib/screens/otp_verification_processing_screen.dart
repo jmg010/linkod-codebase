@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
-import '../services/otp_service.dart';
 import '../ui_constants.dart';
+import '../services/otp_service.dart';
+import 'otp_success_screen.dart';
 import 'otp_verification_screen.dart';
 
-/// Processing screen shown while requesting OTP from backend
+const Color _kLinkodGreen = Color(0xFF00A651);
+
+/// Processing screen shown while requesting the SMS verification code
 ///
 /// **Flow**:
 /// 1. Screen shows loading animation and "Sending verification code..."
-/// 2. Calls OtpService.requestOtp() in background
-/// 3. On success: navigates to OtpVerificationScreen
+/// 2. Calls Firebase phone auth via OtpService in background
+/// 3. On code sent: navigates to OtpVerificationScreen
 /// 4. On failure: shows error and allows retry
 class OtpVerificationProcessingScreen extends StatefulWidget {
   final String phoneNumber;
@@ -47,24 +50,27 @@ class _OtpVerificationProcessingScreenState
     try {
       // Debug logging
       debugPrint('Requesting OTP for phone: ${widget.phoneNumber}');
-      debugPrint('FCM Token: ${widget.fcmToken.substring(0, 20)}...');
+      debugPrint('FCM Token length: ${widget.fcmToken.length}');
 
-      // Request OTP from backend
-      final success = await OtpService.instance.requestOtp(
+      // Request SMS verification code from Firebase Auth
+      final result = await OtpService.instance.requestPhoneOtp(
         phoneNumber: widget.phoneNumber,
-        fcmToken: widget.fcmToken,
       );
 
-      debugPrint('OTP request success: $success');
+      debugPrint('OTP request completed');
 
       if (!mounted) return;
 
-      if (!success) {
-        setState(() {
-          _isLoading = false;
-          _error = 'Unable to send verification code. Please try again.';
-          _canRetry = true;
-        });
+      if (result.autoVerified) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder:
+                (_) => OtpSuccessScreen(
+                  phoneNumber: widget.phoneNumber,
+                  fcmToken: widget.fcmToken,
+                ),
+          ),
+        );
         return;
       }
 
@@ -76,6 +82,8 @@ class _OtpVerificationProcessingScreenState
                 (_) => OtpVerificationScreen(
                   phoneNumber: widget.phoneNumber,
                   fcmToken: widget.fcmToken,
+                  verificationId: result.verificationId,
+                  resendToken: result.resendToken,
                 ),
           ),
         );
@@ -113,6 +121,10 @@ class _OtpVerificationProcessingScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        foregroundColor:
+            Theme.of(context).brightness == Brightness.dark
+                ? Colors.white
+                : _kLinkodGreen,
         title: const Text('Verification'),
         elevation: 0,
         leading: IconButton(
@@ -133,12 +145,12 @@ class _OtpVerificationProcessingScreenState
                   height: 120,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: kFacebookBlue.withOpacity(0.1),
+                    color: _kLinkodGreen.withOpacity(0.1),
                   ),
                   child: const Icon(
-                    Icons.notifications_active,
+                    Icons.sms_outlined,
                     size: 60,
-                    color: kFacebookBlue,
+                    color: _kLinkodGreen,
                   ),
                 )
               else if (_error != null)
@@ -167,7 +179,7 @@ class _OtpVerificationProcessingScreenState
                     : 'Code sent!',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: _error != null ? Colors.red : kFacebookBlue,
+                  color: _error != null ? Colors.red : _kLinkodGreen,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -177,7 +189,7 @@ class _OtpVerificationProcessingScreenState
               // Subtitle
               if (_isLoading)
                 Text(
-                  'Check your notifications for the 6-digit code',
+                  'Check your phone for the SMS code',
                   style: Theme.of(
                     context,
                   ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
@@ -199,7 +211,7 @@ class _OtpVerificationProcessingScreenState
                 Column(
                   children: [
                     const CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(kFacebookBlue),
+                      valueColor: AlwaysStoppedAnimation<Color>(_kLinkodGreen),
                     ),
                     const SizedBox(height: kPaddingMedium),
                     Text(
@@ -219,6 +231,8 @@ class _OtpVerificationProcessingScreenState
                       ElevatedButton(
                         onPressed: _requestOtp,
                         style: ElevatedButton.styleFrom(
+                          backgroundColor: _kLinkodGreen,
+                          foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(
                             horizontal: 32,
                             vertical: 16,
@@ -234,6 +248,9 @@ class _OtpVerificationProcessingScreenState
 
                     TextButton(
                       onPressed: _goBack,
+                      style: TextButton.styleFrom(
+                        foregroundColor: _kLinkodGreen,
+                      ),
                       child: const Text('Go Back'),
                     ),
                   ],
@@ -245,8 +262,8 @@ class _OtpVerificationProcessingScreenState
                   margin: const EdgeInsets.only(top: kPaddingLarge * 2),
                   padding: const EdgeInsets.all(kPaddingMedium),
                   decoration: BoxDecoration(
-                    color: Colors.blue[50],
-                    border: Border.all(color: Colors.blue[200]!),
+                    color: Colors.green[50],
+                    border: Border.all(color: Colors.green[200]!),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(
@@ -256,7 +273,7 @@ class _OtpVerificationProcessingScreenState
                         children: [
                           Icon(
                             Icons.info_outline,
-                            color: Colors.blue[700],
+                            color: Colors.green[700],
                             size: 20,
                           ),
                           const SizedBox(width: 8),
@@ -264,16 +281,16 @@ class _OtpVerificationProcessingScreenState
                             'What to expect',
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
-                              color: Colors.blue[700],
+                              color: Colors.green[700],
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: kPaddingSmall),
-                      _buildInfoPoint('You\'ll receive a push notification'),
+                      _buildInfoPoint('You\'ll receive an SMS message'),
                       _buildInfoPoint('The code is 6 digits long'),
-                      _buildInfoPoint('Code expires in 2 minutes'),
-                      _buildInfoPoint('Make sure notifications are enabled'),
+                      _buildInfoPoint('Use Resend if the message does not arrive'),
+                      _buildInfoPoint('Make sure your phone can receive SMS'),
                     ],
                   ),
                 ),
@@ -297,14 +314,14 @@ class _OtpVerificationProcessingScreenState
               height: 4,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.blue[700],
+                color: Colors.green[700],
               ),
             ),
           ),
           Expanded(
             child: Text(
               text,
-              style: TextStyle(fontSize: 14, color: Colors.blue[700]),
+              style: TextStyle(fontSize: 14, color: Colors.green[700]),
             ),
           ),
         ],

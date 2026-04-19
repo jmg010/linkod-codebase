@@ -1,12 +1,17 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/product_model.dart';
 import '../models/task_model.dart';
 import '../screens/announcement_detail_screen.dart';
+import '../screens/emergency_alert_setup_screen.dart';
+import '../screens/announcement_priority_alert_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/post_detail_screen.dart';
 import '../screens/product_detail_screen.dart';
@@ -24,18 +29,38 @@ class PushNotificationHandler {
   PushNotificationHandler(this._navigatorKey);
 
   final GlobalKey<NavigatorState> _navigatorKey;
+  static const MethodChannel _androidCapabilitiesChannel = MethodChannel(
+    'linkod.notification_capabilities',
+  );
+  static const MethodChannel _androidOverlayChannel = MethodChannel(
+    'linkod.overlay_control',
+  );
+  static const bool _enablePriorityOverlayDemoMode = false;
+  static bool _overlayPermissionRequestedThisSession = false;
+  static const String _emergencySetupPromptSeenKey =
+      'emergency_alert_setup_prompt_seen';
+  static const String _emergencySetupPromptDisabledKey =
+      'emergency_alert_setup_prompt_disabled';
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
     'linkod_announcements',
     'Announcements',
     description: 'Barangay announcement notifications',
     importance: Importance.defaultImportance,
   );
+  static const AndroidNotificationChannel _priorityChannel =
+      AndroidNotificationChannel(
+        'linkod_announcements_priority',
+        'Priority Announcements',
+        description: 'High-priority barangay announcement alerts',
+        importance: Importance.high,
+      );
 
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
   bool _initialized = false;
   static final Map<String, DateTime> _recentForegroundNotifKeys =
       <String, DateTime>{};
+  static String? _pendingLocalNotificationPayload;
 
   /// Call after Firebase is initialized. Sets up foreground display and tap handling.
   /// No-op on web/desktop so the app does not depend on FCM there.
@@ -57,12 +82,29 @@ class PushNotificationHandler {
       onDidReceiveNotificationResponse: _onNotificationTap,
     );
 
+    final launchDetails = await _localNotifications.getNotificationAppLaunchDetails();
+    if (launchDetails?.didNotificationLaunchApp == true) {
+      final payload = launchDetails?.notificationResponse?.payload;
+      if (payload != null && payload.isNotEmpty) {
+        _pendingLocalNotificationPayload = payload;
+      }
+    }
+
     if (defaultTargetPlatform == TargetPlatform.android) {
       await _localNotifications
           .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin
           >()
           ?.createNotificationChannel(_channel);
+      await _localNotifications
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >()
+          ?.createNotificationChannel(_priorityChannel);
+
+      if (_enablePriorityOverlayDemoMode) {
+        unawaited(_ensureOverlayPermissionForDemo());
+      }
     }
 
     // We always render our own local notification for foreground messages.
@@ -75,12 +117,306 @@ class PushNotificationHandler {
         );
 
     // Foreground: show a local notification so user sees it; tap uses payload.
-    FirebaseMessaging.onMessage.listen(_showForegroundNotification);
+    FirebaseMessaging.onMessage.listen((message) {
+      unawaited(_showForegroundNotification(message));
+    });
 
     // Background/terminated: user tapped the system notification; navigate.
     FirebaseMessaging.onMessageOpenedApp.listen(_navigateFromMessage);
 
     _initialized = true;
+  }
+
+  static Future<void> handleBackgroundMessage(RemoteMessage message) async {
+    if (!_isPriorityAnnouncement(message)) {
+      return;
+    }
+
+    final data = Map<String, dynamic>.from(message.data);
+    final canDrawOverlay = await _canDrawOverlay();
+    final canUseFullScreenIntent = await _canUseFullScreenIntentStatic();
+
+    _logPriorityDeliveryEvent(
+      'priority_background_received',
+      data: <String, dynamic>{
+        'announcementId': _dataString(data, 'announcementId'),
+        'canDrawOverlay': canDrawOverlay,
+        'canUseFullScreenIntent': canUseFullScreenIntent,
+      },
+    );
+
+    if (_enablePriorityOverlayDemoMode && canDrawOverlay) {
+      final shown = await _tryShowPriorityAnnouncementOverlay(data);
+      if (shown) {
+        _logPriorityDeliveryEvent(
+          'priority_overlay_shown',
+          data: <String, dynamic>{
+            'announcementId': _dataString(data, 'announcementId'),
+          },
+        );
+        return;
+      }
+      _logPriorityDeliveryEvent(
+        'priority_overlay_failed',
+        data: <String, dynamic>{
+          'announcementId': _dataString(data, 'announcementId'),
+        },
+      );
+    } else {
+      _logPriorityDeliveryEvent(
+        'priority_overlay_skipped',
+        data: <String, dynamic>{
+          'announcementId': _dataString(data, 'announcementId'),
+          'reason': !_enablePriorityOverlayDemoMode
+              ? 'overlay_mode_disabled'
+              : 'overlay_permission_missing',
+        },
+      );
+    }
+
+    await _showPriorityAnnouncementLocalNotification(
+      message,
+      fullScreenIntent: canUseFullScreenIntent,
+    );
+
+    if (canUseFullScreenIntent) {
+      _logPriorityDeliveryEvent(
+        'priority_fullscreen_used',
+        data: <String, dynamic>{
+          'announcementId': _dataString(data, 'announcementId'),
+        },
+      );
+    } else {
+      _logPriorityDeliveryEvent(
+        'priority_heads_up_only',
+        data: <String, dynamic>{
+          'announcementId': _dataString(data, 'announcementId'),
+        },
+      );
+    }
+  }
+
+  static Future<bool> _canDrawOverlay() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return false;
+    }
+
+    try {
+      return await _androidOverlayChannel.invokeMethod<bool>('canDrawOverlay') ??
+          false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<bool> _canUseFullScreenIntentStatic() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return false;
+    }
+
+    try {
+      final result = await _androidCapabilitiesChannel.invokeMethod<bool>(
+        'canUseFullScreenIntent',
+      );
+      return result ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static void _logPriorityDeliveryEvent(
+    String event, {
+    Map<String, dynamic>? data,
+  }) {
+    final suffix = (data == null || data.isEmpty) ? '' : ' | ${jsonEncode(data)}';
+    debugPrint('[priority-alert] $event$suffix');
+  }
+
+  static Future<bool> _tryShowPriorityAnnouncementOverlay(
+    Map<String, dynamic> data,
+  ) async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return false;
+    }
+    final announcementId = _dataString(data, 'announcementId');
+    if (announcementId == null) {
+      return false;
+    }
+
+    try {
+      final result = await _androidOverlayChannel.invokeMethod<bool>(
+        'showAnnouncementOverlay',
+        <String, dynamic>{
+          'announcementId': announcementId,
+          'title': _dataString(data, 'title') ?? 'Barangay Announcement',
+          'body': _dataString(data, 'body') ?? 'New barangay announcement.',
+          'type': _dataString(data, 'type') ?? 'announcement',
+          'priority': _dataString(data, 'priority') ?? 'high',
+          'alertStyle': _dataString(data, 'alertStyle') ?? 'announcement_priority',
+          'attemptFullScreen': _dataString(data, 'attemptFullScreen') ?? 'true',
+        },
+      );
+      return result == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<void> _ensureOverlayPermissionForDemo() async {
+    if (_overlayPermissionRequestedThisSession) {
+      return;
+    }
+    _overlayPermissionRequestedThisSession = true;
+
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return;
+    }
+
+    try {
+      final granted =
+          await _androidOverlayChannel.invokeMethod<bool>('canDrawOverlay') ?? false;
+      if (!granted) {
+        await _androidOverlayChannel.invokeMethod<bool>('requestOverlayPermission');
+      }
+    } catch (_) {
+      // Keep notification fallback when overlay permission bridge is unavailable.
+    }
+  }
+
+  Future<void> maybePromptEmergencyAlertSetup() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final isDisabled = prefs.getBool(_emergencySetupPromptDisabledKey) ?? false;
+    if (isDisabled) return;
+
+    final alreadyPrompted = prefs.getBool(_emergencySetupPromptSeenKey) ?? false;
+    if (alreadyPrompted) return;
+
+    final hasNotificationPermission =
+        await _hasNotificationPermissionForAndroid();
+    final canDrawOverlay = await _canDrawOverlay();
+    final canUseFullScreenIntent = await _canUseFullScreenIntentStatic();
+
+    final setupComplete =
+        hasNotificationPermission && canDrawOverlay && canUseFullScreenIntent;
+    if (setupComplete) {
+      await prefs.setBool(_emergencySetupPromptSeenKey, true);
+      return;
+    }
+
+    final context = _navigatorKey.currentContext;
+    if (context == null || !context.mounted) {
+      return;
+    }
+
+    final choice = await showDialog<String>(
+      context: context,
+      builder:
+          (dialogContext) => AlertDialog(
+            title: const Text('Enable Emergency Alerts'),
+            content: const Text(
+              'To maximize emergency alert visibility, complete emergency alert setup.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () async {
+                  await prefs.setBool(_emergencySetupPromptDisabledKey, true);
+                  await prefs.setBool(_emergencySetupPromptSeenKey, true);
+                  if (dialogContext.mounted) {
+                    Navigator.of(dialogContext).pop('never');
+                  }
+                },
+                child: const Text('Don\'t show again'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop('later');
+                },
+                child: const Text('Later'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop();
+                  final routeContext = _navigatorKey.currentContext;
+                  if (routeContext == null) return;
+                  unawaited(
+                    prefs.setBool(_emergencySetupPromptSeenKey, true),
+                  );
+                  Navigator.of(routeContext).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const EmergencyAlertSetupScreen(),
+                    ),
+                  );
+                },
+                child: const Text('Configure now'),
+              ),
+            ],
+          ),
+    );
+
+    if (choice == 'later') {
+      await prefs.setBool(_emergencySetupPromptSeenKey, false);
+    }
+  }
+
+  static Future<bool> _hasNotificationPermissionForAndroid() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return true;
+    }
+
+    try {
+      final settings = await FirebaseMessaging.instance.getNotificationSettings();
+      return settings.authorizationStatus == AuthorizationStatus.authorized ||
+          settings.authorizationStatus == AuthorizationStatus.provisional;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<void> handleInitialOverlayLaunch(
+    GlobalKey<NavigatorState> navigatorKey,
+  ) async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return;
+    }
+
+    try {
+      final payloadJson = await _androidOverlayChannel.invokeMethod<String>(
+        'getInitialOverlayPayload',
+      );
+      if (payloadJson == null || payloadJson.isEmpty) {
+        return;
+      }
+      final decoded = jsonDecode(payloadJson);
+      if (decoded is Map<String, dynamic>) {
+        if (_isPriorityAnnouncementData(decoded)) {
+          _pushAnnouncementPriorityAlert(navigatorKey, decoded);
+        }
+        return;
+      }
+      if (decoded is Map) {
+        final data = Map<String, dynamic>.from(decoded);
+        if (_isPriorityAnnouncementData(data)) {
+          _pushAnnouncementPriorityAlert(navigatorKey, data);
+        }
+      }
+    } catch (_) {
+      // Ignore bridge failures and keep the normal notification flow.
+    }
+  }
+
+  static Future<void> handleInitialLocalNotificationLaunch(
+    GlobalKey<NavigatorState> navigatorKey,
+  ) async {
+    final payload = _pendingLocalNotificationPayload;
+    if (payload == null || payload.isEmpty) {
+      return;
+    }
+    _pendingLocalNotificationPayload = null;
+    await handleLocalNotificationPayload(navigatorKey, payload);
   }
 
   static String _foregroundDedupKey(RemoteMessage message) {
@@ -119,24 +455,165 @@ class PushNotificationHandler {
     return false;
   }
 
-  void _onNotificationTap(NotificationResponse response) {
-    final payload = response.payload;
-    if (payload == null || payload.isEmpty) return;
+  static String? _dataString(Map<String, dynamic> data, String key) {
+    final value = data[key];
+    if (value == null) return null;
+    final text = value.toString().trim();
+    if (text.isEmpty || text == 'null') return null;
+    return text;
+  }
 
+  static bool _isPriorityAnnouncement(RemoteMessage message) {
+    final data = message.data;
+    final type = _dataString(data, 'type');
+    final announcementId = _dataString(data, 'announcementId');
+    if (type != 'announcement' || announcementId == null) {
+      return false;
+    }
+
+    final priority = _dataString(data, 'priority')?.toLowerCase();
+    final alertStyle = _dataString(data, 'alertStyle');
+    final attemptFullScreen = _dataString(data, 'attemptFullScreen')?.toLowerCase();
+    return priority == 'high' ||
+        alertStyle == 'announcement_priority' ||
+        attemptFullScreen == 'true';
+  }
+
+  static bool _isPriorityAnnouncementData(Map<String, dynamic> data) {
+    final type = _dataString(data, 'type');
+    final announcementId = _dataString(data, 'announcementId');
+    if (type != 'announcement' || announcementId == null) {
+      return false;
+    }
+
+    final priority = _dataString(data, 'priority')?.toLowerCase();
+    final alertStyle = _dataString(data, 'alertStyle');
+    final attemptFullScreen = _dataString(data, 'attemptFullScreen')?.toLowerCase();
+    return priority == 'high' ||
+        alertStyle == 'announcement_priority' ||
+        attemptFullScreen == 'true';
+  }
+
+  static void _pushAnnouncementPriorityAlert(
+    GlobalKey<NavigatorState> navigatorKey,
+    Map<String, dynamic> data,
+  ) {
+    final announcementId = _dataString(data, 'announcementId');
+    if (announcementId == null) return;
+
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder:
+            (_) => AnnouncementPriorityAlertScreen(
+              announcementId: announcementId,
+              title: _dataString(data, 'title') ?? 'Barangay Announcement',
+              body: _dataString(data, 'body') ?? 'New barangay announcement.',
+            ),
+      ),
+    );
+  }
+
+  static Future<void> _showPriorityAnnouncementLocalNotification(
+    RemoteMessage message, {
+    required bool fullScreenIntent,
+  }) async {
+    final data = Map<String, dynamic>.from(message.data);
+    final announcementId = _dataString(data, 'announcementId');
+    if (announcementId == null) {
+      return;
+    }
+
+    final localNotifications = FlutterLocalNotificationsPlugin();
+    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const iosInit = DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+    );
+    await localNotifications.initialize(
+      const InitializationSettings(android: androidInit, iOS: iosInit),
+    );
+
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      await localNotifications
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >()
+          ?.createNotificationChannel(_priorityChannel);
+    }
+
+    final title =
+        message.notification?.title ??
+        _dataString(data, 'title') ??
+        'Announcement';
+    final body =
+        message.notification?.body ??
+        _dataString(data, 'body') ??
+        'New barangay announcement.';
+    final localNotificationId = announcementId.hashCode & 0x7FFFFFFF;
+
+    try {
+      // Create Android notification details with full-screen intent
+      final androidDetails = AndroidNotificationDetails(
+        _priorityChannel.id,
+        _priorityChannel.name,
+        channelDescription: _priorityChannel.description,
+        importance: Importance.high,
+        priority: Priority.high,
+        fullScreenIntent: fullScreenIntent,
+      );
+
+      await localNotifications.show(
+        localNotificationId,
+        title,
+        body,
+        NotificationDetails(
+          android: androidDetails,
+          iOS: const DarwinNotificationDetails(),
+        ),
+        payload: 'data:${jsonEncode(data)}',
+      );
+
+      // If full-screen intent should be used on Android, launch the alert activity directly
+      if (fullScreenIntent && defaultTargetPlatform == TargetPlatform.android) {
+        try {
+          await _androidCapabilitiesChannel.invokeMethod<void>(
+            'showAnnouncementAlertActivity',
+            <String, dynamic>{
+              'announcementId': announcementId,
+              'title': title,
+              'body': body,
+            },
+          );
+        } catch (_) {
+          // If method channel fails, the notification will still show as fallback
+        }
+      }
+    } catch (_) {
+      // If the OS blocks the alert, the notification will still be handled by the system.
+    }
+  }
+
+  static Future<void> handleLocalNotificationPayload(
+    GlobalKey<NavigatorState> navigatorKey,
+    String payload,
+  ) async {
     if (payload.startsWith('data:')) {
       final raw = payload.substring('data:'.length);
       try {
         final decoded = jsonDecode(raw);
         if (decoded is Map<String, dynamic>) {
-          PushNotificationHandler.handleNotificationNavigation(
-            _navigatorKey,
+          await PushNotificationHandler.handleNotificationNavigation(
+            navigatorKey,
             decoded,
           );
           return;
         }
         if (decoded is Map) {
-          PushNotificationHandler.handleNotificationNavigation(
-            _navigatorKey,
+          await PushNotificationHandler.handleNotificationNavigation(
+            navigatorKey,
             Map<String, dynamic>.from(decoded),
           );
           return;
@@ -147,23 +624,31 @@ class PushNotificationHandler {
     }
 
     if (payload == 'account_approved') {
-      _navigateToLoginClearStack();
+      final context = navigatorKey.currentContext;
+      if (context != null) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
+          (_) => false,
+        );
+      }
       return;
     }
+
     if (payload.startsWith('product_approved:')) {
       final id = payload.substring('product_approved:'.length);
       if (id.isNotEmpty) {
-        PushNotificationHandler.handleNotificationNavigation(_navigatorKey, {
+        await PushNotificationHandler.handleNotificationNavigation(navigatorKey, {
           'type': 'product_approved',
           'productId': id,
         });
       }
       return;
     }
+
     if (payload.startsWith('task_approved:')) {
       final id = payload.substring('task_approved:'.length);
       if (id.isNotEmpty) {
-        PushNotificationHandler.handleNotificationNavigation(_navigatorKey, {
+        await PushNotificationHandler.handleNotificationNavigation(navigatorKey, {
           'type': 'task_approved',
           'taskId': id,
         });
@@ -171,35 +656,60 @@ class PushNotificationHandler {
       return;
     }
 
-    // Payload format: "announcement:abc123" or "post:postId" or "post:postId:commentId"
     if (payload.startsWith('announcement:')) {
       final id = payload.substring('announcement:'.length);
       if (id.isNotEmpty) {
-        _pushAnnouncementDetail(id);
+        PushNotificationHandler.handleNotificationNavigation(navigatorKey, {
+          'type': 'announcement',
+          'announcementId': id,
+        });
       }
-    } else if (payload.startsWith('post:')) {
+      return;
+    }
+
+    if (payload.startsWith('post:')) {
       final rest = payload.substring('post:'.length);
       final parts = rest.split(':');
       final id = parts.isNotEmpty ? parts[0] : '';
       final commentIdPart = parts.length >= 2 ? parts[1] : null;
       if (id.isNotEmpty) {
         if (commentIdPart != null && commentIdPart.isNotEmpty) {
-          PushNotificationHandler.handleNotificationNavigation(_navigatorKey, {
+          await PushNotificationHandler.handleNotificationNavigation(navigatorKey, {
             'type': 'comment',
             'postId': id,
             'commentId': commentIdPart,
           });
         } else {
-          _pushPostDetail(id);
+          final context = navigatorKey.currentContext;
+          if (context != null) {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => PostDetailScreen(postId: id),
+              ),
+            );
+          }
         }
       }
-    } else {
-      // Fallback: try as announcementId (for backward compatibility)
-      _pushAnnouncementDetail(payload);
+      return;
+    }
+
+    final context = navigatorKey.currentContext;
+    if (context != null) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => AnnouncementDetailScreen(announcementId: payload),
+        ),
+      );
     }
   }
 
-  void _showForegroundNotification(RemoteMessage message) {
+  void _onNotificationTap(NotificationResponse response) {
+    final payload = response.payload;
+    if (payload == null || payload.isEmpty) return;
+    unawaited(handleLocalNotificationPayload(_navigatorKey, payload));
+  }
+
+  Future<void> _showForegroundNotification(RemoteMessage message) async {
     if (_shouldSuppressForegroundDuplicate(message)) {
       return;
     }
@@ -305,6 +815,15 @@ class PushNotificationHandler {
           iOS: const DarwinNotificationDetails(),
         ),
         payload: 'task_approved:$taskId',
+      );
+      return;
+    }
+
+    if (_isPriorityAnnouncement(message)) {
+      // Foreground flow should avoid in-app modal interruption.
+      await _showPriorityAnnouncementLocalNotification(
+        message,
+        fullScreenIntent: false,
       );
       return;
     }
@@ -418,6 +937,10 @@ class PushNotificationHandler {
     final productId = message.data['productId'] as String?;
     final taskId = message.data['taskId'] as String?;
     if (announcementId != null && announcementId.isNotEmpty) {
+      if (_isPriorityAnnouncement(message)) {
+        _pushAnnouncementPriorityAlert(_navigatorKey, Map<String, dynamic>.from(message.data));
+        return;
+      }
       _pushAnnouncementDetail(announcementId);
       return;
     }
@@ -603,6 +1126,10 @@ class PushNotificationHandler {
     }
 
     if (announcementId != null && announcementId.isNotEmpty) {
+      if (_isPriorityAnnouncementData(data)) {
+        _pushAnnouncementPriorityAlert(navigatorKey, data);
+        return;
+      }
       Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder:
@@ -678,6 +1205,13 @@ class PushNotificationHandler {
     final productId = message.data['productId'] as String?;
     final taskId = message.data['taskId'] as String?;
     if (announcementId != null && announcementId.isNotEmpty) {
+      if (_isPriorityAnnouncementData(Map<String, dynamic>.from(message.data))) {
+        _pushAnnouncementPriorityAlert(
+          navigatorKey,
+          Map<String, dynamic>.from(message.data),
+        );
+        return;
+      }
       Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder:

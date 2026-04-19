@@ -694,6 +694,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
               (context) => OtpVerificationScreen(
                 phoneNumber: phone,
                 fcmToken: fcmToken ?? '',
+                returnResultOnSuccess: true,
               ),
         ),
       );
@@ -752,7 +753,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           'displayName': displayName,
           'phoneNumber': phone,
           'purok': selectedPurokNumber,
-          'password': password,
           'role': 'user',
           'category': categoryString,
           'categories': mergedCategories,

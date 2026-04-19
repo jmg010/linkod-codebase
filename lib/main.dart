@@ -14,7 +14,7 @@ import 'theme_notifier.dart';
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  // No UI here; tap is handled via getInitialMessage / onMessageOpenedApp.
+  await PushNotificationHandler.handleBackgroundMessage(message);
 }
 
 Future<void> main() async {
@@ -45,6 +45,8 @@ Future<void> main() async {
 
   WidgetsBinding.instance.addPostFrameCallback((_) {
     PushNotificationHandler.handleInitialMessage(navigatorKey);
+    PushNotificationHandler.handleInitialLocalNotificationLaunch(navigatorKey);
+    PushNotificationHandler.handleInitialOverlayLaunch(navigatorKey);
   });
 }
 

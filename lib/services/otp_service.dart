@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
 enum OtpErrorType {
@@ -21,6 +22,18 @@ class OtpServiceException implements Exception {
 
   @override
   String toString() => message;
+}
+
+class PhoneAuthRequestResult {
+  final String? verificationId;
+  final int? resendToken;
+  final bool autoVerified;
+
+  const PhoneAuthRequestResult({
+    this.verificationId,
+    this.resendToken,
+    this.autoVerified = false,
+  });
 }
 
 /// Manages OTP state during registration/device verification.
@@ -44,6 +57,130 @@ class OtpService {
 
   static const String _otpRequestFunction = 'requestOtp';
   static const String _otpVerifyFunction = 'verifyOtp';
+
+  static String? formatPhoneNumberForFirebase(String input) {
+    var cleaned = input.replaceAll(RegExp(r'[\s\-\.\(\)]+'), '');
+    cleaned = cleaned.trim();
+    if (cleaned.isEmpty) return null;
+
+    if (cleaned.startsWith('+')) {
+      final digits = cleaned.substring(1);
+      if (!RegExp(r'^\d{10,15}$').hasMatch(digits)) return null;
+      return '+$digits';
+    }
+
+    final digitsOnly = cleaned.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digitsOnly.isEmpty) return null;
+
+    if (digitsOnly.length == 11 && digitsOnly.startsWith('0')) {
+      return '+63${digitsOnly.substring(1)}';
+    }
+
+    if (digitsOnly.length == 10) {
+      return '+63$digitsOnly';
+    }
+
+    if (digitsOnly.length == 12 && digitsOnly.startsWith('63')) {
+      return '+$digitsOnly';
+    }
+
+    if (digitsOnly.length >= 10 && digitsOnly.length <= 15) {
+      return '+$digitsOnly';
+    }
+
+    return null;
+  }
+
+  String _mapPhoneErrorMessage(
+    FirebaseAuthException e, {
+    required bool isVerification,
+  }) {
+    final code = e.code.toLowerCase();
+    final message = (e.message ?? '').toLowerCase();
+
+    if (code == 'too-many-requests' || code == 'quota-exceeded') {
+      return 'Too many requests. Please wait before trying again.';
+    }
+
+    if (code == 'billing-not-enabled') {
+      return 'SMS sending is not enabled for this project yet. Please contact support.';
+    }
+
+    if (code == 'invalid-phone-number' || code == 'invalid-verification-id') {
+      return 'Invalid phone number. Please check and try again.';
+    }
+
+    if (code == 'invalid-verification-code') {
+      return 'Wrong verification code. Please try again.';
+    }
+
+    if (code == 'session-expired' || code == 'code-expired') {
+      return 'OTP has expired. Please request a new one.';
+    }
+
+    if (code == 'app-not-authorized' ||
+        code == 'invalid-app-credential' ||
+        code == 'missing-client-identifier' ||
+        code == 'missing-activity-for-recaptcha' ||
+        code == 'operation-not-allowed') {
+      return 'Phone authentication is not configured correctly for this app build. Please check Firebase Phone Auth, package name, and SHA fingerprints.';
+    }
+
+    if (message.contains('play integrity') ||
+        message.contains('sha-1') ||
+        message.contains('sha1') ||
+        message.contains('sha-256') ||
+        message.contains('sha256')) {
+      return 'Phone authentication setup is incomplete for this app build. Verify Firebase SHA fingerprints and app configuration.';
+    }
+
+    if (message.contains('region') ||
+        message.contains('country') ||
+        message.contains('not allowed to send sms')) {
+      return 'SMS is not allowed for this region in your Firebase phone auth settings.';
+    }
+
+    if (code == 'captcha-check-failed' ||
+        code == 'web-context-cancelled' ||
+        message.contains('recaptcha') ||
+        message.contains('captcha')) {
+      return 'Security verification was not completed. Please try again and finish the verification step.';
+    }
+
+    if (code == 'network-request-failed' ||
+        code == 'network') {
+      return 'No internet connection. Please check your network and try again.';
+    }
+
+    if (code == 'internal-error' || message.contains('internal error')) {
+      return 'Verification service is temporarily unavailable. Please try again in a moment.';
+    }
+
+    if (isVerification) {
+      return 'Unable to verify code right now. Please try again.';
+    }
+
+    return 'Unable to send verification code right now. Please try again. (Error: ${e.code})';
+  }
+
+  Future<void> _consumeTemporaryPhoneAuthUser(
+    PhoneAuthCredential credential, {
+    bool keepSignedIn = false,
+  }) async {
+    final auth = FirebaseAuth.instance;
+    await auth.signInWithCredential(credential);
+
+    if (keepSignedIn) {
+      return;
+    }
+
+    final currentUser = auth.currentUser;
+    if (currentUser != null) {
+      await currentUser.delete();
+    }
+
+    await auth.signOut();
+  }
 
   // Local state for received OTP (from FCM push)
   String? _receivedOtp;
@@ -82,6 +219,139 @@ class OtpService {
     _receivedOtp = null;
     _receivedPhoneNumber = null;
     _otpReceivedTime = null;
+  }
+
+  Future<PhoneAuthRequestResult> requestPhoneOtp({
+    required String phoneNumber,
+    int? forceResendingToken,
+  }) async {
+    try {
+      final normalizedPhone = formatPhoneNumberForFirebase(phoneNumber);
+      if (normalizedPhone == null) {
+        throw OtpServiceException(
+          OtpErrorType.invalidInput,
+          'Invalid phone number. Please check and try again.',
+        );
+      }
+
+      final completer = Completer<PhoneAuthRequestResult>();
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: normalizedPhone,
+        forceResendingToken: forceResendingToken,
+        timeout: const Duration(seconds: 60),
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          try {
+            await _consumeTemporaryPhoneAuthUser(credential);
+            if (!completer.isCompleted) {
+              completer.complete(
+                const PhoneAuthRequestResult(autoVerified: true),
+              );
+            }
+          } catch (e) {
+            if (!completer.isCompleted) {
+              completer.completeError(e);
+            }
+          }
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          if (!completer.isCompleted) {
+            completer.completeError(
+              OtpServiceException(
+                e.code == 'too-many-requests' || e.code == 'quota-exceeded'
+                    ? OtpErrorType.tooManyRequests
+                    : e.code == 'invalid-phone-number'
+                        ? OtpErrorType.invalidInput
+                        : e.code == 'network-request-failed'
+                            ? OtpErrorType.network
+                            : OtpErrorType.server,
+                _mapPhoneErrorMessage(e, isVerification: false),
+              ),
+            );
+          }
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          if (!completer.isCompleted) {
+            completer.complete(
+              PhoneAuthRequestResult(
+                verificationId: verificationId,
+                resendToken: resendToken,
+              ),
+            );
+          }
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {
+          if (!completer.isCompleted) {
+            completer.complete(
+              PhoneAuthRequestResult(verificationId: verificationId),
+            );
+          }
+        },
+      );
+
+      return await completer.future;
+    } on FirebaseAuthException catch (e) {
+      throw OtpServiceException(
+        e.code == 'too-many-requests' || e.code == 'quota-exceeded'
+            ? OtpErrorType.tooManyRequests
+            : e.code == 'invalid-phone-number'
+                ? OtpErrorType.invalidInput
+                : e.code == 'network-request-failed'
+                    ? OtpErrorType.network
+                    : OtpErrorType.server,
+        _mapPhoneErrorMessage(e, isVerification: false),
+      );
+    } catch (e) {
+      throw _mapUnknownException(
+        e,
+        fallback:
+            'Unable to send verification code right now. Please try again.',
+      );
+    }
+  }
+
+  Future<bool> verifyPhoneOtp({
+    required String verificationId,
+    required String smsCode,
+    bool keepSignedIn = false,
+  }) async {
+    if (!_isValidOtpFormat(smsCode)) {
+      throw OtpServiceException(
+        OtpErrorType.invalidInput,
+        'Invalid verification code format. Please enter 6 digits.',
+      );
+    }
+
+    try {
+      final credential = PhoneAuthProvider.credential(
+        verificationId: verificationId,
+        smsCode: smsCode,
+      );
+      await _consumeTemporaryPhoneAuthUser(
+        credential,
+        keepSignedIn: keepSignedIn,
+      );
+      return true;
+    } on FirebaseAuthException catch (e) {
+      throw OtpServiceException(
+        e.code == 'invalid-verification-code'
+            ? OtpErrorType.invalidOtp
+            : e.code == 'session-expired' || e.code == 'code-expired'
+                ? OtpErrorType.expiredOtp
+                : e.code == 'invalid-verification-id'
+                    ? OtpErrorType.invalidInput
+                    : e.code == 'too-many-requests' || e.code == 'quota-exceeded'
+                        ? OtpErrorType.tooManyRequests
+                        : e.code == 'network-request-failed'
+                            ? OtpErrorType.network
+                            : OtpErrorType.server,
+        _mapPhoneErrorMessage(e, isVerification: true),
+      );
+    } catch (e) {
+      throw _mapUnknownException(
+        e,
+        fallback: 'Verification failed. Please try again.',
+      );
+    }
   }
 
   /// Request OTP to be sent to device via FCM
@@ -245,6 +515,53 @@ class OtpService {
     required String fallback,
   }) {
     final text = error.toString().toLowerCase();
+
+    if (text.contains('too-many-requests') || text.contains('quota')) {
+      return OtpServiceException(
+        OtpErrorType.tooManyRequests,
+        'Too many requests. Please wait before trying again.',
+      );
+    }
+
+    if (text.contains('billing')) {
+      return OtpServiceException(
+        OtpErrorType.server,
+        'SMS sending is not enabled for this project yet. Please contact support.',
+      );
+    }
+
+    if (text.contains('recaptcha') ||
+        text.contains('captcha') ||
+        text.contains('web context cancelled')) {
+      return OtpServiceException(
+        OtpErrorType.invalidInput,
+        'Security verification was not completed. Please try again and finish the verification step.',
+      );
+    }
+
+    if (text.contains('play integrity') ||
+        text.contains('sha-1') ||
+        text.contains('sha1') ||
+        text.contains('sha-256') ||
+        text.contains('sha256') ||
+        text.contains('app-not-authorized') ||
+        text.contains('invalid-app-credential') ||
+        text.contains('missing-client-identifier')) {
+      return OtpServiceException(
+        OtpErrorType.server,
+        'Phone authentication is not configured correctly for this app build. Please check Firebase Phone Auth, package name, and SHA fingerprints.',
+      );
+    }
+
+    if (text.contains('region') ||
+        text.contains('country') ||
+        text.contains('not allowed to send sms')) {
+      return OtpServiceException(
+        OtpErrorType.server,
+        'SMS is not allowed for this region in your Firebase phone auth settings.',
+      );
+    }
+
     if (text.contains('network') ||
         text.contains('internet') ||
         text.contains('socket') ||

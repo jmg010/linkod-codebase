@@ -16,6 +16,10 @@ class ProductModel {
   final bool isAvailable;
   final String location;
   final String contactNumber;
+  /// Vendor-controlled visibility for residents.
+  final bool showLocationToResidents;
+  /// Vendor-controlled visibility for residents.
+  final bool showContactToResidents;
   final int messagesCount;
   final int viewCount;
   /// Gatekeeper: Pending (awaiting admin approval) or Approved (visible on feed/market).
@@ -36,6 +40,8 @@ class ProductModel {
     this.isAvailable = true,
     this.location = 'Location not specified',
     this.contactNumber = '',
+    this.showLocationToResidents = true,
+    this.showContactToResidents = true,
     this.messagesCount = 0,
     this.viewCount = 0,
     this.status = 'Pending',
@@ -57,6 +63,8 @@ class ProductModel {
       'isAvailable': isAvailable,
       'location': location,
       'contactNumber': contactNumber,
+      'showLocationToResidents': showLocationToResidents,
+      'showContactToResidents': showContactToResidents,
       'messagesCount': messagesCount,
       'viewCount': viewCount,
       'status': status,
@@ -82,6 +90,9 @@ class ProductModel {
       isAvailable: json['isAvailable'] as bool? ?? true,
       location: json['location'] as String? ?? 'Location not specified',
       contactNumber: json['contactNumber'] as String? ?? '',
+        showLocationToResidents:
+          json['showLocationToResidents'] as bool? ?? true,
+        showContactToResidents: json['showContactToResidents'] as bool? ?? true,
       messagesCount: (json['messagesCount'] as num?)?.toInt() ?? 0,
       viewCount: (json['viewCount'] as num?)?.toInt() ?? 0,
       status: json['status'] as String? ?? 'Approved',

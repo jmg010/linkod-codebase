@@ -61,6 +61,8 @@ class _SellProductScreenState extends State<SellProductScreen> {
   int get _totalImageCount => _existingImageUrls.length + _pickedImages.length;
 
   bool _isPosting = false;
+  bool _showLocationToResidents = true;
+  bool _showContactToResidents = true;
 
   @override
   void initState() {
@@ -75,6 +77,8 @@ class _SellProductScreenState extends State<SellProductScreen> {
       _selectedCategory = p.category;
       _existingImageUrls = List<String>.from(p.imageUrls);
       _selectedPriceUnit = p.priceUnit;
+      _showLocationToResidents = p.showLocationToResidents;
+      _showContactToResidents = p.showContactToResidents;
       if (_selectedPriceUnit != null &&
           !_priceUnitOptions.contains(_selectedPriceUnit)) {
         _selectedPriceUnit = null;
@@ -231,6 +235,15 @@ class _SellProductScreenState extends State<SellProductScreen> {
       return;
     }
 
+    if (_showContactToResidents && _contactController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Contact number is required when contact is visible'),
+        ),
+      );
+      return;
+    }
+
     final price = double.tryParse(_priceController.text.trim());
     if (price == null || price <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -289,6 +302,8 @@ class _SellProductScreenState extends State<SellProductScreen> {
               _contactController.text.trim().isNotEmpty
                   ? _contactController.text.trim()
                   : (userData['phoneNumber'] as String? ?? ''),
+          'showLocationToResidents': _showLocationToResidents,
+          'showContactToResidents': _showContactToResidents,
           'imageUrls': imageUrls,
             'priceUnit':
               (_selectedPriceUnit != null && _selectedPriceUnit!.isNotEmpty)
@@ -337,6 +352,8 @@ class _SellProductScreenState extends State<SellProductScreen> {
               _contactController.text.trim().isNotEmpty
                   ? _contactController.text.trim()
                   : (userData['phoneNumber'] as String? ?? ''),
+          showLocationToResidents: _showLocationToResidents,
+          showContactToResidents: _showContactToResidents,
           status: initialStatus, // Set based on auto-approve flag
         );
 
@@ -795,10 +812,43 @@ class _SellProductScreenState extends State<SellProductScreen> {
                 ),
               ),
               const SizedBox(height: 6),
-              _buildInputField(
-                controller: _contactController,
-                hint: 'Enter contact number',
-                keyboardType: TextInputType.phone,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: _buildInputField(
+                      controller: _contactController,
+                      hint: 'Enter contact number',
+                      keyboardType: TextInputType.phone,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Hide contact',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                      Transform.scale(
+                        scale: 0.8,
+                        child: Switch.adaptive(
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                          value: !_showContactToResidents,
+                          onChanged:
+                              (value) =>
+                                  setState(() =>
+                                      _showContactToResidents = !value),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
               const SizedBox(height: 28),
               SizedBox(
