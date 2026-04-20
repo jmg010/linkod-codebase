@@ -82,7 +82,8 @@ class PushNotificationHandler {
       onDidReceiveNotificationResponse: _onNotificationTap,
     );
 
-    final launchDetails = await _localNotifications.getNotificationAppLaunchDetails();
+    final launchDetails =
+        await _localNotifications.getNotificationAppLaunchDetails();
     if (launchDetails?.didNotificationLaunchApp == true) {
       final payload = launchDetails?.notificationResponse?.payload;
       if (payload != null && payload.isNotEmpty) {
@@ -167,9 +168,10 @@ class PushNotificationHandler {
         'priority_overlay_skipped',
         data: <String, dynamic>{
           'announcementId': _dataString(data, 'announcementId'),
-          'reason': !_enablePriorityOverlayDemoMode
-              ? 'overlay_mode_disabled'
-              : 'overlay_permission_missing',
+          'reason':
+              !_enablePriorityOverlayDemoMode
+                  ? 'overlay_mode_disabled'
+                  : 'overlay_permission_missing',
         },
       );
     }
@@ -202,7 +204,9 @@ class PushNotificationHandler {
     }
 
     try {
-      return await _androidOverlayChannel.invokeMethod<bool>('canDrawOverlay') ??
+      return await _androidOverlayChannel.invokeMethod<bool>(
+            'canDrawOverlay',
+          ) ??
           false;
     } catch (_) {
       return false;
@@ -228,7 +232,8 @@ class PushNotificationHandler {
     String event, {
     Map<String, dynamic>? data,
   }) {
-    final suffix = (data == null || data.isEmpty) ? '' : ' | ${jsonEncode(data)}';
+    final suffix =
+        (data == null || data.isEmpty) ? '' : ' | ${jsonEncode(data)}';
     debugPrint('[priority-alert] $event$suffix');
   }
 
@@ -252,7 +257,8 @@ class PushNotificationHandler {
           'body': _dataString(data, 'body') ?? 'New barangay announcement.',
           'type': _dataString(data, 'type') ?? 'announcement',
           'priority': _dataString(data, 'priority') ?? 'high',
-          'alertStyle': _dataString(data, 'alertStyle') ?? 'announcement_priority',
+          'alertStyle':
+              _dataString(data, 'alertStyle') ?? 'announcement_priority',
           'attemptFullScreen': _dataString(data, 'attemptFullScreen') ?? 'true',
         },
       );
@@ -274,9 +280,12 @@ class PushNotificationHandler {
 
     try {
       final granted =
-          await _androidOverlayChannel.invokeMethod<bool>('canDrawOverlay') ?? false;
+          await _androidOverlayChannel.invokeMethod<bool>('canDrawOverlay') ??
+          false;
       if (!granted) {
-        await _androidOverlayChannel.invokeMethod<bool>('requestOverlayPermission');
+        await _androidOverlayChannel.invokeMethod<bool>(
+          'requestOverlayPermission',
+        );
       }
     } catch (_) {
       // Keep notification fallback when overlay permission bridge is unavailable.
@@ -292,7 +301,8 @@ class PushNotificationHandler {
     final isDisabled = prefs.getBool(_emergencySetupPromptDisabledKey) ?? false;
     if (isDisabled) return;
 
-    final alreadyPrompted = prefs.getBool(_emergencySetupPromptSeenKey) ?? false;
+    final alreadyPrompted =
+        prefs.getBool(_emergencySetupPromptSeenKey) ?? false;
     if (alreadyPrompted) return;
 
     final hasNotificationPermission =
@@ -342,9 +352,7 @@ class PushNotificationHandler {
                   Navigator.of(dialogContext).pop();
                   final routeContext = _navigatorKey.currentContext;
                   if (routeContext == null) return;
-                  unawaited(
-                    prefs.setBool(_emergencySetupPromptSeenKey, true),
-                  );
+                  unawaited(prefs.setBool(_emergencySetupPromptSeenKey, true));
                   Navigator.of(routeContext).push(
                     MaterialPageRoute<void>(
                       builder: (_) => const EmergencyAlertSetupScreen(),
@@ -368,7 +376,8 @@ class PushNotificationHandler {
     }
 
     try {
-      final settings = await FirebaseMessaging.instance.getNotificationSettings();
+      final settings =
+          await FirebaseMessaging.instance.getNotificationSettings();
       return settings.authorizationStatus == AuthorizationStatus.authorized ||
           settings.authorizationStatus == AuthorizationStatus.provisional;
     } catch (_) {
@@ -405,6 +414,36 @@ class PushNotificationHandler {
       }
     } catch (_) {
       // Ignore bridge failures and keep the normal notification flow.
+    }
+  }
+
+  static Future<bool> handleInitialNativeLaunch(
+    GlobalKey<NavigatorState> navigatorKey,
+  ) async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return false;
+    }
+
+    try {
+      final payloadJson = await _androidCapabilitiesChannel
+          .invokeMethod<String>('getInitialLaunchPayload');
+      if (payloadJson == null || payloadJson.isEmpty) {
+        return false;
+      }
+
+      final decoded = jsonDecode(payloadJson);
+      final data =
+          decoded is Map<String, dynamic>
+              ? decoded
+              : (decoded is Map ? Map<String, dynamic>.from(decoded) : null);
+      if (data == null) {
+        return false;
+      }
+
+      await handleNotificationNavigation(navigatorKey, data);
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -473,7 +512,8 @@ class PushNotificationHandler {
 
     final priority = _dataString(data, 'priority')?.toLowerCase();
     final alertStyle = _dataString(data, 'alertStyle');
-    final attemptFullScreen = _dataString(data, 'attemptFullScreen')?.toLowerCase();
+    final attemptFullScreen =
+        _dataString(data, 'attemptFullScreen')?.toLowerCase();
     return priority == 'high' ||
         alertStyle == 'announcement_priority' ||
         attemptFullScreen == 'true';
@@ -488,10 +528,40 @@ class PushNotificationHandler {
 
     final priority = _dataString(data, 'priority')?.toLowerCase();
     final alertStyle = _dataString(data, 'alertStyle');
-    final attemptFullScreen = _dataString(data, 'attemptFullScreen')?.toLowerCase();
+    final attemptFullScreen =
+        _dataString(data, 'attemptFullScreen')?.toLowerCase();
     return priority == 'high' ||
         alertStyle == 'announcement_priority' ||
         attemptFullScreen == 'true';
+  }
+
+  static int _announcementLocalNotificationId(String announcementId) {
+    return announcementId.hashCode & 0x7FFFFFFF;
+  }
+
+  static Future<void> _cancelAnnouncementLocalNotification(
+    String announcementId,
+  ) async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return;
+    }
+
+    try {
+      final localNotifications = FlutterLocalNotificationsPlugin();
+      const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const iosInit = DarwinInitializationSettings(
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+      );
+      await localNotifications.initialize(
+        const InitializationSettings(android: androidInit, iOS: iosInit),
+      );
+      await localNotifications.cancel(
+        _announcementLocalNotificationId(announcementId),
+      );
+    } catch (_) {
+      // Non-blocking: opening announcement should continue even if cancel fails.
+    }
   }
 
   static void _pushAnnouncementPriorityAlert(
@@ -552,7 +622,9 @@ class PushNotificationHandler {
         message.notification?.body ??
         _dataString(data, 'body') ??
         'New barangay announcement.';
-    final localNotificationId = announcementId.hashCode & 0x7FFFFFFF;
+    final localNotificationId = _announcementLocalNotificationId(
+      announcementId,
+    );
 
     try {
       // Create Android notification details with full-screen intent
@@ -563,6 +635,9 @@ class PushNotificationHandler {
         importance: Importance.high,
         priority: Priority.high,
         fullScreenIntent: fullScreenIntent,
+        ongoing: true,
+        autoCancel: false,
+        onlyAlertOnce: true,
       );
 
       await localNotifications.show(
@@ -637,10 +712,10 @@ class PushNotificationHandler {
     if (payload.startsWith('product_approved:')) {
       final id = payload.substring('product_approved:'.length);
       if (id.isNotEmpty) {
-        await PushNotificationHandler.handleNotificationNavigation(navigatorKey, {
-          'type': 'product_approved',
-          'productId': id,
-        });
+        await PushNotificationHandler.handleNotificationNavigation(
+          navigatorKey,
+          {'type': 'product_approved', 'productId': id},
+        );
       }
       return;
     }
@@ -648,10 +723,10 @@ class PushNotificationHandler {
     if (payload.startsWith('task_approved:')) {
       final id = payload.substring('task_approved:'.length);
       if (id.isNotEmpty) {
-        await PushNotificationHandler.handleNotificationNavigation(navigatorKey, {
-          'type': 'task_approved',
-          'taskId': id,
-        });
+        await PushNotificationHandler.handleNotificationNavigation(
+          navigatorKey,
+          {'type': 'task_approved', 'taskId': id},
+        );
       }
       return;
     }
@@ -659,6 +734,7 @@ class PushNotificationHandler {
     if (payload.startsWith('announcement:')) {
       final id = payload.substring('announcement:'.length);
       if (id.isNotEmpty) {
+        await _cancelAnnouncementLocalNotification(id);
         PushNotificationHandler.handleNotificationNavigation(navigatorKey, {
           'type': 'announcement',
           'announcementId': id,
@@ -674,11 +750,10 @@ class PushNotificationHandler {
       final commentIdPart = parts.length >= 2 ? parts[1] : null;
       if (id.isNotEmpty) {
         if (commentIdPart != null && commentIdPart.isNotEmpty) {
-          await PushNotificationHandler.handleNotificationNavigation(navigatorKey, {
-            'type': 'comment',
-            'postId': id,
-            'commentId': commentIdPart,
-          });
+          await PushNotificationHandler.handleNotificationNavigation(
+            navigatorKey,
+            {'type': 'comment', 'postId': id, 'commentId': commentIdPart},
+          );
         } else {
           final context = navigatorKey.currentContext;
           if (context != null) {
@@ -716,8 +791,11 @@ class PushNotificationHandler {
 
     final type = message.data['type'] as String?;
     final rawNotificationId = message.data['notificationId']?.toString();
+    final announcementId = message.data['announcementId'] as String?;
     final localNotificationId =
-        (rawNotificationId != null &&
+        (announcementId != null && announcementId.isNotEmpty)
+            ? _announcementLocalNotificationId(announcementId)
+            : (rawNotificationId != null &&
                 rawNotificationId.isNotEmpty &&
                 rawNotificationId != 'null')
             ? rawNotificationId.hashCode & 0x7FFFFFFF
@@ -828,7 +906,6 @@ class PushNotificationHandler {
       return;
     }
 
-    final announcementId = message.data['announcementId'] as String?;
     final postId = message.data['postId'] as String?;
     final commentId = message.data['commentId'] as String?;
     String? payload;
@@ -902,6 +979,9 @@ class PushNotificationHandler {
           _channel.id,
           _channel.name,
           channelDescription: _channel.description,
+          ongoing: contentType == 'announcement',
+          autoCancel: contentType != 'announcement',
+          onlyAlertOnce: contentType == 'announcement',
         ),
         iOS: const DarwinNotificationDetails(),
       ),
@@ -937,10 +1017,7 @@ class PushNotificationHandler {
     final productId = message.data['productId'] as String?;
     final taskId = message.data['taskId'] as String?;
     if (announcementId != null && announcementId.isNotEmpty) {
-      if (_isPriorityAnnouncement(message)) {
-        _pushAnnouncementPriorityAlert(_navigatorKey, Map<String, dynamic>.from(message.data));
-        return;
-      }
+      unawaited(_cancelAnnouncementLocalNotification(announcementId));
       _pushAnnouncementDetail(announcementId);
       return;
     }
@@ -965,6 +1042,7 @@ class PushNotificationHandler {
   }
 
   void _pushAnnouncementDetail(String announcementId) {
+    unawaited(_cancelAnnouncementLocalNotification(announcementId));
     final context = _navigatorKey.currentContext;
     if (context == null) return;
     Navigator.of(context).push(
@@ -1126,10 +1204,7 @@ class PushNotificationHandler {
     }
 
     if (announcementId != null && announcementId.isNotEmpty) {
-      if (_isPriorityAnnouncementData(data)) {
-        _pushAnnouncementPriorityAlert(navigatorKey, data);
-        return;
-      }
+      await _cancelAnnouncementLocalNotification(announcementId);
       Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder:
@@ -1205,13 +1280,7 @@ class PushNotificationHandler {
     final productId = message.data['productId'] as String?;
     final taskId = message.data['taskId'] as String?;
     if (announcementId != null && announcementId.isNotEmpty) {
-      if (_isPriorityAnnouncementData(Map<String, dynamic>.from(message.data))) {
-        _pushAnnouncementPriorityAlert(
-          navigatorKey,
-          Map<String, dynamic>.from(message.data),
-        );
-        return;
-      }
+      await _cancelAnnouncementLocalNotification(announcementId);
       Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder:

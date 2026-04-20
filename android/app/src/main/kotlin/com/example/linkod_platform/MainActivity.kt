@@ -26,17 +26,20 @@ class MainActivity : FlutterActivity() {
 		private const val EXTRA_OVERLAY_PAYLOAD = "overlayAnnouncementPayload"
 		private var overlayView: View? = null
 		private var pendingOverlayPayload: String? = null
+		private var pendingLaunchPayload: String? = null
 	}
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
 		captureOverlayPayload(intent)
+		captureLaunchPayload(intent)
 	}
 
 	override fun onNewIntent(intent: Intent) {
 		super.onNewIntent(intent)
 		setIntent(intent)
 		captureOverlayPayload(intent)
+		captureLaunchPayload(intent)
 	}
 
 	override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -47,6 +50,11 @@ class MainActivity : FlutterActivity() {
 			"linkod.notification_capabilities",
 		).setMethodCallHandler { call, result ->
 			when (call.method) {
+				"getInitialLaunchPayload" -> {
+					val payload = pendingLaunchPayload
+					pendingLaunchPayload = null
+					result.success(payload)
+				}
 				"canUseFullScreenIntent" -> {
 					if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
 						val notificationManager = getSystemService(NotificationManager::class.java)
@@ -179,6 +187,23 @@ class MainActivity : FlutterActivity() {
 		if (!payload.isNullOrEmpty()) {
 			pendingOverlayPayload = payload
 			intent.removeExtra(EXTRA_OVERLAY_PAYLOAD)
+		}
+	}
+
+	private fun captureLaunchPayload(intent: Intent?) {
+		if (intent == null) return
+
+		val type = intent.getStringExtra("type")
+		val announcementId = intent.getStringExtra("announcementId")
+		if (type == "announcement" && !announcementId.isNullOrEmpty()) {
+			pendingLaunchPayload = JSONObject(
+				mapOf(
+					"type" to "announcement",
+					"announcementId" to announcementId,
+				),
+			).toString()
+			intent.removeExtra("type")
+			intent.removeExtra("announcementId")
 		}
 	}
 

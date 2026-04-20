@@ -43,10 +43,18 @@ Future<void> main() async {
 
   runApp(LinkodApp(navigatorKey: navigatorKey));
 
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    PushNotificationHandler.handleInitialMessage(navigatorKey);
-    PushNotificationHandler.handleInitialLocalNotificationLaunch(navigatorKey);
-    PushNotificationHandler.handleInitialOverlayLaunch(navigatorKey);
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    final handledNativeLaunch =
+        await PushNotificationHandler.handleInitialNativeLaunch(navigatorKey);
+    if (handledNativeLaunch) {
+      return;
+    }
+
+    await PushNotificationHandler.handleInitialMessage(navigatorKey);
+    await PushNotificationHandler.handleInitialLocalNotificationLaunch(
+      navigatorKey,
+    );
+    await PushNotificationHandler.handleInitialOverlayLaunch(navigatorKey);
   });
 }
 
